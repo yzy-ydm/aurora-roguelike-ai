@@ -17,6 +17,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# 导入数据库连接模块
+from app.database.connection import check_database_connection
+
 # 创建FastAPI应用实例
 app = FastAPI(
     title="Roguelike游戏系统API",
@@ -55,18 +58,36 @@ async def root():
 @app.get("/health", tags=["系统"])
 async def health_check():
     """
-    健康检查接口
+    健康检查接口 - 包含数据库连接测试
 
-    用于监控系统运行状态
+    测试数据库连接是否正常，并返回系统状态信息。
 
     Returns:
-        dict: 系统健康状态
+        dict: 包含系统状态和数据库连接信息
+            - status: 系统状态 ("ok" 或 "error")
+            - database: 数据库连接状态
+            - database_info: 数据库详细信息（连接成功时）
     """
-    return {
-        "code": 200,
-        "status": "healthy",
-        "service": "roguelike-game-api"
+    # 检查数据库连接
+    db_status = check_database_connection()
+
+    # 构建响应
+    response = {
+        "status": "ok" if db_status["status"] == "connected" else "error",
+        "database": db_status["status"]
     }
+
+    # 连接成功时添加数据库信息
+    if db_status["status"] == "connected":
+        response["database_info"] = {
+            "name": db_status["database"],
+            "version": db_status["version"]
+        }
+    else:
+        # 连接失败时添加错误信息
+        response["error"] = db_status.get("error", "未知错误")
+
+    return response
 
 
 # ============================================================
