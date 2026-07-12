@@ -1,0 +1,216 @@
+# ===========================================
+# 基于云端AI动态内容生成的Roguelike游戏系统
+# Git忽略规则配置
+# ===========================================
+
+# ==================== 系统文件 ====================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ==================== 编辑器/IDE ====================
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains (PyCharm, IntelliJ)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.#*
+
+# ==================== Python服务端 ====================
+# 虚拟环境
+server/venv/
+server/.venv/
+server/env/
+server/.env/
+
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# 类型检查
+.mypy_cache/
+.pytype/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 环境变量（包含敏感信息）
+.env
+*.env
+.env.local
+.env.production
+
+# 日志文件
+*.log
+logs/
+
+# ==================== Godot客户端 ====================
+# Godot缓存目录
+client/.godot/
+
+# Godot导入缓存
+client/.import/
+
+# Godot导出模板
+client/export_presets.cfg
+
+# Godot临时文件
+*.translation
+
+# ==================== 数据库 ====================
+# MySQL数据文件
+*.MYD
+*.MYI
+*.frm
+*.ibd
+*.ib_logfile*
+
+# 数据库备份
+*.sql.bak
+*.sql.gz
+database/backups/
+
+# ==================== 依赖和构建 ====================
+# Node.js（如果使用）
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 虚拟环境（通用）
+venv/
+.venv/
+env/
+.env/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# ==================== 配置文件 ====================
+# 本地配置
+config.local.*
+*.local
+
+# 密钥文件
+*.pem
+*.key
+*.crt
+
+# ==================== 临时文件 ====================
+# 临时目录
+tmp/
+temp/
+.tmp/
+
+# 编译产物
+*.o
+*.obj
+*.class
+
+# 压缩文件（如果不需要版本控制）
+# *.zip
+# *.tar.gz
+# *.rar
+
+# ==================== 测试和覆盖率 ====================
+# 测试报告
+test-results/
+coverage/
+htmlcov/
+.coverage
+coverage.xml
+
+# ==================== 文档构建 ====================
+# Sphinx文档
+docs/_build/
+
+# MkDocs
+site/
+
+# ==================== 其他 ====================
+# 项目特定忽略
+*.bak
+*.backup
+*.orig
+
+# 协作文件冲突
+*.conflict
+
+# 临时调试文件
+debug_*.py
+test_*.py
+!server/tests/
+
+# 本地开发配置
+local_config.py
+local_settings.py
+
+# ==================== 保留文件（不忽略） ====================
+# 确保某些文件不被忽略
+!.gitignore
+!README.md
+!docs/
+!LICENSE

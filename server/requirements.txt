@@ -1,0 +1,71 @@
+# ==================================================
+# 基于云端AI动态内容生成的Roguelike游戏系统
+# Python依赖包列表
+# ==================================================
+#
+# 安装命令：
+#   pip install -r requirements.txt
+#
+# 建议使用虚拟环境：
+#   python -m venv venv
+#   venv\Scripts\activate (Windows)
+#   source venv/bin/activate (Linux/Mac)
+# ==================================================
+
+# ==================== Web框架 ====================
+# FastAPI - 现代、高性能的Web框架
+fastapi==0.109.0
+
+# Uvicorn - ASGI服务器，用于运行FastAPI
+uvicorn[standard]==0.27.0
+
+# ==================== 数据验证 ====================
+# Pydantic - 数据验证和序列化（FastAPI依赖）
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# ==================== 数据库 ====================
+# SQLAlchemy - ORM框架
+sqlalchemy==2.0.25
+
+# PyMySQL - MySQL数据库驱动
+pymysql==1.1.0
+
+# Alembic - 数据库迁移工具
+alembic==1.13.1
+
+# ==================== 认证和安全 ====================
+# python-jose - JWT令牌处理
+python-jose[cryptography]==3.3.0
+
+# passlib - 密码哈希
+passlib[bcrypt]==1.7.4
+
+# python-multipart - 表单数据处理（文件上传等）
+python-multipart==0.0.6
+
+# ==================== HTTP客户端 ====================
+# httpx - 异步HTTP客户端（用于调用AI API）
+httpx==0.26.0
+
+# ==================== 环境配置 ====================
+# python-dotenv - 加载.env环境变量
+python-dotenv==1.0.0
+
+# ==================== 工具库 ====================
+# email-validator - 邮箱验证
+email-validator==2.1.0
+
+# ==================== 开发和测试（可选） ====================
+# pytest - 测试框架
+# pytest==7.4.4
+# pytest-asyncio==0.23.3
+
+# black - 代码格式化
+# black==24.1.0
+
+# isort - import排序
+# isort==5.13.2
+
+# flake8 - 代码检查
+# flake8==7.0.0
