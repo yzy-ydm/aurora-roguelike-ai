@@ -32,6 +32,9 @@ from app.schemas.save import (
 from app.schemas.map import (
     MapResponse
 )
+from app.schemas.event import (
+    EventResponse
+)
 
 __all__ = [
     "UserRegister",
@@ -49,5 +52,6 @@ __all__ = [
     "SaveCreate",
     "SaveUpdate",
     "SaveResponse",
-    "MapResponse"
+    "MapResponse",
+    "EventResponse"
 ]

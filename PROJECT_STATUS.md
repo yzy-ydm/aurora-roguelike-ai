@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.6.2 已完成**（地图资源接口） → 准备进入 **Phase 4.6.3 事件数据接口**
+**Phase 4.6.3 已完成**（事件资源接口） → Phase 4.6 游戏数据接口阶段全部完成
 
 ---
 
@@ -27,13 +27,14 @@
 | Phase 4.5 | 怪物系统 | ✅ 完成 | 100% |
 | Phase 4.6.1 | 游戏存档系统 | ✅ 完成 | 100% |
 | Phase 4.6.2 | 地图资源接口 | ✅ 完成 | 100% |
+| Phase 4.6.3 | 事件资源接口 | ✅ 完成 | 100% |
 | Phase 5 | Godot客户端 | ⬜ 待开发 | 0% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 50%**
+**总体进度：约 55%**
 
 ---
 
@@ -186,6 +187,20 @@
 - [x] MapService业务逻辑
 - [x] 地图列表/详情查询（只读接口）
 
+### 11. 事件资源接口 ✅
+
+**已实现接口：**
+
+| 接口 | 方法 | 功能 | 状态 |
+|------|------|------|------|
+| /api/events | GET | 事件列表 | ✅ 测试通过 |
+| /api/events/{id} | GET | 事件详情 | ✅ 测试通过 |
+
+**技术实现：**
+- [x] Event ORM模型（映射events表）
+- [x] EventService业务逻辑
+- [x] 事件列表/详情查询（只读接口）
+
 ---
 
 ## 当前技术状态
@@ -226,6 +241,8 @@ server/app/
 | /api/game/save/{slot} | PUT | 更新存档 | JWT |
 | /api/maps | GET | 地图列表 | 否 |
 | /api/maps/{id} | GET | 地图详情 | 否 |
+| /api/events | GET | 事件列表 | 否 |
+| /api/events/{id} | GET | 事件详情 | 否 |
 
 ---
 
@@ -237,12 +254,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 4.6.3：事件数据接口**
+**Phase 5：Godot客户端开发**
 
 需要实现：
-1. events 模型
-2. 事件列表查询接口
-3. 事件详情查询接口
+1. Godot项目初始化
+2. 登录/注册界面
+3. HTTP请求模块
+4. 游戏主场景
 
 ---
 
@@ -250,7 +268,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(map): implement map resource api |
+| (待提交) | feat(event): implement event resource api |
+| 3b3edab | feat(map): implement map resource api |
 | ef901de | feat(save): implement game save system |
 | dfd633f | feat(monster): implement monster system |
 | 7a0621a | feat(weapon): implement weapon system |

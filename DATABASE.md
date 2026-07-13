@@ -26,7 +26,7 @@
 | 2 | player_profiles | 玩家角色信息表 | ✅ 已使用 |
 | 3 | weapons | 武器数据表 | ✅ 已使用 |
 | 4 | monsters | 怪物数据表 | ✅ 已使用 |
-| 5 | events | 随机事件表 | ⬜ 待使用 |
+| 5 | events | 随机事件表 | ✅ 已使用 |
 | 6 | maps | 地图数据表 | ✅ 已使用 |
 | 7 | game_saves | 游戏存档表 | ✅ 已使用 |
 | 8 | ai_generations | AI生成记录表 | ⬜ 待使用 |
@@ -193,7 +193,7 @@
 **枚举值:**
 - event_type: treasure, trap, merchant, npc, mystery, rest, combat
 
-**当前状态:** 待使用
+**当前状态:** 已使用，Phase 4.6.3 事件资源接口已实现
 
 ---
 

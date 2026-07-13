@@ -11,7 +11,30 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.6.3 事件数据接口
+- Phase 5 Godot客户端开发
+
+---
+
+## [0.10.0] - 2026-07-13
+
+### Added - 事件资源接口 (Phase 4.6.3)
+
+**Git Commit:** 待提交
+
+- 新增事件ORM模型 `app/models/event.py`
+  - Event类映射events表
+  - 包含事件属性：name, event_type, description, trigger_rate等
+  - 包含选项数据：option1_text, option1_effect, option2_text, option2_effect（JSON）
+- 新增事件Schema `app/schemas/event.py`
+  - EventResponse: 事件信息响应（字段映射：type→event_type）
+- 新增事件服务 `app/services/event_service.py`
+  - get_all_events(): 获取所有事件列表
+  - get_event_by_id(): 获取事件详情
+- 新增事件API路由 `app/api/event/router.py`
+  - GET /api/events: 事件列表（公开接口）
+  - GET /api/events/{event_id}: 事件详情（公开接口）
+- 更新main.py注册事件路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.6.2 已完成，准备进入 Phase 4.6.3
+## 当前阶段：Phase 4.6.3 已完成，Phase 4.6 全部完成
 
 ---
 
@@ -126,7 +126,12 @@
 - [x] 地图路由（app/api/map/router.py）
 - [x] 地图列表接口（GET /api/maps）
 - [x] 地图详情接口（GET /api/maps/{id}）
-- [ ] events 模型和接口
+- [x] events 模型（app/models/event.py）
+- [x] 事件Schema（app/schemas/event.py）
+- [x] 事件服务（app/services/event_service.py）
+- [x] 事件路由（app/api/event/router.py）
+- [x] 事件列表接口（GET /api/events）
+- [x] 事件详情接口（GET /api/events/{id}）
 
 ### Phase 5：Godot客户端
 - [ ] Godot项目初始化

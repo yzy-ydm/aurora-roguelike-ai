@@ -10,6 +10,7 @@ from app.services.weapon_service import WeaponService
 from app.services.monster_service import MonsterService
 from app.services.save_service import SaveService
 from app.services.map_service import MapService
+from app.services.event_service import EventService
 
 __all__ = [
     "AuthService",
@@ -17,5 +18,6 @@ __all__ = [
     "WeaponService",
     "MonsterService",
     "SaveService",
-    "MapService"
+    "MapService",
+    "EventService"
 ]

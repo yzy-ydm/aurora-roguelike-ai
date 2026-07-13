@@ -106,6 +106,8 @@ from app.api.monster.router import router as monster_router
 from app.api.save.router import router as save_router
 # 导入地图路由
 from app.api.map.router import router as map_router
+# 导入事件路由
+from app.api.event.router import router as event_router
 
 # 注册路由
 app.include_router(auth_router)    # 认证接口: /api/auth/*
@@ -114,6 +116,7 @@ app.include_router(weapon_router)  # 武器接口: /api/weapons/*, /api/player/w
 app.include_router(monster_router) # 怪物接口: /api/monsters/*
 app.include_router(save_router)    # 游戏存档接口: /api/game/save/*
 app.include_router(map_router)     # 地图接口: /api/maps/*
+app.include_router(event_router)   # 事件接口: /api/events/*
 
 
 # 启动入口
