@@ -1,7 +1,7 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 加载玩家数据并更新HUD显示
+## 加载玩家数据和游戏资源
 
 extends Node2D
 
@@ -18,8 +18,15 @@ func _ready() -> void:
 	ApiClient.request_completed.connect(_on_api_success)
 	ApiClient.request_failed.connect(_on_api_error)
 
+	# 连接资源服务信号
+	ResourceService.all_resources_loaded.connect(_on_resources_loaded)
+	ResourceService.resource_load_error.connect(_on_resource_error)
+
 	# 加载玩家数据
 	_load_player_data()
+
+	# 开始加载游戏资源
+	_load_game_resources()
 
 
 ## 加载玩家数据
@@ -28,13 +35,38 @@ func _load_player_data() -> void:
 	ApiClient.get_request(APIConfig.PLAYER_PROFILE, true)
 
 
+## 加载游戏资源
+func _load_game_resources() -> void:
+	ResourceService.load_all_resources()
+
+
+## 资源加载完成回调
+func _on_resources_loaded() -> void:
+	_update_resource_display()
+	hud.set_status("资源加载完成 - 使用WASD或方向键移动")
+
+
+## 资源加载失败回调
+func _on_resource_error(error: String) -> void:
+	hud.set_status("资源加载失败: " + error)
+
+
+## 更新资源显示
+func _update_resource_display() -> void:
+	hud.update_resource_counts(
+		ResourceService.get_weapon_count(),
+		ResourceService.get_monster_count(),
+		ResourceService.get_map_count(),
+		ResourceService.get_event_count()
+	)
+
+
 ## API请求成功回调
 func _on_api_success(result: Dictionary) -> void:
 	if result.has("nickname"):
 		_player_data = result
 		_update_game_display()
-	else:
-		hud.set_status("未知响应格式")
+	# 注意：数组类型的响应由ResourceService处理
 
 
 ## 更新游戏显示
@@ -44,8 +76,6 @@ func _update_game_display() -> void:
 
 	# 更新玩家节点
 	player.set_player_data(_player_data)
-
-	hud.set_status("游戏加载完成 - 使用WASD或方向键移动")
 
 
 ## API请求失败回调

@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.3 已完成，准备进入 Phase 5.4
+## 当前阶段：Phase 5.4 已完成，准备进入 Phase 5.5
 
 ---
 
@@ -154,6 +154,12 @@
 - [x] 玩家移动控制（CharacterBody2D + move_and_slide）
 - [x] 摄像机跟随（Camera2D作为Player子节点）
 - [x] 基础碰撞检测（测试边界碰撞墙）
+- [x] 武器数据模型（client/scripts/models/weapon_data.gd）
+- [x] 怪物数据模型（client/scripts/models/monster_data.gd）
+- [x] 地图数据模型（client/scripts/models/map_data.gd）
+- [x] 事件数据模型（client/scripts/models/event_data.gd）
+- [x] 资源加载服务（client/scripts/services/resource_service.gd）
+- [x] HUD资源统计显示
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

@@ -23,6 +23,7 @@ TokenManager="*res://scripts/api/token_manager.gd"
 ApiClient="*res://scripts/api/api_client.gd"
 SceneManager="*res://scripts/managers/scene_manager.gd"
 ResourceManager="*res://scripts/managers/resource_manager.gd"
+ResourceService="*res://scripts/services/resource_service.gd"
 
 [display]
 

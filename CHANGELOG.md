@@ -11,7 +11,42 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.4 武器显示与资源加载
+- Phase 5.5 基础游戏资源展示与交互
+
+---
+
+## [0.14.0] - 2026-07-13
+
+### Added - 游戏资源加载系统 (Phase 5.4)
+
+**Git Commit:** 待提交
+
+- 新增武器数据模型 `client/scripts/models/weapon_data.gd`
+  - WeaponData类，解析武器JSON数据
+  - from_dict/from_array静态方法
+- 新增怪物数据模型 `client/scripts/models/monster_data.gd`
+  - MonsterData类，解析怪物JSON数据
+  - from_dict/from_array静态方法
+- 新增地图数据模型 `client/scripts/models/map_data.gd`
+  - MapData类，解析地图JSON数据
+  - from_dict/from_array静态方法
+- 新增事件数据模型 `client/scripts/models/event_data.gd`
+  - EventData类，解析事件JSON数据
+  - from_dict/from_array静态方法
+- 新增资源加载服务 `client/scripts/services/resource_service.gd`
+  - ResourceService单例，负责API资源请求和缓存
+  - load_all_resources()加载所有游戏资源
+  - get_weapons/get_monsters/get_maps/get_events获取资源
+  - get_*_by_id按ID查询资源
+- 更新HUD场景 `client/scenes/game/hud.tscn`
+  - 添加资源统计面板（武器/怪物/地图/事件数量）
+- 更新HUD控制器 `client/scripts/ui/hud_controller.gd`
+  - 添加update_resource_counts方法
+- 更新游戏场景 `client/scenes/game/game_scene.gd`
+  - 集成ResourceService资源加载
+  - 资源加载完成后更新HUD显示
+- 更新项目配置 `client/project.godot`
+  - 添加ResourceService全局单例
 
 ---
 

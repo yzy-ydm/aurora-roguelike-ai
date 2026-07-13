@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.3 已完成**（玩家基础控制） → 准备进入 **Phase 5.4 武器显示与资源加载**
+**Phase 5.4 已完成**（游戏资源加载系统） → 准备进入 **Phase 5.5 基础游戏资源展示**
 
 ---
 
@@ -31,12 +31,13 @@
 | Phase 5.1 | Godot客户端基础框架 | ✅ 完成 | 100% |
 | Phase 5.2 | 基础游戏场景 | ✅ 完成 | 100% |
 | Phase 5.3 | 玩家基础控制 | ✅ 完成 | 100% |
+| Phase 5.4 | 游戏资源加载系统 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 70%**
+**总体进度：约 75%**
 
 ---
 
@@ -261,6 +262,26 @@
 - [x] Camera2D跟随玩家
 - [x] 基础碰撞检测（边界碰撞墙）
 
+### 15. 游戏资源加载系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 武器数据模型 | client/scripts/models/weapon_data.gd | 武器数据解析 |
+| 怪物数据模型 | client/scripts/models/monster_data.gd | 怪物数据解析 |
+| 地图数据模型 | client/scripts/models/map_data.gd | 地图数据解析 |
+| 事件数据模型 | client/scripts/models/event_data.gd | 事件数据解析 |
+| 资源加载服务 | client/scripts/services/resource_service.gd | API资源加载和缓存 |
+| HUD资源显示 | client/scripts/ui/hud_controller.gd | 资源统计显示 |
+
+**技术实现：**
+- [x] 资源数据模型（WeaponData, MonsterData, MapData, EventData）
+- [x] 资源加载服务（ResourceService单例）
+- [x] API资源请求和JSON解析
+- [x] 资源数据缓存
+- [x] HUD资源统计显示
+
 ---
 
 ## 当前技术状态
@@ -314,13 +335,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.4：武器显示与资源加载**
+**Phase 5.5：基础游戏资源展示与交互**
 
 需要实现：
-1. 武器资源加载
-2. 玩家武器显示
-3. 资源预加载系统
-4. 基础动画框架
+1. 武器列表展示
+2. 怪物信息展示
+3. 地图信息展示
+4. 事件信息展示
 
 ---
 
@@ -328,7 +349,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(player): implement basic player controller |
+| (待提交) | feat(client): implement resource loading system |
+| 7621303 | feat(player): implement basic player controller |
 | 51d640f | feat(client): implement basic game scene framework |
 | 808bf19 | feat(godot): initialize client framework |
 | c0b903c | feat(event): implement event resource api |

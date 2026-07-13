@@ -48,6 +48,40 @@ layout_mode = 2
 layout_mode = 2
 text = "金币: 0"
 
+[node name="ResourcePanel" type="PanelContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -200.0
+offset_top = 60.0
+offset_bottom = 180.0
+grow_horizontal = 0
+
+[node name="ResourceInfo" type="VBoxContainer" parent="ResourcePanel"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TitleLabel" type="Label" parent="ResourcePanel/ResourceInfo"]
+layout_mode = 2
+text = "已加载资源"
+horizontal_alignment = 1
+
+[node name="WeaponCount" type="Label" parent="ResourcePanel/ResourceInfo"]
+layout_mode = 2
+text = "武器: 0"
+
+[node name="MonsterCount" type="Label" parent="ResourcePanel/ResourceInfo"]
+layout_mode = 2
+text = "怪物: 0"
+
+[node name="MapCount" type="Label" parent="ResourcePanel/ResourceInfo"]
+layout_mode = 2
+text = "地图: 0"
+
+[node name="EventCount" type="Label" parent="ResourcePanel/ResourceInfo"]
+layout_mode = 2
+text = "事件: 0"
+
 [node name="StatusPanel" type="PanelContainer" parent="."]
 anchors_preset = 12
 anchor_top = 1.0

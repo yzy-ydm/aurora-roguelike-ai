@@ -1,7 +1,7 @@
 ## HUD控制器脚本
 ##
 ## 负责显示游戏内HUD信息
-## 包括：玩家昵称、等级、生命值、金币
+## 包括：玩家昵称、等级、生命值、金币、资源统计
 
 extends CanvasLayer
 
@@ -11,6 +11,10 @@ extends CanvasLayer
 @onready var health_label: Label = $TopBar/StatsContainer/HealthBar/HealthLabel
 @onready var health_progress: ProgressBar = $TopBar/StatsContainer/HealthBar/HealthProgress
 @onready var gold_label: Label = $TopBar/GoldContainer/GoldLabel
+@onready var weapon_count: Label = $ResourcePanel/ResourceInfo/WeaponCount
+@onready var monster_count: Label = $ResourcePanel/ResourceInfo/MonsterCount
+@onready var map_count: Label = $ResourcePanel/ResourceInfo/MapCount
+@onready var event_count: Label = $ResourcePanel/ResourceInfo/EventCount
 @onready var status_label: Label = $StatusPanel/StatusLabel
 
 ## 玩家数据缓存
@@ -54,6 +58,14 @@ func _update_display() -> void:
 	gold_label.text = "金币: " + str(gold)
 
 
+## 更新资源统计显示
+func update_resource_counts(weapons: int, monsters: int, maps: int, events: int) -> void:
+	weapon_count.text = "武器: " + str(weapons)
+	monster_count.text = "怪物: " + str(monsters)
+	map_count.text = "地图: " + str(maps)
+	event_count.text = "事件: " + str(events)
+
+
 ## 清除显示
 func _clear_display() -> void:
 	nickname_label.text = "玩家: 加载中..."
@@ -61,6 +73,10 @@ func _clear_display() -> void:
 	health_label.text = "生命值: -/-"
 	health_progress.value = 0
 	gold_label.text = "金币: -"
+	weapon_count.text = "武器: 加载中..."
+	monster_count.text = "怪物: 加载中..."
+	map_count.text = "地图: 加载中..."
+	event_count.text = "事件: 加载中..."
 
 
 ## 设置状态文本
