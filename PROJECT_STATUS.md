@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.9 已完成**（游戏实体基础框架） → 准备进入 **Phase 5.10 基础游戏对象交互框架准备**
+**Phase 5.10 已完成**（基础游戏对象交互框架） → 准备进入 **Phase 5.11 基础玩法对象接入准备**
 
 ---
 
@@ -37,6 +37,7 @@
 | Phase 5.7 | 基础游戏交互系统 | ✅ 完成 | 100% |
 | Phase 5.8 | 基础游戏世界构建 | ✅ 完成 | 100% |
 | Phase 5.9 | 游戏实体基础框架 | ✅ 完成 | 100% |
+| Phase 5.10 | 基础游戏对象交互框架 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
@@ -383,6 +384,26 @@
 - [x] 实体唯一ID系统（自动生成）
 - [x] 实体位置管理（与Node2D兼容）
 
+### 21. 基础游戏对象交互框架 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 交互对象基础类 | client/scripts/interaction/interactive_object.gd | InteractiveObject定义 |
+| 交互管理器 | client/scripts/interaction/interaction_manager.gd | 交互对象管理 |
+| 交互检测器 | client/scripts/interaction/interaction_detector.gd | Area2D范围检测 |
+| 交互提示UI | client/scripts/ui/interaction_hint.gd | 交互提示显示 |
+| 交互提示场景 | client/scenes/ui/interaction_hint.tscn | 交互提示UI |
+
+**技术实现：**
+- [x] InteractiveObject基础类（交互类型、状态、提示）
+- [x] InteractionManager（注册、查询、事件分发）
+- [x] InteractionDetector（Area2D范围检测）
+- [x] InteractionHint UI（交互提示显示）
+- [x] E键交互输入配置
+- [x] 游戏场景集成交互系统
+
 ---
 
 ## 当前技术状态
@@ -436,13 +457,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.10：基础游戏对象交互框架准备**
+**Phase 5.11：基础玩法对象接入准备**
 
 需要实现：
-1. 实体交互系统
-2. 碰撞检测集成
-3. 事件触发框架
-4. 游戏对象管理
+1. 玩家与世界交互
+2. 房间对象管理
+3. 基础事件触发
+4. 游戏对象生命周期
 
 ---
 
@@ -450,7 +471,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement entity framework |
+| (待提交) | feat(client): implement interaction framework |
+| 06f50e4 | feat(client): implement entity framework |
 | 705cbb1 | feat(client): implement basic game world framework |
 | a386857 | feat(client): implement basic game interaction system |
 | 0e0ed0e | feat(client): implement game loop system |

@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.9 已完成，准备进入 Phase 5.10
+## 当前阶段：Phase 5.10 已完成，准备进入 Phase 5.11
 
 ---
 
@@ -194,6 +194,12 @@
 - [x] PlayerEntity（client/scripts/entity/player_entity.gd）
 - [x] 实体唯一ID系统
 - [x] 实体位置管理
+- [x] InteractiveObject基础类（client/scripts/interaction/interactive_object.gd）
+- [x] InteractionManager（client/scripts/interaction/interaction_manager.gd）
+- [x] InteractionDetector（client/scripts/interaction/interaction_detector.gd）
+- [x] InteractionHint UI（client/scripts/ui/interaction_hint.gd）
+- [x] E键交互输入配置
+- [x] 游戏场景集成交互系统
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

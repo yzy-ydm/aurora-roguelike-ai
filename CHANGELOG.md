@@ -11,7 +11,51 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.10 基础游戏对象交互框架准备
+- Phase 5.11 基础玩法对象接入准备
+
+---
+
+## [0.20.0] - 2026-07-13
+
+### Added - 基础游戏对象交互框架 (Phase 5.10)
+
+**Git Commit:** 待提交
+
+- 新增交互对象基础类 `client/scripts/interaction/interactive_object.gd`
+  - InteractiveObject类，所有可交互对象的基类
+  - InteractionType枚举（NONE, PICKUP, USE, TALK, EXAMINE, ENTER, CUSTOM）
+  - InteractionState枚举（IDLE, IN_RANGE, INTERACTING, COOLDOWN, DISABLED）
+  - 交互提示文本
+  - 冷却时间机制
+- 新增交互管理器 `client/scripts/interaction/interaction_manager.gd`
+  - InteractionManager，管理所有可交互对象
+  - register_object()注册交互对象
+  - unregister_object()注销交互对象
+  - object_enter_range()对象进入范围
+  - object_exit_range()对象离开范围
+  - trigger_interaction()触发交互
+  - 最近对象追踪
+  - 信号机制（object_registered, interaction_triggered, nearest_object_changed）
+- 新增交互检测器 `client/scripts/interaction/interaction_detector.gd`
+  - InteractionDetector，使用Area2D检测交互范围
+  - body_entered/body_exited信号处理
+  - area_entered/area_exited信号处理
+  - 可配置检测范围
+- 新增交互提示UI `client/scripts/ui/interaction_hint.gd`
+  - InteractionHint，显示交互提示
+  - show_hint()显示提示
+  - hide_hint()隐藏提示
+- 新增交互提示场景 `client/scenes/ui/interaction_hint.tscn`
+- 更新项目配置 `client/project.godot`
+  - 添加interaction输入动作（E键）
+- 更新游戏场景 `client/scenes/game/game_scene.tscn`
+  - 添加InteractionManager节点
+  - 添加InteractionDetector到Player节点
+  - 添加InteractionHint UI节点
+- 更新游戏场景脚本 `client/scenes/game/game_scene.gd`
+  - 集成InteractionManager和InteractionDetector
+  - E键触发交互
+  - 交互提示显示/隐藏
 
 ---
 

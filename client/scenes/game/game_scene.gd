@@ -1,14 +1,17 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 集成世界系统、暂停菜单、设置、存档选择功能
+## 集成世界系统、交互系统、暂停菜单、设置、存档选择功能
 
 extends Node2D
 
 ## 节点引用
 @onready var player: CharacterBody2D = $GameWorld/Player
 @onready var world: Node2D = $GameWorld/World
+@onready var interaction_detector: Area2D = $GameWorld/Player/InteractionDetector
+@onready var interaction_manager: Node = $InteractionManager
 @onready var hud: CanvasLayer = $UI/HUD
+@onready var interaction_hint: CanvasLayer = $UI/InteractionHint
 @onready var resource_button: Button = $UI/MenuPanel/MenuButtons/ResourceButton
 @onready var logout_button: Button = $UI/MenuPanel/MenuButtons/LogoutButton
 @onready var pause_menu: CanvasLayer = $PauseMenu
@@ -44,6 +47,13 @@ func _ready() -> void:
 	# 连接存档选择信号
 	save_selection.save_selected.connect(_on_save_selected)
 	save_selection.save_selection_closed.connect(_on_save_selection_closed)
+
+	# 连接交互管理器信号
+	interaction_manager.nearest_object_changed.connect(_on_nearest_object_changed)
+	interaction_manager.interaction_triggered.connect(_on_interaction_triggered)
+
+	# 设置交互检测器
+	interaction_detector.set_interaction_manager(interaction_manager)
 
 	# 从GameStateManager获取玩家数据
 	_player_data = GameStateManager.get_player_data()
@@ -94,6 +104,8 @@ func _init_world_system() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_toggle_pause()
+	elif event.is_action_pressed("interaction"):
+		_try_interact()
 
 
 ## 每帧处理
@@ -129,6 +141,15 @@ func _resume_game() -> void:
 	hud.set_status("游戏进行中")
 
 
+## 尝试交互
+func _try_interact() -> void:
+	if _is_paused:
+		return
+
+	if interaction_manager.has_interactable():
+		interaction_manager.trigger_interaction()
+
+
 ## 更新资源显示
 func _update_resource_display() -> void:
 	hud.update_resource_counts(
@@ -161,6 +182,23 @@ func _on_world_load_error(error: String) -> void:
 ## 房间切换
 func _on_room_changed(room_data: RoomData) -> void:
 	hud.set_status("当前房间: " + room_data.room_name + " (" + room_data.room_type + ")")
+
+
+## 最近交互对象变化
+func _on_nearest_object_changed(obj: Variant) -> void:
+	if obj and obj is InteractiveObject:
+		interaction_hint.show_hint(obj.interaction_hint)
+	else:
+		interaction_hint.hide_hint()
+
+
+## 交互触发
+func _on_interaction_triggered(object_id: int) -> void:
+	var obj = interaction_manager.get_object(object_id)
+	if obj:
+		hud.set_status("交互: " + obj.object_name)
+		# 完成交互
+		interaction_manager.complete_interaction(object_id)
 
 
 ## 暂停菜单：继续游戏
