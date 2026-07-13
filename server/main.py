@@ -102,12 +102,15 @@ from app.api.player.router import router as player_router
 from app.api.weapon.router import router as weapon_router
 # 导入怪物路由
 from app.api.monster.router import router as monster_router
+# 导入游戏存档路由
+from app.api.save.router import router as save_router
 
 # 注册路由
 app.include_router(auth_router)    # 认证接口: /api/auth/*
 app.include_router(player_router)  # 玩家角色接口: /api/player/*
 app.include_router(weapon_router)  # 武器接口: /api/weapons/*, /api/player/weapons
 app.include_router(monster_router) # 怪物接口: /api/monsters/*
+app.include_router(save_router)    # 游戏存档接口: /api/game/save/*
 
 
 # 启动入口

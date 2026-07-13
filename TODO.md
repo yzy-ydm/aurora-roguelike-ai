@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.5 已完成，准备进入 Phase 4.6
+## 当前阶段：Phase 4.6.1 已完成，准备进入 Phase 4.6.2
 
 ---
 
@@ -112,7 +112,14 @@
 - [x] 怪物详情接口（GET /api/monsters/{id}）
 
 ### Phase 4.6：游戏数据接口
-- [ ] game_saves 模型和接口
+- [x] game_saves 模型（app/models/game_save.py）
+- [x] 存档Schema（app/schemas/save.py）
+- [x] 存档服务（app/services/save_service.py）
+- [x] 存档路由（app/api/save/router.py）
+- [x] 创建存档接口（POST /api/game/save）
+- [x] 查询所有存档接口（GET /api/game/save）
+- [x] 查询指定存档接口（GET /api/game/save/{slot}）
+- [x] 更新存档接口（PUT /api/game/save/{slot}）
 - [ ] maps 模型和接口
 - [ ] events 模型和接口
 

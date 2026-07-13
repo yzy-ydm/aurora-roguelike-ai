@@ -15,6 +15,7 @@
 | 玩家接口 | 3 | ✅ 已完成 |
 | 武器接口 | 4 | ✅ 已完成 |
 | 怪物接口 | 2 | ✅ 已完成 |
+| 存档接口 | 4 | ✅ 已完成 |
 
 **Base URL:** `http://localhost:8000`
 
@@ -612,6 +613,231 @@
 **状态码:**
 - 200: 成功
 - 404: 怪物不存在
+
+---
+
+## 游戏存档接口
+
+### 14. 创建游戏存档
+
+**接口:** `POST /api/game/save`
+
+**功能:** 为当前登录用户创建游戏存档
+
+**认证:** 需要JWT Token
+
+**请求参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| save_name | string | 是 | 存档名称（1-100字符） |
+| slot_number | int | 是 | 存档槽位（1-3） |
+| player_state | object | 是 | 玩家状态数据（JSON） |
+
+**请求示例:**
+```json
+{
+    "save_name": "第一次冒险",
+    "slot_number": 1,
+    "player_state": {
+        "health": 100,
+        "max_health": 100,
+        "attack": 10,
+        "defense": 5,
+        "level": 1,
+        "experience": 0,
+        "gold": 0
+    }
+}
+```
+
+**响应示例:**
+
+成功（201）：
+```json
+{
+    "id": 1,
+    "user_id": 1,
+    "save_name": "第一次冒险",
+    "current_floor": 1,
+    "player_state": {...},
+    "inventory_data": null,
+    "current_map_data": null,
+    "explored_maps": null,
+    "play_time": 0,
+    "kill_count": 0,
+    "gold_collected": 0,
+    "slot_number": 1,
+    "is_active": 1,
+    "created_at": "2026-07-13T00:00:00",
+    "updated_at": "2026-07-13T00:00:00"
+}
+```
+
+失败（409）：
+```json
+{
+    "detail": "槽位1已有存档"
+}
+```
+
+**状态码:**
+- 201: 创建成功
+- 401: 未认证或Token无效
+- 409: 该槽位已有存档
+- 422: 请求数据验证失败
+
+---
+
+### 15. 查询用户所有存档
+
+**接口:** `GET /api/game/save`
+
+**功能:** 获取当前登录用户的所有游戏存档
+
+**认证:** 需要JWT Token
+
+**请求参数:** 无
+
+**响应示例:**
+
+成功（200）：
+```json
+[
+    {
+        "id": 1,
+        "user_id": 1,
+        "save_name": "第一次冒险",
+        "current_floor": 1,
+        "player_state": {...},
+        "slot_number": 1,
+        "is_active": 1,
+        "created_at": "2026-07-13T00:00:00",
+        "updated_at": "2026-07-13T00:00:00"
+    }
+]
+```
+
+**状态码:**
+- 200: 成功
+- 401: 未认证或Token无效
+
+---
+
+### 16. 查询指定槽位存档
+
+**接口:** `GET /api/game/save/{slot_number}`
+
+**功能:** 获取当前登录用户指定槽位的游戏存档
+
+**认证:** 需要JWT Token
+
+**路径参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| slot_number | int | 是 | 存档槽位（1-3） |
+
+**响应示例:**
+
+成功（200）：
+```json
+{
+    "id": 1,
+    "user_id": 1,
+    "save_name": "第一次冒险",
+    "current_floor": 1,
+    "player_state": {...},
+    "slot_number": 1,
+    "is_active": 1,
+    "created_at": "2026-07-13T00:00:00",
+    "updated_at": "2026-07-13T00:00:00"
+}
+```
+
+失败（404）：
+```json
+{
+    "detail": "槽位1没有存档"
+}
+```
+
+**状态码:**
+- 200: 成功
+- 401: 未认证或Token无效
+- 404: 该槽位没有存档
+
+---
+
+### 17. 更新游戏存档
+
+**接口:** `PUT /api/game/save/{slot_number}`
+
+**功能:** 更新当前登录用户指定槽位的游戏存档
+
+**认证:** 需要JWT Token
+
+**路径参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| slot_number | int | 是 | 存档槽位（1-3） |
+
+**请求参数（可选）:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| save_name | string | 否 | 存档名称 |
+| current_floor | int | 否 | 当前层数 |
+| player_state | object | 否 | 玩家状态数据 |
+| inventory_data | object | 否 | 背包数据 |
+| current_map_data | object | 否 | 当前地图数据 |
+| play_time | int | 否 | 游戏时长（秒） |
+| kill_count | int | 否 | 击杀数 |
+| gold_collected | int | 否 | 收集金币 |
+
+**请求示例:**
+```json
+{
+    "current_floor": 5,
+    "player_state": {
+        "health": 80,
+        "max_health": 100,
+        "attack": 15,
+        "defense": 8,
+        "level": 3,
+        "experience": 250,
+        "gold": 150
+    },
+    "play_time": 3600,
+    "kill_count": 50
+}
+```
+
+**响应示例:**
+
+成功（200）：
+```json
+{
+    "id": 1,
+    "user_id": 1,
+    "save_name": "第一次冒险",
+    "current_floor": 5,
+    "player_state": {...},
+    "play_time": 3600,
+    "kill_count": 50,
+    "slot_number": 1,
+    "is_active": 1,
+    "created_at": "2026-07-13T00:00:00",
+    "updated_at": "2026-07-13T01:00:00"
+}
+```
+
+**状态码:**
+- 200: 更新成功
+- 401: 未认证或Token无效
+- 404: 该槽位没有存档
+- 422: 请求数据验证失败
 
 ---
 

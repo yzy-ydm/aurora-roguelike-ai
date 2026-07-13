@@ -9,11 +9,13 @@ from app.models.player_profile import PlayerProfile
 from app.models.weapon import Weapon
 from app.models.player_weapon import PlayerWeapon
 from app.models.monster import Monster
+from app.models.game_save import GameSave
 
 __all__ = [
     "User",
     "PlayerProfile",
     "Weapon",
     "PlayerWeapon",
-    "Monster"
+    "Monster",
+    "GameSave"
 ]

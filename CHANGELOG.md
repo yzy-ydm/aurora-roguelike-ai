@@ -11,7 +11,37 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.6 游戏数据接口
+- Phase 4.6.2 地图数据接口
+- Phase 4.6.3 事件数据接口
+
+---
+
+## [0.8.0] - 2026-07-13
+
+### Added - 游戏存档系统 (Phase 4.6.1)
+
+**Git Commit:** 待提交
+
+- 新增游戏存档ORM模型 `app/models/game_save.py`
+  - GameSave类映射game_saves表
+  - 包含存档属性：save_name, current_floor, player_state, inventory_data等
+  - 槽位唯一性约束（user_id + slot_number）
+- 新增游戏存档Schema `app/schemas/save.py`
+  - SaveCreate: 创建存档请求（save_name, slot_number, player_state）
+  - SaveUpdate: 更新存档请求（current_floor, player_state, inventory_data等）
+  - SaveResponse: 存档信息响应
+- 新增游戏存档服务 `app/services/save_service.py`
+  - create_save(): 创建游戏存档
+  - get_user_saves(): 查询用户所有存档
+  - get_save_by_slot(): 查询指定槽位存档
+  - update_save(): 更新游戏存档
+- 新增游戏存档API路由 `app/api/save/router.py`
+  - POST /api/game/save: 创建存档（JWT认证）
+  - GET /api/game/save: 查询所有存档（JWT认证）
+  - GET /api/game/save/{slot_number}: 查询指定存档（JWT认证）
+  - PUT /api/game/save/{slot_number}: 更新存档（JWT认证）
+- 更新main.py注册存档路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

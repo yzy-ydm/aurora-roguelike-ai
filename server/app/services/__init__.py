@@ -8,10 +8,12 @@ from app.services.auth_service import AuthService
 from app.services.player_service import PlayerService
 from app.services.weapon_service import WeaponService
 from app.services.monster_service import MonsterService
+from app.services.save_service import SaveService
 
 __all__ = [
     "AuthService",
     "PlayerService",
     "WeaponService",
-    "MonsterService"
+    "MonsterService",
+    "SaveService"
 ]
