@@ -198,6 +198,9 @@ func _init_world_system() -> void:
 	_ai_content_service.set_script(load("res://scripts/ai/ai_content_service.gd"))
 	add_child(_ai_content_service)
 
+	# 设置AI服务类型为REAL（使用云端AI服务）
+	_ai_content_service.set_service_type(1)  # AIServiceType.REAL = 1
+
 	# 创建房间内容管理器
 	_room_content_manager = Node.new()
 	_room_content_manager.name = "RoomContentManager"
