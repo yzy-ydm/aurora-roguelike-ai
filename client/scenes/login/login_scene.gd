@@ -1,6 +1,7 @@
 ## 登录界面场景脚本
 ##
 ## 处理用户登录和注册逻辑
+## 登录成功后使用GameFlowController加载游戏数据
 
 extends Control
 
@@ -28,6 +29,10 @@ func _ready() -> void:
 
 	ApiClient.request_completed.connect(_on_api_success)
 	ApiClient.request_failed.connect(_on_api_error)
+
+	GameFlowController.flow_progress.connect(_on_flow_progress)
+	GameFlowController.flow_completed.connect(_on_flow_completed)
+	GameFlowController.flow_error.connect(_on_flow_error)
 
 	# 检查是否有保存的Token
 	if TokenManager.has_token():
@@ -115,10 +120,10 @@ func _handle_login_or_profile_success(result: Dictionary) -> void:
 		if result.has("user"):
 			TokenManager.set_user_info(result["user"])
 
-		status_label.text = "登录成功！"
+		status_label.text = "登录成功！正在加载游戏数据..."
 
-		# 切换到主界面
-		_go_to_main_scene()
+		# 使用GameFlowController启动游戏流程
+		GameFlowController.start_game()
 	# 检查是否是玩家信息响应（已有Token验证成功）
 	elif result.has("id") and result.has("nickname"):
 		TokenManager.set_user_info(result)
@@ -138,6 +143,24 @@ func _on_api_error(error: String, status_code: int) -> void:
 	status_label.text = "错误: " + error
 
 
-## 跳转到游戏场景
+## 流程进度回调
+func _on_flow_progress(message: String) -> void:
+	status_label.text = message
+
+
+## 流程完成回调
+func _on_flow_completed() -> void:
+	status_label.text = "数据加载完成，进入游戏..."
+	# 延迟一下让用户看到消息
+	await get_tree().create_timer(0.5).timeout
+	GameFlowController.enter_game()
+
+
+## 流程错误回调
+func _on_flow_error(error: String) -> void:
+	status_label.text = "加载失败: " + error
+
+
+## 跳转到主界面
 func _go_to_main_scene() -> void:
-	SceneManager.go_to_game()
+	SceneManager.go_to_main()

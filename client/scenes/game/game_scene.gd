@@ -1,7 +1,8 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 加载玩家数据和游戏资源
+## 集成GameStateManager进行状态管理
+## 支持退出保存功能
 
 extends Node2D
 
@@ -20,41 +21,27 @@ func _ready() -> void:
 	resource_button.pressed.connect(_on_resource_pressed)
 	logout_button.pressed.connect(_on_logout_pressed)
 
-	# 连接API信号
-	ApiClient.request_completed.connect(_on_api_success)
-	ApiClient.request_failed.connect(_on_api_error)
+	# 连接信号
+	SaveService.save_saved.connect(_on_save_saved)
+	SaveService.save_error.connect(_on_save_error)
 
-	# 连接资源服务信号
-	ResourceService.all_resources_loaded.connect(_on_resources_loaded)
-	ResourceService.resource_load_error.connect(_on_resource_error)
+	# 从GameStateManager获取玩家数据
+	_player_data = GameStateManager.get_player_data()
 
-	# 加载玩家数据
-	_load_player_data()
+	# 更新显示
+	_update_game_display()
 
-	# 开始加载游戏资源
-	_load_game_resources()
-
-
-## 加载玩家数据
-func _load_player_data() -> void:
-	hud.set_status("加载玩家数据...")
-	ApiClient.get_request(APIConfig.PLAYER_PROFILE, true)
-
-
-## 加载游戏资源
-func _load_game_resources() -> void:
-	ResourceService.load_all_resources()
-
-
-## 资源加载完成回调
-func _on_resources_loaded() -> void:
+	# 更新资源显示
 	_update_resource_display()
-	hud.set_status("资源加载完成 - 使用WASD或方向键移动")
+
+	# 更新游戏运行时间
+	set_process(true)
 
 
-## 资源加载失败回调
-func _on_resource_error(error: String) -> void:
-	hud.set_status("资源加载失败: " + error)
+## 每帧处理
+func _process(delta: float) -> void:
+	# 更新游戏运行时间
+	GameStateManager.add_play_time(delta)
 
 
 ## 更新资源显示
@@ -67,14 +54,6 @@ func _update_resource_display() -> void:
 	)
 
 
-## API请求成功回调
-func _on_api_success(result: Dictionary) -> void:
-	if result.has("nickname"):
-		_player_data = result
-		_update_game_display()
-	# 注意：数组类型的响应由ResourceService处理
-
-
 ## 更新游戏显示
 func _update_game_display() -> void:
 	# 更新HUD
@@ -83,17 +62,20 @@ func _update_game_display() -> void:
 	# 更新玩家节点
 	player.set_player_data(_player_data)
 
+	hud.set_status("游戏进行中 - 使用WASD或方向键移动")
 
-## API请求失败回调
-func _on_api_error(error: String, status_code: int) -> void:
-	if status_code == 401:
-		hud.set_status("认证失败，返回登录...")
-		TokenManager.clear_token()
-		await get_tree().create_timer(2.0).timeout
-		SceneManager.go_to_login()
-		return
 
-	hud.set_status("错误: " + error)
+## 存档保存成功
+func _on_save_saved(success: bool, message: String) -> void:
+	if success:
+		hud.set_status("存档保存成功")
+	else:
+		hud.set_status("存档保存失败: " + message)
+
+
+## 存档保存错误
+func _on_save_error(error: String) -> void:
+	hud.set_status("存档保存错误: " + error)
 
 
 ## 资源中心按钮
@@ -101,7 +83,7 @@ func _on_resource_pressed() -> void:
 	SceneManager.go_to_resource_center()
 
 
-## 退出登录按钮
+## 退出登录按钮（带保存）
 func _on_logout_pressed() -> void:
-	TokenManager.clear_token()
-	SceneManager.go_to_login()
+	hud.set_status("正在保存游戏...")
+	GameFlowController.exit_game()

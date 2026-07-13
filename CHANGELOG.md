@@ -11,7 +11,45 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.6 基础游戏循环准备
+- Phase 5.7 基础游戏交互准备
+
+---
+
+## [0.16.0] - 2026-07-13
+
+### Added - 游戏循环系统 (Phase 5.6)
+
+**Git Commit:** 待提交
+
+- 新增游戏状态管理器 `client/scripts/managers/game_state_manager.gd`
+  - GameState枚举（NOT_STARTED, LOADING, PLAYING, PAUSED, GAME_OVER）
+  - 玩家数据管理
+  - 存档状态管理
+  - 游戏运行时间追踪
+  - 信号机制（state_changed, player_data_updated, save_loaded）
+- 新增存档服务 `client/scripts/services/save_service.gd`
+  - load_saves()加载存档列表
+  - load_save_by_slot()加载指定存档
+  - save_game()保存存档
+  - create_save()创建新存档
+  - 信号机制（saves_loaded, save_loaded, save_saved, save_error）
+- 新增游戏流程控制器 `client/scripts/managers/game_flow_controller.gd`
+  - FlowState枚举管理流程状态
+  - start_game()开始游戏流程
+  - enter_game()进入游戏场景
+  - exit_game()退出并保存
+  - 流程：加载玩家→加载存档→加载资源→进入游戏
+- 更新API配置 `client/scripts/api/api_config.gd`
+  - 添加GAME_SAVE端点常量
+- 更新登录场景 `client/scenes/login/login_scene.gd`
+  - 集成GameFlowController
+  - 登录成功后自动加载游戏数据
+- 更新游戏场景 `client/scenes/game/game_scene.gd`
+  - 集成GameStateManager
+  - 添加退出保存功能
+  - 添加游戏运行时间追踪
+- 更新项目配置 `client/project.godot`
+  - 添加GameStateManager、SaveService、GameFlowController单例
 
 ---
 

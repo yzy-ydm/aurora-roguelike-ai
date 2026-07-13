@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.5 已完成，准备进入 Phase 5.6
+## 当前阶段：Phase 5.6 已完成，准备进入 Phase 5.7
 
 ---
 
@@ -167,6 +167,11 @@
 - [x] 地图列表和详情展示
 - [x] 事件列表和详情展示
 - [x] 游戏场景资源中心入口
+- [x] 游戏状态管理器（client/scripts/managers/game_state_manager.gd）
+- [x] 存档服务（client/scripts/services/save_service.gd）
+- [x] 游戏流程控制器（client/scripts/managers/game_flow_controller.gd）
+- [x] 登录→游戏流程集成
+- [x] 退出保存功能
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

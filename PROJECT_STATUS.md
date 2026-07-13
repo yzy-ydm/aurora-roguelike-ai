@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.5 已完成**（基础游戏资源展示系统） → 准备进入 **Phase 5.6 基础游戏循环准备**
+**Phase 5.6 已完成**（游戏循环系统） → 准备进入 **Phase 5.7 基础游戏交互准备**
 
 ---
 
@@ -33,12 +33,13 @@
 | Phase 5.3 | 玩家基础控制 | ✅ 完成 | 100% |
 | Phase 5.4 | 游戏资源加载系统 | ✅ 完成 | 100% |
 | Phase 5.5 | 基础游戏资源展示 | ✅ 完成 | 100% |
+| Phase 5.6 | 游戏循环系统 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 80%**
+**总体进度：约 85%**
 
 ---
 
@@ -304,6 +305,23 @@
 - [x] 事件展示（列表+详情面板）
 - [x] 游戏场景资源中心入口按钮
 
+### 17. 游戏循环系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 游戏状态管理器 | client/scripts/managers/game_state_manager.gd | 管理游戏运行时状态 |
+| 存档服务 | client/scripts/services/save_service.gd | 存档加载和保存 |
+| 游戏流程控制器 | client/scripts/managers/game_flow_controller.gd | 游戏生命周期管理 |
+
+**技术实现：**
+- [x] GameState管理（玩家状态、存档状态、运行状态）
+- [x] SaveService（存档加载、保存、创建）
+- [x] GameFlowController（开始游戏、加载数据、进入游戏、退出保存）
+- [x] 登录→游戏流程集成
+- [x] 退出保存功能
+
 ---
 
 ## 当前技术状态
@@ -357,13 +375,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.6：基础游戏循环准备**
+**Phase 5.7：基础游戏交互准备**
 
 需要实现：
-1. 游戏状态管理
-2. 存档加载集成
-3. 基础游戏流程
-4. 场景切换优化
+1. 游戏内菜单系统
+2. 存档界面
+3. 设置界面
+4. 游戏暂停功能
 
 ---
 
@@ -371,7 +389,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement resource display system |
+| (待提交) | feat(client): implement game loop system |
+| cd60e47 | feat(client): implement resource display system |
 | 25397e4 | feat(client): implement resource loading system |
 | 7621303 | feat(player): implement basic player controller |
 | 51d640f | feat(client): implement basic game scene framework |

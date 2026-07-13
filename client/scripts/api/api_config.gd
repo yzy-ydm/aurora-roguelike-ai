@@ -16,6 +16,7 @@ const WEAPONS_LIST: String = "/api/weapons"
 const MONSTERS_LIST: String = "/api/monsters"
 const MAPS_LIST: String = "/api/maps"
 const EVENTS_LIST: String = "/api/events"
+const GAME_SAVE: String = "/api/game/save"
 
 ## 获取完整URL
 func get_full_url(endpoint: String) -> String:

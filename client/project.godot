@@ -24,6 +24,9 @@ ApiClient="*res://scripts/api/api_client.gd"
 SceneManager="*res://scripts/managers/scene_manager.gd"
 ResourceManager="*res://scripts/managers/resource_manager.gd"
 ResourceService="*res://scripts/services/resource_service.gd"
+GameStateManager="*res://scripts/managers/game_state_manager.gd"
+SaveService="*res://scripts/services/save_service.gd"
+GameFlowController="*res://scripts/managers/game_flow_controller.gd"
 
 [display]
 
