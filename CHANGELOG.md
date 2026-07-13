@@ -11,7 +11,41 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.8 基础游戏世界构建准备
+- Phase 5.9 基础游戏实体系统准备
+
+---
+
+## [0.18.0] - 2026-07-13
+
+### Added - 基础游戏世界构建 (Phase 5.8)
+
+**Git Commit:** 待提交
+
+- 新增世界管理器 `client/scripts/world/world_manager.gd`
+  - WorldState枚举（UNINITIALIZED, LOADING, READY, IN_ROOM, TRANSITIONING）
+  - 世界初始化和地图加载
+  - 房间生命周期管理
+  - 信号机制（world_initialized, room_changed）
+- 新增房间管理器 `client/scripts/world/room_manager.gd`
+  - 房间进入/退出/切换
+  - 房间列表管理
+  - 信号机制（room_entered, room_exited, room_changed）
+- 新增地图渲染器 `client/scripts/world/map_renderer.gd`
+  - 根据地图资源显示地图
+  - 房间渲染（背景、边框、标签）
+  - 碰撞墙生成
+  - 房间类型颜色区分
+- 新增房间数据模型 `client/scripts/models/room_data.gd`
+  - RoomData类，解析房间数据
+  - from_map_data()从MapData创建房间列表
+- 新增世界场景 `client/scenes/world/world.tscn`
+- 新增房间场景 `client/scenes/world/rooms/room.tscn`
+- 更新游戏场景 `client/scenes/game/game_scene.tscn`
+  - 添加World节点
+  - 移除TestWalls（由MapRenderer生成）
+- 更新游戏场景脚本 `client/scenes/game/game_scene.gd`
+  - 集成WorldManager和RoomManager
+  - 世界初始化和房间切换处理
 
 ---
 

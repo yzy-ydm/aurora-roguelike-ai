@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://game_scene"]
+[gd_scene load_steps=8 format=3 uid="uid://game_scene"]
 
 [ext_resource type="Script" path="res://scenes/game/game_scene.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://player_scene" path="res://scenes/game/player.tscn" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://pause_menu" path="res://scenes/ui/pause_menu.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://settings_menu" path="res://scenes/ui/settings_menu.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://save_selection" path="res://scenes/ui/save_selection.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://world_scene" path="res://scenes/world/world.tscn" id="7"]
 
 [node name="GameScene" type="Node2D"]
 script = ExtResource("1")
@@ -18,26 +19,10 @@ color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="GameWorld" type="Node2D" parent="."]
 
+[node name="World" parent="GameWorld" instance=ExtResource("7")]
+
 [node name="Player" parent="GameWorld" instance=ExtResource("2")]
 position = Vector2(640, 360)
-
-[node name="TestWalls" type="StaticBody2D" parent="GameWorld"]
-
-[node name="TopWall" type="CollisionShape2D" parent="GameWorld/TestWalls"]
-position = Vector2(640, 10)
-shape = SubResource("RectangleShape2D_wall_h")
-
-[node name="BottomWall" type="CollisionShape2D" parent="GameWorld/TestWalls"]
-position = Vector2(640, 710)
-shape = SubResource("RectangleShape2D_wall_h")
-
-[node name="LeftWall" type="CollisionShape2D" parent="GameWorld/TestWalls"]
-position = Vector2(10, 360)
-shape = SubResource("RectangleShape2D_wall_v")
-
-[node name="RightWall" type="CollisionShape2D" parent="GameWorld/TestWalls"]
-position = Vector2(1270, 360)
-shape = SubResource("RectangleShape2D_wall_v")
 
 [node name="UI" type="Node" parent="."]
 
@@ -70,9 +55,3 @@ text = "退出登录"
 [node name="SettingsMenu" parent="." instance=ExtResource("5")]
 
 [node name="SaveSelection" parent="." instance=ExtResource("6")]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_h"]
-size = Vector2(1280, 20)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall_v"]
-size = Vector2(20, 720)

@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.7 已完成，准备进入 Phase 5.8
+## 当前阶段：Phase 5.8 已完成，准备进入 Phase 5.9
 
 ---
 
@@ -182,6 +182,13 @@
 - [x] ESC暂停/继续功能
 - [x] 音量设置（主音量、音乐、音效）
 - [x] ConfigFile本地配置保存
+- [x] 世界管理器（client/scripts/world/world_manager.gd）
+- [x] 房间管理器（client/scripts/world/room_manager.gd）
+- [x] 地图渲染器（client/scripts/world/map_renderer.gd）
+- [x] 房间数据模型（client/scripts/models/room_data.gd）
+- [x] 世界场景（client/scenes/world/world.tscn）
+- [x] 房间场景（client/scenes/world/rooms/room.tscn）
+- [x] 游戏场景集成世界系统
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

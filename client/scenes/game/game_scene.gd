@@ -1,18 +1,25 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 集成暂停菜单、设置、存档选择功能
+## 集成世界系统、暂停菜单、设置、存档选择功能
 
 extends Node2D
 
 ## 节点引用
 @onready var player: CharacterBody2D = $GameWorld/Player
+@onready var world: Node2D = $GameWorld/World
 @onready var hud: CanvasLayer = $UI/HUD
 @onready var resource_button: Button = $UI/MenuPanel/MenuButtons/ResourceButton
 @onready var logout_button: Button = $UI/MenuPanel/MenuButtons/LogoutButton
 @onready var pause_menu: CanvasLayer = $PauseMenu
 @onready var settings_menu: CanvasLayer = $SettingsMenu
 @onready var save_selection: CanvasLayer = $SaveSelection
+
+## 世界管理器
+var _world_manager: Node = null
+
+## 房间管理器
+var _room_manager: Node = null
 
 ## 玩家数据
 var _player_data: Dictionary = {}
@@ -41,6 +48,9 @@ func _ready() -> void:
 	# 从GameStateManager获取玩家数据
 	_player_data = GameStateManager.get_player_data()
 
+	# 初始化世界系统
+	_init_world_system()
+
 	# 更新显示
 	_update_game_display()
 
@@ -49,6 +59,35 @@ func _ready() -> void:
 
 	# 更新游戏运行时间
 	set_process(true)
+
+
+## 初始化世界系统
+func _init_world_system() -> void:
+	# 创建房间管理器
+	_room_manager = Node.new()
+	_room_manager.name = "RoomManager"
+	_room_manager.set_script(load("res://scripts/world/room_manager.gd"))
+	add_child(_room_manager)
+
+	# 创建世界管理器
+	_world_manager = Node.new()
+	_world_manager.name = "WorldManager"
+	_world_manager.set_script(load("res://scripts/world/world_manager.gd"))
+	add_child(_world_manager)
+
+	# 初始化世界管理器
+	_world_manager.initialize(world, _room_manager)
+
+	# 连接世界管理器信号
+	_world_manager.world_initialized.connect(_on_world_initialized)
+	_world_manager.world_load_error.connect(_on_world_load_error)
+	_world_manager.room_changed.connect(_on_room_changed)
+
+	# 加载世界
+	_world_manager.load_world()
+
+	# 进入第一个房间
+	_world_manager.enter_first_room()
 
 
 ## 输入处理
@@ -107,6 +146,23 @@ func _update_game_display() -> void:
 	hud.set_status("游戏进行中 - 按ESC暂停")
 
 
+## 世界初始化完成
+func _on_world_initialized() -> void:
+	var map_data = _world_manager.get_current_map()
+	if map_data:
+		hud.set_status("世界加载完成: " + map_data.name)
+
+
+## 世界加载错误
+func _on_world_load_error(error: String) -> void:
+	hud.set_status("世界加载失败: " + error)
+
+
+## 房间切换
+func _on_room_changed(room_data: RoomData) -> void:
+	hud.set_status("当前房间: " + room_data.room_name + " (" + room_data.room_type + ")")
+
+
 ## 暂停菜单：继续游戏
 func _on_resume_game() -> void:
 	_resume_game()
@@ -131,11 +187,8 @@ func _on_settings_closed() -> void:
 
 ## 存档选择：选择存档槽位
 func _on_save_selected(slot: int) -> void:
-	# 保存当前游戏数据
 	var save_data = GameStateManager.get_save_data()
 	SaveService.save_game(slot, save_data)
-
-	# 等待保存完成后退出
 	await get_tree().create_timer(1.0).timeout
 	_exit_to_menu()
 
