@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "superpower",
+      "file": "superpower.md",
+      "enabled": true
+    },
+    {
+      "name": "github-project-manager",
+      "file": "github-project-manager.md",
+      "enabled": true
+    },
+    {
+      "name": "godot4-development",
+      "file": "godot4-development.md",
+      "enabled": true
+    },
+    {
+      "name": "fastapi-backend",
+      "file": "fastapi-backend.md",
+      "enabled": true
+    },
+    {
+      "name": "python-testing",
+      "file": "python-testing.md",
+      "enabled": true
+    },
+    {
+      "name": "markdown-docs",
+      "file": "markdown-docs.md",
+      "enabled": true
+    },
+    {
+      "name": "ai-prompt-engineering",
+      "file": "ai-prompt-engineering.md",
+      "enabled": true
+    }
+  ]
+}
