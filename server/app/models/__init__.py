@@ -8,10 +8,12 @@ from app.models.user import User
 from app.models.player_profile import PlayerProfile
 from app.models.weapon import Weapon
 from app.models.player_weapon import PlayerWeapon
+from app.models.monster import Monster
 
 __all__ = [
     "User",
     "PlayerProfile",
     "Weapon",
-    "PlayerWeapon"
+    "PlayerWeapon",
+    "Monster"
 ]

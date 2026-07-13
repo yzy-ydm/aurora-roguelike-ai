@@ -21,6 +21,9 @@ from app.schemas.weapon import (
     WeaponCreate,
     AddPlayerWeaponRequest
 )
+from app.schemas.monster import (
+    MonsterResponse
+)
 
 __all__ = [
     "UserRegister",
@@ -33,5 +36,6 @@ __all__ = [
     "WeaponResponse",
     "PlayerWeaponResponse",
     "WeaponCreate",
-    "AddPlayerWeaponRequest"
+    "AddPlayerWeaponRequest",
+    "MonsterResponse"
 ]

@@ -14,7 +14,7 @@
 | 认证接口 | 2 | ✅ 已完成 |
 | 玩家接口 | 3 | ✅ 已完成 |
 | 武器接口 | 4 | ✅ 已完成 |
-| 怪物接口 | 0 | ⬜ 待开发 |
+| 怪物接口 | 2 | ✅ 已完成 |
 
 **Base URL:** `http://localhost:8000`
 
@@ -521,14 +521,101 @@
 
 ---
 
+## 怪物接口
+
+### 12. 获取怪物列表
+
+**接口:** `GET /api/monsters`
+
+**功能:** 获取所有怪物基础数据
+
+**认证:** 不需要
+
+**请求参数:** 无
+
+**响应示例:**
+
+成功（200）：
+```json
+[
+    {
+        "id": 1,
+        "name": "史莱姆",
+        "description": "最基础的怪物，由粘液构成，行动缓慢。",
+        "type": "normal",
+        "level": 1,
+        "health": 20,
+        "attack": 5,
+        "defense": 2,
+        "speed": 3,
+        "experience_reward": 10,
+        "gold_reward": 5,
+        "special_ability": null,
+        "attributes": null,
+        "icon_path": null,
+        "min_floor": 1,
+        "max_floor": 10
+    }
+]
+```
+
+**状态码:**
+- 200: 成功
+
+---
+
+### 13. 获取怪物详情
+
+**接口:** `GET /api/monsters/{monster_id}`
+
+**功能:** 根据怪物ID获取单个怪物的详细信息
+
+**认证:** 不需要
+
+**路径参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| monster_id | int | 是 | 怪物ID |
+
+**响应示例:**
+
+成功（200）：
+```json
+{
+    "id": 1,
+    "name": "史莱姆",
+    "description": "最基础的怪物，由粘液构成，行动缓慢。",
+    "type": "normal",
+    "level": 1,
+    "health": 20,
+    "attack": 5,
+    "defense": 2,
+    "speed": 3,
+    "experience_reward": 10,
+    "gold_reward": 5,
+    "special_ability": null,
+    "attributes": null,
+    "icon_path": null,
+    "min_floor": 1,
+    "max_floor": 10
+}
+```
+
+失败（404）：
+```json
+{
+    "detail": "怪物不存在"
+}
+```
+
+**状态码:**
+- 200: 成功
+- 404: 怪物不存在
+
+---
+
 ## 待开发接口
-
-### 怪物接口（Phase 4.5）
-
-| 接口 | 方法 | 功能 |
-|------|------|------|
-| /api/monsters | GET | 怪物列表 |
-| /api/monsters/{id} | GET | 怪物详情 |
 
 ---
 

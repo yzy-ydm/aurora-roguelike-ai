@@ -11,8 +11,30 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.5 怪物系统
 - Phase 4.6 游戏数据接口
+
+---
+
+## [0.7.0] - 2026-07-13
+
+### Added - 怪物系统 (Phase 4.5)
+
+**Git Commit:** 待提交
+
+- 新增怪物ORM模型 `app/models/monster.py`
+  - Monster类映射monsters表
+  - 包含怪物属性：name, monster_type, level, health, attack, defense, speed等
+  - 包含特殊能力：special_ability, special_ability_data（JSON）
+- 新增怪物Schema `app/schemas/monster.py`
+  - MonsterResponse: 怪物信息响应（字段映射：type→monster_type, attributes→special_ability_data）
+- 新增怪物服务 `app/services/monster_service.py`
+  - get_all_monsters(): 获取所有怪物列表
+  - get_monster_by_id(): 获取怪物详情
+- 新增怪物API路由 `app/api/monster/router.py`
+  - GET /api/monsters: 怪物列表（公开接口）
+  - GET /api/monsters/{monster_id}: 怪物详情（公开接口）
+- 更新main.py注册怪物路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

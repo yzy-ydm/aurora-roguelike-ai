@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.4 已完成，准备进入 Phase 4.5
+## 当前阶段：Phase 4.5 已完成，准备进入 Phase 4.6
 
 ---
 
@@ -104,12 +104,12 @@
 - [x] 添加武器接口（POST /api/player/weapons）
 
 ### Phase 4.5：怪物系统
-- [ ] monsters 模型（app/models/monster.py）
-- [ ] 怪物Schema（app/schemas/monster.py）
-- [ ] 怪物服务（app/services/monster_service.py）
-- [ ] 怪物路由（app/api/monster/router.py）
-- [ ] 怪物列表接口（GET /api/monsters）
-- [ ] 怪物详情接口（GET /api/monsters/{id}）
+- [x] monsters 模型（app/models/monster.py）
+- [x] 怪物Schema（app/schemas/monster.py）
+- [x] 怪物服务（app/services/monster_service.py）
+- [x] 怪物路由（app/api/monster/router.py）
+- [x] 怪物列表接口（GET /api/monsters）
+- [x] 怪物详情接口（GET /api/monsters/{id}）
 
 ### Phase 4.6：游戏数据接口
 - [ ] game_saves 模型和接口

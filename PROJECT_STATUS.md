@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.4 已完成**（武器系统） → 准备进入 **Phase 4.5 怪物系统**
+**Phase 4.5 已完成**（怪物系统） → 准备进入 **Phase 4.6 游戏数据接口**
 
 ---
 
@@ -24,7 +24,7 @@
 | Phase 4.2.5 | 安全修复与文档同步 | ✅ 完成 | 100% |
 | Phase 4.3 | 玩家角色系统 | ✅ 完成 | 100% |
 | Phase 4.4 | 武器系统 | ✅ 完成 | 100% |
-| Phase 4.5 | 怪物系统 | ⬜ 待开发 | 0% |
+| Phase 4.5 | 怪物系统 | ✅ 完成 | 100% |
 | Phase 4.6 | 游戏数据接口 | ⬜ 待开发 | 0% |
 | Phase 5 | Godot客户端 | ⬜ 待开发 | 0% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
@@ -32,7 +32,7 @@
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 35%**
+**总体进度：约 40%**
 
 ---
 
@@ -139,6 +139,20 @@
 - [x] 玩家武器管理
 - [x] 新增player_weapons关联表
 
+### 8. 怪物系统 ✅
+
+**已实现接口：**
+
+| 接口 | 方法 | 功能 | 状态 |
+|------|------|------|------|
+| /api/monsters | GET | 怪物列表 | ✅ 测试通过 |
+| /api/monsters/{id} | GET | 怪物详情 | ✅ 测试通过 |
+
+**技术实现：**
+- [x] Monster ORM模型（映射monsters表）
+- [x] MonsterService业务逻辑
+- [x] 怪物列表/详情查询（只读接口）
+
 ---
 
 ## 当前技术状态
@@ -171,6 +185,8 @@ server/app/
 | /api/weapons/{id} | GET | 武器详情 | 否 |
 | /api/player/weapons | GET | 玩家武器 | JWT |
 | /api/player/weapons | POST | 添加武器 | JWT |
+| /api/monsters | GET | 怪物列表 | 否 |
+| /api/monsters/{id} | GET | 怪物详情 | 否 |
 
 ---
 
@@ -182,12 +198,12 @@ server/app/
 
 ## 下一步任务
 
-**Phase 4.5：怪物系统**
+**Phase 4.6：游戏数据接口**
 
 需要实现：
-1. monsters 模型
-2. 怪物列表查询接口
-3. 怪物详情查询接口
+1. game_saves 存档接口
+2. maps 地图接口
+3. events 事件接口
 
 ---
 
@@ -195,7 +211,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(weapon): implement weapon system |
+| (待提交) | feat(monster): implement monster system |
+| 7a0621a | feat(weapon): implement weapon system |
 | d11725b | feat(player): implement player profile system |
 | 7ff7998 | fix(config): secure environment configuration |
 | fcaf9f4 | docs(context): add project context management system |

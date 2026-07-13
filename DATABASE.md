@@ -25,7 +25,7 @@
 | 1 | users | 用户账号表 | ✅ 已使用 |
 | 2 | player_profiles | 玩家角色信息表 | ✅ 已使用 |
 | 3 | weapons | 武器数据表 | ✅ 已使用 |
-| 4 | monsters | 怪物数据表 | ⬜ 待使用 |
+| 4 | monsters | 怪物数据表 | ✅ 已使用 |
 | 5 | events | 随机事件表 | ⬜ 待使用 |
 | 6 | maps | 地图数据表 | ⬜ 待使用 |
 | 7 | game_saves | 游戏存档表 | ⬜ 待使用 |
@@ -163,7 +163,7 @@
 **枚举值:**
 - monster_type: normal, elite, boss
 
-**当前状态:** 待使用（Phase 4.5）
+**当前状态:** 已使用，Phase 4.5 怪物系统已实现
 
 ---
 
