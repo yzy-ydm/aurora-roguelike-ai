@@ -10,6 +10,7 @@ from app.models.weapon import Weapon
 from app.models.player_weapon import PlayerWeapon
 from app.models.monster import Monster
 from app.models.game_save import GameSave
+from app.models.map import Map
 
 __all__ = [
     "User",
@@ -17,5 +18,6 @@ __all__ = [
     "Weapon",
     "PlayerWeapon",
     "Monster",
-    "GameSave"
+    "GameSave",
+    "Map"
 ]

@@ -11,8 +11,30 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.6.2 地图数据接口
 - Phase 4.6.3 事件数据接口
+
+---
+
+## [0.9.0] - 2026-07-13
+
+### Added - 地图资源接口 (Phase 4.6.2)
+
+**Git Commit:** 待提交
+
+- 新增地图ORM模型 `app/models/map.py`
+  - Map类映射maps表
+  - 包含地图属性：name, theme, floor_level, width, height, room_count等
+  - 包含配置数据：room_data, monster_spawn_config, event_spawn_config（JSON）
+- 新增地图Schema `app/schemas/map.py`
+  - MapResponse: 地图信息响应（字段映射：type→theme）
+- 新增地图服务 `app/services/map_service.py`
+  - get_all_maps(): 获取所有地图列表
+  - get_map_by_id(): 获取地图详情
+- 新增地图API路由 `app/api/map/router.py`
+  - GET /api/maps: 地图列表（公开接口）
+  - GET /api/maps/{map_id}: 地图详情（公开接口）
+- 更新main.py注册地图路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.6.1 已完成，准备进入 Phase 4.6.2
+## 当前阶段：Phase 4.6.2 已完成，准备进入 Phase 4.6.3
 
 ---
 
@@ -120,7 +120,12 @@
 - [x] 查询所有存档接口（GET /api/game/save）
 - [x] 查询指定存档接口（GET /api/game/save/{slot}）
 - [x] 更新存档接口（PUT /api/game/save/{slot}）
-- [ ] maps 模型和接口
+- [x] maps 模型（app/models/map.py）
+- [x] 地图Schema（app/schemas/map.py）
+- [x] 地图服务（app/services/map_service.py）
+- [x] 地图路由（app/api/map/router.py）
+- [x] 地图列表接口（GET /api/maps）
+- [x] 地图详情接口（GET /api/maps/{id}）
 - [ ] events 模型和接口
 
 ### Phase 5：Godot客户端

@@ -27,7 +27,7 @@
 | 3 | weapons | 武器数据表 | ✅ 已使用 |
 | 4 | monsters | 怪物数据表 | ✅ 已使用 |
 | 5 | events | 随机事件表 | ⬜ 待使用 |
-| 6 | maps | 地图数据表 | ⬜ 待使用 |
+| 6 | maps | 地图数据表 | ✅ 已使用 |
 | 7 | game_saves | 游戏存档表 | ✅ 已使用 |
 | 8 | ai_generations | AI生成记录表 | ⬜ 待使用 |
 | 9 | player_weapons | 玩家武器关联表 | ✅ 已使用 |
@@ -223,7 +223,7 @@
 **枚举值:**
 - theme: dungeon, cave, castle, forest, volcano, ice
 
-**当前状态:** 待使用
+**当前状态:** 已使用，Phase 4.6.2 地图资源接口已实现
 
 ---
 
