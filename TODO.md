@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.3 玩家角色系统
+## 当前阶段：Phase 4.2.5 已完成，准备进入 Phase 4.3
 
 ---
 
@@ -55,6 +55,15 @@
 - [x] 用户登录接口（POST /api/auth/login）
 - [x] JWT Token认证
 - [x] bcrypt密码加密
+
+### Phase 4.2.5：安全修复与文档同步
+- [x] 环境安全检查（.env未被Git跟踪，确认安全）
+- [x] 统一 .env.example 变量名（DB_* → MYSQL_*）
+- [x] 修复 database/design/README.md 表名错误
+- [x] 更新 docs/backend/FastAPI启动说明.md 模块状态
+- [x] 补充 CHANGELOG.md 遗漏提交记录
+- [x] 新增项目恢复报告（docs/PROJECT_RECOVERY_REPORT.md）
+- [x] 新增文档审计报告（docs/DOCUMENT_AUDIT_REPORT.md）
 
 ### 项目文档体系
 - [x] SYSTEM_PROMPT.md 项目规则

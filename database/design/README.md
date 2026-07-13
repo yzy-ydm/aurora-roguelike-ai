@@ -18,7 +18,7 @@
 - **game_saves** - 游戏存档表
 - **monsters** - 怪物数据表
 - **weapons** - 武器数据表
-- **ai_generation_logs** - AI生成记录表
+- **ai_generations** - AI生成记录表
 
 ### 设计原则
 

@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.2 已完成** → 准备进入 **Phase 4.3 玩家角色系统**
+**Phase 4.2.5 已完成**（安全修复与文档同步） → 准备进入 **Phase 4.3 玩家角色系统**
 
 ---
 
@@ -21,6 +21,7 @@
 | Phase 3 | MySQL数据库设计 | ✅ 完成 | 100% |
 | Phase 4.1 | FastAPI数据库连接 | ✅ 完成 | 100% |
 | Phase 4.2 | 用户认证系统 | ✅ 完成 | 100% |
+| Phase 4.2.5 | 安全修复与文档同步 | ✅ 完成 | 100% |
 | Phase 4.3 | 玩家角色系统 | ⬜ 待开发 | 0% |
 | Phase 4.4 | 武器系统 | ⬜ 待开发 | 0% |
 | Phase 4.5 | 怪物系统 | ⬜ 待开发 | 0% |
@@ -152,6 +153,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
+| (待提交) | fix(config): secure environment configuration |
+| fcaf9f4 | docs(context): add project context management system |
 | 0352e25 | feat(auth): implement user authentication system with JWT |
 | 4d059e8 | feat(server): add FastAPI database connection layer |
 | 494de64 | feat(database): add initial database design |

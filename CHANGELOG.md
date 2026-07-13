@@ -18,7 +18,42 @@
 
 ---
 
+## [0.4.1] - 2026-07-13
+
+### Fixed - 项目安全修复与文档同步 (Phase 4.2.5)
+
+**Git Commit:** 待提交
+
+- 修复 `.env.example` 变量名不一致（`DB_*` → `MYSQL_*`）
+- 修复 `database/design/README.md` 表名错误（`ai_generation_logs` → `ai_generations`）
+- 更新 `docs/backend/FastAPI启动说明.md` 模块状态
+- 补充 `CHANGELOG.md` 遗漏的提交记录
+- 新增项目恢复报告和文档审计报告
+
+---
+
 ## [0.4.0] - 2026-07-13
+
+### Added - 项目文档体系 (Phase 1补充)
+
+**Git Commit:** `fcaf9f4`
+
+- 新增 SYSTEM_PROMPT.md 项目规则文档
+- 新增 PROJECT_STATUS.md 项目状态文档
+- 新增 ROADMAP.md 开发路线图
+- 新增 TODO.md 任务清单
+- 新增 ARCHITECTURE.md 系统架构文档
+- 新增 AI_CONTEXT.md 设计理念文档
+- 新增 FEATURE_SPEC.md 功能需求文档
+- 新增 DEVELOPMENT_GUIDE.md 开发规范文档
+- 新增 API_DOCUMENT.md API接口文档
+- 新增 DATABASE.md 数据库设计文档
+- 新增 DEPLOYMENT.md 部署说明文档
+- 更新 README.md 项目说明
+
+---
+
+## [0.3.1] - 2026-07-13
 
 ### Added - 用户认证系统 (Phase 4.2)
 

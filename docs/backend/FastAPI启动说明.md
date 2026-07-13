@@ -306,16 +306,19 @@ netstat -ano | findstr :8000
 - [x] CORS跨域配置
 - [x] 数据库连接模块
 - [x] 健康检查接口
+- [x] 用户认证模块 (api/auth) - 注册、登录、JWT
+- [x] 用户数据模型 (models/user.py)
+- [x] 认证Schema (schemas/auth.py)
+- [x] 认证服务 (services/auth_service.py)
+- [x] 安全模块 (core/security.py) - bcrypt、JWT
 
 待开发模块：
 
-- [ ] 用户认证模块 (api/auth)
-- [ ] 用户管理模块 (api/user)
+- [ ] 玩家角色模块 (api/player)
+- [ ] 武器模块 (api/weapon)
+- [ ] 怪物模块 (api/monster)
 - [ ] 游戏数据模块 (api/game)
 - [ ] AI生成模块 (api/ai)
-- [ ] 数据模型 (models)
-- [ ] Pydantic模式 (schemas)
-- [ ] 业务逻辑层 (services)
 
 ---
 
@@ -323,4 +326,5 @@ netstat -ano | findstr :8000
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2026-07-13 | v1.1 | 更新模块状态，同步Phase 4.2完成情况 |
 | 2026-07-13 | v1.0 | 初始版本，完成数据库连接层 |
