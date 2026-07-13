@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.8 已完成，准备进入 Phase 5.9
+## 当前阶段：Phase 5.9 已完成，准备进入 Phase 5.10
 
 ---
 
@@ -189,6 +189,11 @@
 - [x] 世界场景（client/scenes/world/world.tscn）
 - [x] 房间场景（client/scenes/world/rooms/room.tscn）
 - [x] 游戏场景集成世界系统
+- [x] Entity基础类（client/scripts/entity/entity.gd）
+- [x] EntityManager（client/scripts/entity/entity_manager.gd）
+- [x] PlayerEntity（client/scripts/entity/player_entity.gd）
+- [x] 实体唯一ID系统
+- [x] 实体位置管理
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

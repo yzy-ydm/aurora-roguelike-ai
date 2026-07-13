@@ -11,7 +11,39 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.9 基础游戏实体系统准备
+- Phase 5.10 基础游戏对象交互框架准备
+
+---
+
+## [0.19.0] - 2026-07-13
+
+### Added - 游戏实体基础框架 (Phase 5.9)
+
+**Git Commit:** 待提交
+
+- 新增实体基础类 `client/scripts/entity/entity.gd`
+  - Entity类，所有游戏实体的基类
+  - EntityState枚举（CREATED, ACTIVE, PAUSED, DESTROYED）
+  - 唯一ID系统（自动生成）
+  - 位置管理（Vector2）
+  - 生命周期状态管理
+  - 自定义数据存储
+  - 序列化/反序列化（to_dict/from_dict）
+- 新增实体管理器 `client/scripts/entity/entity_manager.gd`
+  - EntityManager，统一管理实体
+  - register_entity()注册实体
+  - unregister_entity()注销实体
+  - get_entity()查询实体
+  - get_entities_by_type()按类型查询
+  - destroy_entity()销毁实体
+  - 类型索引机制
+  - 信号机制（entity_registered, entity_unregistered, entity_destroyed）
+- 新增玩家实体 `client/scripts/entity/player_entity.gd`
+  - PlayerEntity类，继承Entity
+  - 绑定PlayerController节点
+  - 玩家数据管理（level, health, attack, defense, gold）
+  - 位置同步（Node ↔ Entity）
+  - 与已有PlayerController兼容
 
 ---
 

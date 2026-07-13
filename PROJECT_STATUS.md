@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.8 已完成**（基础游戏世界构建） → 准备进入 **Phase 5.9 基础游戏实体系统准备**
+**Phase 5.9 已完成**（游戏实体基础框架） → 准备进入 **Phase 5.10 基础游戏对象交互框架准备**
 
 ---
 
@@ -36,12 +36,13 @@
 | Phase 5.6 | 游戏循环系统 | ✅ 完成 | 100% |
 | Phase 5.7 | 基础游戏交互系统 | ✅ 完成 | 100% |
 | Phase 5.8 | 基础游戏世界构建 | ✅ 完成 | 100% |
+| Phase 5.9 | 游戏实体基础框架 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 95%**
+**总体进度：约 100%**
 
 ---
 
@@ -365,6 +366,23 @@
 - [x] RoomData模型（房间数据解析）
 - [x] 游戏场景集成世界系统
 
+### 20. 游戏实体基础框架 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 实体基础类 | client/scripts/entity/entity.gd | Entity基类定义 |
+| 实体管理器 | client/scripts/entity/entity_manager.gd | 实体注册/查询/删除 |
+| 玩家实体 | client/scripts/entity/player_entity.gd | PlayerEntity封装 |
+
+**技术实现：**
+- [x] Entity基础类（唯一ID、位置、生命周期状态）
+- [x] EntityManager（实体注册、查询、删除、类型索引）
+- [x] PlayerEntity（玩家Node绑定、玩家数据管理）
+- [x] 实体唯一ID系统（自动生成）
+- [x] 实体位置管理（与Node2D兼容）
+
 ---
 
 ## 当前技术状态
@@ -418,13 +436,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.9：基础游戏实体系统准备**
+**Phase 5.10：基础游戏对象交互框架准备**
 
 需要实现：
-1. 实体管理系统
-2. 玩家实体完善
-3. NPC实体框架
-4. 实体交互基础
+1. 实体交互系统
+2. 碰撞检测集成
+3. 事件触发框架
+4. 游戏对象管理
 
 ---
 
@@ -432,7 +450,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement basic game world framework |
+| (待提交) | feat(client): implement entity framework |
+| 705cbb1 | feat(client): implement basic game world framework |
 | a386857 | feat(client): implement basic game interaction system |
 | 0e0ed0e | feat(client): implement game loop system |
 | cd60e47 | feat(client): implement resource display system |
