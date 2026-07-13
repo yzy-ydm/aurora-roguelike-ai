@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.11 已完成，准备进入 Phase 5.12
+## 当前阶段：Phase 6.1 已完成，准备进入 Phase 6.2
 
 ---
 
@@ -205,6 +205,12 @@
 - [x] TestChest测试对象（client/scripts/object/test_chest.gd）
 - [x] 游戏场景集成对象系统
 - [x] 测试宝箱实例化和交互
+- [x] WeaponObject（client/scripts/weapon/weapon_object.gd）
+- [x] InventoryManager（client/scripts/inventory/inventory_manager.gd）
+- [x] EquipmentManager（client/scripts/inventory/equipment_manager.gd）
+- [x] 武器拾取场景（client/scenes/object/weapon_pickup.tscn）
+- [x] 武器拾取交互流程
+- [x] 与player_weapons API同步
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

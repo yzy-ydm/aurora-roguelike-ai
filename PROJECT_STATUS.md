@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.11 已完成**（基础游戏对象实例化系统） → 准备进入 **Phase 5.12 基础游戏玩法对象扩展准备**
+**Phase 6.1 已完成**（玩家资源系统） → 准备进入 **Phase 6.2 基础战斗系统准备**
 
 ---
 
@@ -39,7 +39,7 @@
 | Phase 5.9 | 游戏实体基础框架 | ✅ 完成 | 100% |
 | Phase 5.10 | 基础游戏对象交互框架 | ✅ 完成 | 100% |
 | Phase 5.11 | 基础游戏对象实例化系统 | ✅ 完成 | 100% |
-| Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
+| Phase 6.1 | 玩家资源系统 | ✅ 完成 | 100% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
@@ -422,6 +422,25 @@
 - [x] 游戏场景集成对象系统
 - [x] 测试宝箱实例化和交互
 
+### 23. 玩家资源系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 武器对象 | client/scripts/weapon/weapon_object.gd | WeaponObject拾取对象 |
+| 背包管理器 | client/scripts/inventory/inventory_manager.gd | 玩家武器库存管理 |
+| 装备管理器 | client/scripts/inventory/equipment_manager.gd | 装备状态管理 |
+| 武器拾取场景 | client/scenes/object/weapon_pickup.tscn | 武器拾取场景模板 |
+
+**技术实现：**
+- [x] WeaponObject（GameObject → InteractiveObject流程）
+- [x] InventoryManager（添加/删除/查询武器）
+- [x] EquipmentManager（装备/卸下武器）
+- [x] 武器拾取交互流程
+- [x] 与player_weapons API同步
+- [x] 游戏场景集成武器拾取
+
 ---
 
 ## 当前技术状态
@@ -475,13 +494,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.12：基础游戏玩法对象扩展准备**
+**Phase 6.2：基础战斗系统准备**
 
 需要实现：
-1. 更多游戏对象类型
-2. 对象与房间关联
-3. 对象状态持久化
-4. 玩家与对象交互扩展
+1. 战斗状态管理
+2. 伤害计算框架
+3. 战斗回合系统
+4. 怪物实体接入
 
 ---
 
@@ -489,7 +508,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement game object system |
+| (待提交) | feat(gameplay): implement player resource system |
+| 0241a4e | feat(client): implement game object system |
 | 9593727 | feat(client): implement interaction framework |
 | 06f50e4 | feat(client): implement entity framework |
 | 705cbb1 | feat(client): implement basic game world framework |

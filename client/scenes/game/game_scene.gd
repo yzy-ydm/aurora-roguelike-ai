@@ -1,7 +1,7 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 集成世界系统、对象系统、交互系统、暂停菜单、设置、存档选择功能
+## 集成世界系统、对象系统、交互系统、武器拾取系统、暂停菜单、设置、存档选择功能
 
 extends Node2D
 
@@ -26,6 +26,12 @@ var _room_manager: Node = null
 
 ## 对象管理器
 var _object_manager: Node = null
+
+## 背包管理器
+var _inventory_manager: Node = null
+
+## 装备管理器
+var _equipment_manager: Node = null
 
 ## 玩家数据
 var _player_data: Dictionary = {}
@@ -62,6 +68,7 @@ func _ready() -> void:
 	_player_data = GameStateManager.get_player_data()
 
 	# 初始化系统
+	_init_inventory_system()
 	_init_object_system()
 	_init_world_system()
 
@@ -73,6 +80,24 @@ func _ready() -> void:
 
 	# 更新游戏运行时间
 	set_process(true)
+
+
+## 初始化背包系统
+func _init_inventory_system() -> void:
+	# 创建背包管理器
+	_inventory_manager = Node.new()
+	_inventory_manager.name = "InventoryManager"
+	_inventory_manager.set_script(load("res://scripts/inventory/inventory_manager.gd"))
+	add_child(_inventory_manager)
+
+	# 创建装备管理器
+	_equipment_manager = Node.new()
+	_equipment_manager.name = "EquipmentManager"
+	_equipment_manager.set_script(load("res://scripts/inventory/equipment_manager.gd"))
+	add_child(_equipment_manager)
+
+	# 初始化装备管理器
+	_equipment_manager.initialize(_inventory_manager)
 
 
 ## 初始化对象系统
@@ -123,9 +148,8 @@ func _create_test_objects() -> void:
 	chest1.object_name = "木制宝箱"
 	chest1.set_position(Vector2(400, 300))
 
-	# 创建InteractiveObject并注册到InteractionManager
 	var interactive1 = chest1.create_interactive_object()
-	interactive1.set_linked_node(_create_placeholder_node("木制宝箱", Vector2(400, 300)))
+	interactive1.set_linked_node(_create_placeholder_node("木制宝箱", Vector2(400, 300), Color(0.8, 0.6, 0.2, 1.0)))
 	_object_manager.register_object(chest1)
 	interaction_manager.register_object(interactive1)
 
@@ -135,13 +159,37 @@ func _create_test_objects() -> void:
 	chest2.set_position(Vector2(800, 500))
 
 	var interactive2 = chest2.create_interactive_object()
-	interactive2.set_linked_node(_create_placeholder_node("铁制宝箱", Vector2(800, 500)))
+	interactive2.set_linked_node(_create_placeholder_node("铁制宝箱", Vector2(800, 500), Color(0.6, 0.6, 0.7, 1.0)))
 	_object_manager.register_object(chest2)
 	interaction_manager.register_object(interactive2)
 
+	# 创建武器拾取对象（使用ResourceService中的武器数据）
+	var weapons = ResourceService.get_weapons()
+	if weapons.size() > 0:
+		var weapon1 = weapons[0]  # 第一把武器
+		var weapon_obj1 = WeaponObject.new()
+		weapon_obj1.set_weapon_data(weapon1)
+		weapon_obj1.set_position(Vector2(300, 600))
+
+		var interactive_weapon1 = weapon_obj1.create_interactive_object()
+		interactive_weapon1.set_linked_node(_create_weapon_node(weapon1, Vector2(300, 600)))
+		_object_manager.register_object(weapon_obj1)
+		interaction_manager.register_object(interactive_weapon1)
+
+	if weapons.size() > 1:
+		var weapon2 = weapons[1]  # 第二把武器
+		var weapon_obj2 = WeaponObject.new()
+		weapon_obj2.set_weapon_data(weapon2)
+		weapon_obj2.set_position(Vector2(700, 200))
+
+		var interactive_weapon2 = weapon_obj2.create_interactive_object()
+		interactive_weapon2.set_linked_node(_create_weapon_node(weapon2, Vector2(700, 200)))
+		_object_manager.register_object(weapon_obj2)
+		interaction_manager.register_object(interactive_weapon2)
+
 
 ## 创建占位节点
-func _create_placeholder_node(obj_name: String, pos: Vector2) -> Node2D:
+func _create_placeholder_node(obj_name: String, pos: Vector2, color: Color) -> Node2D:
 	var node = Node2D.new()
 	node.name = obj_name
 	node.position = pos
@@ -150,7 +198,7 @@ func _create_placeholder_node(obj_name: String, pos: Vector2) -> Node2D:
 	var sprite = Sprite2D.new()
 	sprite.name = "Sprite"
 	var image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.8, 0.6, 0.2, 1.0))  # 金色
+	image.fill(color)
 	var texture = ImageTexture.create_from_image(image)
 	sprite.texture = texture
 	node.add_child(sprite)
@@ -165,18 +213,67 @@ func _create_placeholder_node(obj_name: String, pos: Vector2) -> Node2D:
 	area.add_child(collision)
 
 	# 设置meta数据用于交互检测
-	area.set_meta("interactive_object_id", _get_interactive_id_for_chest(obj_name))
+	area.set_meta("interactive_object_id", _get_interactive_id_for_object(obj_name))
 	node.add_child(area)
 
 	add_child(node)
 	return node
 
 
-## 获取宝箱对应的InteractiveObject ID
-func _get_interactive_id_for_chest(chest_name: String) -> int:
-	# 遍历InteractionManager中的对象找到匹配的
+## 创建武器节点
+func _create_weapon_node(weapon_data: WeaponData, pos: Vector2) -> Node2D:
+	var node = Node2D.new()
+	node.name = weapon_data.name
+	node.position = pos
+
+	# 创建可视化占位（不同稀有度不同颜色）
+	var sprite = Sprite2D.new()
+	sprite.name = "Sprite"
+	var image = Image.create(20, 20, false, Image.FORMAT_RGBA8)
+	var color = _get_rarity_color(weapon_data.rarity)
+	image.fill(color)
+	var texture = ImageTexture.create_from_image(image)
+	sprite.texture = texture
+	node.add_child(sprite)
+
+	# 创建Area2D用于交互检测
+	var area = Area2D.new()
+	area.name = "InteractionArea"
+	var collision = CollisionShape2D.new()
+	var shape = CircleShape2D.new()
+	shape.radius = 40.0
+	collision.shape = shape
+	area.add_child(collision)
+
+	# 设置meta数据用于交互检测
+	area.set_meta("interactive_object_id", _get_interactive_id_for_object(weapon_data.name))
+	node.add_child(area)
+
+	add_child(node)
+	return node
+
+
+## 获取稀有度颜色
+func _get_rarity_color(rarity: String) -> Color:
+	match rarity:
+		"common":
+			return Color(0.7, 0.7, 0.7, 1.0)  # 灰色
+		"uncommon":
+			return Color(0.2, 0.8, 0.2, 1.0)  # 绿色
+		"rare":
+			return Color(0.2, 0.4, 0.9, 1.0)  # 蓝色
+		"epic":
+			return Color(0.7, 0.2, 0.9, 1.0)  # 紫色
+		"legendary":
+			return Color(0.9, 0.6, 0.1, 1.0)  # 橙色
+		_:
+			return Color(0.7, 0.7, 0.7, 1.0)  # 默认灰色
+
+
+## 获取对象对应的InteractiveObject ID
+func _get_interactive_id_for_object(obj_name: String) -> int:
 	for obj in interaction_manager.get_all_objects():
-		if obj.object_name == chest_name:
+		if obj.object_name == obj_name:
 			return obj.object_id
 	return -1
 
@@ -191,7 +288,6 @@ func _input(event: InputEvent) -> void:
 
 ## 每帧处理
 func _process(delta: float) -> void:
-	# 更新游戏运行时间
 	if not _is_paused:
 		GameStateManager.add_play_time(delta)
 
@@ -229,6 +325,26 @@ func _try_interact() -> void:
 
 	if interaction_manager.has_interactable():
 		interaction_manager.trigger_interaction()
+
+
+## 处理武器拾取
+func _handle_weapon_pickup(weapon_obj: WeaponObject) -> void:
+	var weapon_data = weapon_obj.get_weapon_data()
+	if weapon_data:
+		# 添加到背包
+		_inventory_manager.add_weapon(weapon_data)
+
+		# 同步到服务器
+		_sync_weapon_to_server(weapon_data.id)
+
+		# 更新HUD
+		hud.set_status("获得武器: " + weapon_data.name + " (伤害: " + str(weapon_data.damage) + ")")
+
+
+## 同步武器到服务器
+func _sync_weapon_to_server(weapon_id: int) -> void:
+	var data = {"weapon_id": weapon_id}
+	ApiClient.post_request(APIConfig.PLAYER_WEAPONS, data, true)
 
 
 ## 更新资源显示
@@ -277,9 +393,23 @@ func _on_nearest_object_changed(obj: Variant) -> void:
 func _on_interaction_triggered(object_id: int) -> void:
 	var obj = interaction_manager.get_object(object_id)
 	if obj:
-		hud.set_status("交互: " + obj.object_name)
+		# 检查是否是WeaponObject
+		var game_obj = _find_game_object_by_interactive_id(object_id)
+		if game_obj and game_obj is WeaponObject:
+			_handle_weapon_pickup(game_obj)
+		else:
+			hud.set_status("交互: " + obj.object_name)
+
 		# 完成交互
 		interaction_manager.complete_interaction(object_id)
+
+
+## 根据InteractiveObject ID查找GameObject
+func _find_game_object_by_interactive_id(interactive_id: int) -> GameObject:
+	for obj in _object_manager.get_all_objects():
+		if obj.has_interactive_object() and obj.get_interactive_object().object_id == interactive_id:
+			return obj
+	return null
 
 
 ## 暂停菜单：继续游戏

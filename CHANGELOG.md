@@ -11,7 +11,41 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.12 基础游戏玩法对象扩展准备
+- Phase 6.2 基础战斗系统准备
+
+---
+
+## [0.22.0] - 2026-07-13
+
+### Added - 玩家资源系统 (Phase 6.1)
+
+**Git Commit:** 待提交
+
+- 新增武器对象 `client/scripts/weapon/weapon_object.gd`
+  - WeaponObject类，继承GameObject
+  - 武器数据绑定（WeaponData）
+  - 拾取状态管理
+  - InteractiveObject关联
+- 新增背包管理器 `client/scripts/inventory/inventory_manager.gd`
+  - InventoryManager，管理玩家武器库存
+  - add_weapon()添加武器
+  - remove_weapon()移除武器
+  - get_weapon()查询武器
+  - load_from_server_data()从服务器加载
+  - 信号机制（weapon_added, weapon_removed, inventory_updated）
+- 新增装备管理器 `client/scripts/inventory/equipment_manager.gd`
+  - EquipmentManager，管理装备状态
+  - equip_weapon()装备武器
+  - unequip_weapon()卸下武器
+  - get_equipped_weapon()获取当前装备
+- 新增武器拾取场景 `client/scenes/object/weapon_pickup.tscn`
+- 更新API配置 `client/scripts/api/api_config.gd`
+  - 添加PLAYER_WEAPONS端点
+- 更新游戏场景 `client/scenes/game/game_scene.gd`
+  - 集成InventoryManager和EquipmentManager
+  - 创建武器拾取对象
+  - 武器拾取交互流程
+  - 与player_weapons API同步
 
 ---
 
