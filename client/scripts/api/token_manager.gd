@@ -86,5 +86,5 @@ func get_user_info() -> Dictionary:
 ## 获取Authorization头
 func get_auth_header() -> String:
 	if has_token():
-		return "Bearer " + get_token()
+		return "Authorization: Bearer " + get_token()
 	return ""

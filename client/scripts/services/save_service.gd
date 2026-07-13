@@ -26,10 +26,16 @@ func _ready() -> void:
 
 ## 加载所有存档
 func load_saves() -> void:
+	print("[SaveService] load_saves() called")
 	if _is_loading:
+		print("[SaveService] Already loading, skipping")
 		return
 
 	_is_loading = true
+	var url = APIConfig.get_full_url(APIConfig.GAME_SAVE)
+	print("[SaveService] Requesting saves from API...")
+	print("[SaveService] Full URL: ", url)
+	print("[SaveService] Token exists: ", TokenManager.has_token())
 	ApiClient.get_request(APIConfig.GAME_SAVE, true)
 
 
@@ -66,21 +72,34 @@ func create_save(slot: int, save_name: String, player_state: Dictionary) -> void
 
 ## API请求成功回调
 func _on_api_success(result: Variant) -> void:
+	print("[SaveService] _on_api_success called, _is_loading: ", _is_loading)
+	print("[SaveService] Result: ", result)
+
+	# 只在正在加载时处理响应
+	if not _is_loading:
+		print("[SaveService] Not loading, ignoring response")
+		return
+
 	_is_loading = false
 
 	if result is Array:
 		# 存档列表响应
+		print("[SaveService] Received saves array, count: ", result.size())
 		_saves = result
 		saves_loaded.emit(result)
 	elif result is Dictionary:
+		print("[SaveService] Received Dictionary response")
 		if result.has("slot_number"):
 			# 单个存档响应
+			print("[SaveService] Single save response")
 			save_loaded.emit(result)
 		elif result.has("id") and result.has("save_name"):
 			# 保存成功响应
+			print("[SaveService] Save success response")
 			save_saved.emit(true, "保存成功")
 		else:
-			save_saved.emit(true, "操作成功")
+			print("[SaveService] Unknown Dictionary response, ignoring")
+		# 其他Dictionary响应不处理（如登录响应、玩家数据等）
 
 
 ## API请求失败回调

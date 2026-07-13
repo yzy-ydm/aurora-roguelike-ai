@@ -33,7 +33,9 @@ func _ready() -> void:
 
 ## 加载所有资源
 func load_all_resources() -> void:
+	print("[ResourceService] load_all_resources called")
 	if _is_loading:
+		print("[ResourceService] Already loading, skipping")
 		return
 
 	_is_loading = true
@@ -45,6 +47,7 @@ func load_all_resources() -> void:
 	}
 
 	# 开始加载各类资源
+	print("[ResourceService] Sending API requests for resources...")
 	ApiClient.get_request(APIConfig.WEAPONS_LIST)
 	ApiClient.get_request(APIConfig.MONSTERS_LIST)
 	ApiClient.get_request(APIConfig.MAPS_LIST)
@@ -53,25 +56,47 @@ func load_all_resources() -> void:
 
 ## API请求成功回调
 func _on_api_success(result: Variant) -> void:
-	if not result is Array:
+	print("[ResourceService] _on_api_success called, _is_loading: ", _is_loading)
+	print("[ResourceService] Result type: ", typeof(result))
+
+	# 只在加载状态时处理Array响应
+	if not _is_loading:
+		print("[ResourceService] Not loading resources, ignoring")
 		return
+
+	if not result is Array:
+		print("[ResourceService] Result is not Array, ignoring")
+		return
+
+	print("[ResourceService] Received Array with size: ", result.size())
 
 	# 根据数据结构判断资源类型
 	if result.size() > 0:
 		var first_item = result[0]
 		if first_item is Dictionary:
 			if first_item.has("damage"):
+				print("[ResourceService] Parsing weapons data")
 				_parse_weapons(result)
 			elif first_item.has("health") and first_item.has("attack") and not first_item.has("floor_level"):
+				print("[ResourceService] Parsing monsters data")
 				_parse_monsters(result)
 			elif first_item.has("floor_level"):
+				print("[ResourceService] Parsing maps data")
 				_parse_maps(result)
 			elif first_item.has("trigger_rate"):
+				print("[ResourceService] Parsing events data")
 				_parse_events(result)
+			else:
+				print("[ResourceService] Unknown resource type")
+		else:
+			print("[ResourceService] First item is not Dictionary")
+	else:
+		print("[ResourceService] Empty array received")
 
 
 ## 解析武器数据
 func _parse_weapons(data: Array) -> void:
+	print("[ResourceService] Parsing weapons, count: ", data.size())
 	_weapons = WeaponData.from_array(data)
 	_load_progress["weapons"] = true
 	_check_all_loaded()
@@ -79,6 +104,7 @@ func _parse_weapons(data: Array) -> void:
 
 ## 解析怪物数据
 func _parse_monsters(data: Array) -> void:
+	print("[ResourceService] Parsing monsters, count: ", data.size())
 	_monsters = MonsterData.from_array(data)
 	_load_progress["monsters"] = true
 	_check_all_loaded()
@@ -86,6 +112,7 @@ func _parse_monsters(data: Array) -> void:
 
 ## 解析地图数据
 func _parse_maps(data: Array) -> void:
+	print("[ResourceService] Parsing maps, count: ", data.size())
 	_maps = MapData.from_array(data)
 	_load_progress["maps"] = true
 	_check_all_loaded()
@@ -93,6 +120,7 @@ func _parse_maps(data: Array) -> void:
 
 ## 解析事件数据
 func _parse_events(data: Array) -> void:
+	print("[ResourceService] Parsing events, count: ", data.size())
 	_events = EventData.from_array(data)
 	_load_progress["events"] = true
 	_check_all_loaded()
@@ -100,16 +128,20 @@ func _parse_events(data: Array) -> void:
 
 ## 检查是否所有资源加载完成
 func _check_all_loaded() -> void:
+	print("[ResourceService] _check_all_loaded called, progress: ", _load_progress)
 	for key in _load_progress:
 		if not _load_progress[key]:
+			print("[ResourceService] Still loading: ", key)
 			return
 
 	_is_loading = false
+	print("[ResourceService] All resources loaded! Emitting all_resources_loaded signal")
 	all_resources_loaded.emit()
 
 
 ## API请求失败回调
 func _on_api_error(error: String, _status_code: int) -> void:
+	print("[ResourceService] _on_api_error called: ", error, " status: ", _status_code)
 	_is_loading = false
 	resource_load_error.emit(error)
 

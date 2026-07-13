@@ -70,14 +70,6 @@ class AuthService:
                 - bool: 是否成功
                 - str: 消息说明
                 - Optional[UserInfo]: 用户信息（成功时）
-
-        示例:
-            >>> service = AuthService(db)
-            >>> success, msg, user = service.register_user(UserRegister(
-            ...     username="player1",
-            ...     password="password123",
-            ...     email="player1@example.com"
-            ... ))
         """
         # 1. 检查用户名是否已存在
         existing_user = self.db.query(User).filter(
@@ -112,12 +104,13 @@ class AuthService:
 
         # 添加到数据库
         self.db.add(new_user)
-        self.db.flush()  # 刷新以获取自增ID，但不提交事务
+        self.db.flush()  # 刷新以获取自增ID
 
         # 5. 自动创建玩家角色档案
+        print(f"[AuthService] Creating player profile for user_id: {new_user.id}")
         new_profile = PlayerProfile(
             user_id=new_user.id,
-            nickname=user_data.username,  # 默认使用用户名作为昵称
+            nickname=user_data.username,
             level=1,
             experience=0,
             experience_to_next_level=100,
@@ -134,7 +127,7 @@ class AuthService:
         )
         self.db.add(new_profile)
 
-        # 提交事务（用户和角色档案同时提交）
+        # 提交事务
         self.db.commit()
         self.db.refresh(new_user)
 
@@ -168,13 +161,6 @@ class AuthService:
                 - bool: 是否成功
                 - str: 消息说明
                 - Optional[User]: 用户对象（成功时）
-
-        示例:
-            >>> service = AuthService(db)
-            >>> success, msg, user = service.authenticate_user(UserLogin(
-            ...     username="player1",
-            ...     password="password123"
-            ... ))
         """
         # 1. 根据用户名查找用户
         user = self.db.query(User).filter(
@@ -195,71 +181,79 @@ class AuthService:
             return False, "账号已被禁用", None
 
         # 4. 确保玩家角色档案存在（兼容已有用户）
-        self._ensure_player_profile(user.id, user.username)
+        profile_exists = self._ensure_player_profile(user.id, user.username)
+        print(f"[AuthService] user id: {user.id}, username: {user.username}, player profile exists: {profile_exists}")
 
         # 5. 更新最后登录时间
         user.last_login_at = datetime.utcnow()
+
+        # 统一提交事务
         self.db.commit()
 
         return True, "登录成功", user
 
-    def _ensure_player_profile(self, user_id: int, username: str) -> None:
+    def _ensure_player_profile(self, user_id: int, username: str) -> bool:
         """
         确保玩家角色档案存在
 
         如果用户没有角色档案，自动创建一个。
         用于兼容注册时未创建角色档案的已有用户。
 
+        注意：此方法只负责添加到session，不负责commit。
+        commit由调用方（authenticate_user）统一处理。
+
         Args:
             user_id: 用户ID
             username: 用户名（用作默认昵称）
+
+        Returns:
+            bool: 是否已存在角色档案（True=已存在，False=新创建）
         """
         existing_profile = self.db.query(PlayerProfile).filter(
             PlayerProfile.user_id == user_id
         ).first()
 
-        if not existing_profile:
-            new_profile = PlayerProfile(
-                user_id=user_id,
-                nickname=username,
-                level=1,
-                experience=0,
-                experience_to_next_level=100,
-                max_health=100,
-                current_health=100,
-                attack=10,
-                defense=5,
-                crit_rate=5.00,
-                gold=0,
-                total_play_time=0,
-                max_floor_reached=1,
-                total_kills=0,
-                death_count=0
-            )
-            self.db.add(new_profile)
-            self.db.commit()
+        if existing_profile:
+            print(f"[AuthService] Player profile already exists for user_id: {user_id}")
+            return True
+
+        # 创建新角色档案
+        print(f"[AuthService] Creating player profile for user_id: {user_id}")
+        new_profile = PlayerProfile(
+            user_id=user_id,
+            nickname=username,
+            level=1,
+            experience=0,
+            experience_to_next_level=100,
+            max_health=100,
+            current_health=100,
+            attack=10,
+            defense=5,
+            crit_rate=5.00,
+            gold=0,
+            total_play_time=0,
+            max_floor_reached=1,
+            total_kills=0,
+            death_count=0
+        )
+        self.db.add(new_profile)
+        # 不在这里commit，由调用方统一处理
+        return False
 
     def create_access_token(self, user: User) -> TokenResponse:
         """
         为用户创建JWT访问令牌
-
-        将用户ID和用户名编码到Token中。
 
         Args:
             user: 用户对象
 
         Returns:
             TokenResponse: 包含Token和用户信息的响应
-
-        示例:
-            >>> service = AuthService(db)
-            >>> token_response = service.create_access_token(user)
-            >>> print(token_response.access_token)
         """
         # 构建Token载荷
         token_data = {
-            "sub": str(user.id),      # 用户ID（subject）
-            "username": user.username  # 用户名
+            "sub": str(user.id),
+            "username": user.username
         }
 
         # 生成Token
