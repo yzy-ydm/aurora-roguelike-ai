@@ -129,9 +129,13 @@ func _parse_reward_config(content: RoomContentData, rewards: Dictionary) -> void
 	if rewards is Dictionary:
 		content.reward_count = rewards.get("count", 3)
 		content.reward_quality = rewards.get("quality", 1.0)
+		content.reward_strategy = rewards.get("strategy", "")
+		content.reward_items = rewards.get("items", [])
 	else:
 		content.reward_count = 3
 		content.reward_quality = 1.0
+		content.reward_strategy = ""
+		content.reward_items = []
 
 
 ## 验证AI响应数据

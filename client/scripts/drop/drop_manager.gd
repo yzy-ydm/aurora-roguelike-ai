@@ -153,18 +153,161 @@ func spawn_rewards_from_content(content: RoomContentData, room_position: Vector2
 	# 清除当前奖励
 	clear_current_rewards()
 
-	# 生成奖励
-	for i in range(reward_count):
-		# 生成随机奖励，考虑品质倍率
-		var reward_data = _generate_quality_reward(i, reward_quality)
+	# 检查是否有AI指定的奖励策略
+	if content.has_reward_strategy():
+		print("[DropManager] Using AI reward strategy: ", content.reward_strategy)
+		_spawn_rewards_from_strategy(content, room_position)
+	else:
+		print("[DropManager] Using random rewards")
+		_spawn_random_rewards(reward_count, reward_quality, room_position)
 
-		# 计算生成位置（在房间内随机）
+
+## 根据AI策略生成奖励
+func _spawn_rewards_from_strategy(content: RoomContentData, room_position: Vector2) -> void:
+	var reward_items = content.reward_items
+	var reward_quality = content.reward_quality
+
+	# 如果有指定的奖励物品，按照列表生成
+	if reward_items.size() > 0:
+		for i in range(reward_items.size()):
+			var item_config = reward_items[i]
+			var reward_data = _generate_reward_from_config(item_config, reward_quality)
+
+			# 计算生成位置
+			var spawn_pos = room_position + Vector2(
+				randf_range(-100, 100),
+				randf_range(-100, 100)
+			)
+
+			_spawn_reward_item(reward_data, spawn_pos)
+	else:
+		# 如果没有具体物品，根据策略生成随机奖励
+		_spawn_rewards_by_strategy(content.reward_strategy, content.reward_count, reward_quality, room_position)
+
+
+## 根据配置生成单个奖励
+func _generate_reward_from_config(config: Dictionary, quality: float) -> RewardData:
+	var reward_type = config.get("type", "gold")
+	var rarity = config.get("rarity", "common")
+	var value = config.get("value", 0)
+
+	# 创建奖励数据
+	var reward = RewardData.new()
+
+	match reward_type:
+		"gold":
+			reward.type = RewardData.RewardType.GOLD
+			reward.value = int((value if value > 0 else randi_range(10, 50)) * quality)
+		"attack_up":
+			reward.type = RewardData.RewardType.ATTACK_UP
+			reward.value = int((value if value > 0 else randi_range(1, 5)) * quality)
+		"health_up":
+			reward.type = RewardData.RewardType.HEALTH_UP
+			reward.value = int((value if value > 0 else randi_range(5, 20)) * quality)
+		"heal":
+			reward.type = RewardData.RewardType.HEAL
+			reward.value = int((value if value > 0 else randi_range(10, 30)) * quality)
+		"weapon":
+			# 武器奖励特殊处理
+			reward.type = RewardData.RewardType.ATTACK_UP  # 临时使用ATTACK_UP
+			reward.value = int(5 * quality)
+			reward.name = "武器奖励 (" + rarity + ")"
+		_:
+			reward.type = RewardData.RewardType.GOLD
+			reward.value = int(20 * quality)
+
+	# 设置奖励属性
+	reward._setup_defaults()
+
+	# 根据稀有度调整数值
+	var rarity_multiplier = _get_rarity_multiplier(rarity)
+	reward.value = int(reward.value * rarity_multiplier)
+
+	return reward
+
+
+## 根据策略生成随机奖励
+func _spawn_rewards_by_strategy(strategy: String, count: int, quality: float, room_position: Vector2) -> void:
+	for i in range(count):
+		var reward_data: RewardData
+
+		match strategy:
+			"power_growth":
+				# 力量成长策略：更多攻击奖励
+				if randf() < 0.6:
+					reward_data = _create_reward(RewardData.RewardType.ATTACK_UP, quality)
+				else:
+					reward_data = RewardData.generate_random_reward(i)
+			"survival":
+				# 生存策略：更多生命奖励
+				if randf() < 0.6:
+					reward_data = _create_reward(RewardData.RewardType.HEALTH_UP, quality)
+				else:
+					reward_data = RewardData.generate_random_reward(i)
+			"balanced":
+				# 平衡策略：均匀分布
+				reward_data = RewardData.generate_random_reward(i)
+			_:
+				reward_data = RewardData.generate_random_reward(i)
+
+		# 调整品质
+		reward_data.value = int(reward_data.value * quality)
+
+		# 计算生成位置
 		var spawn_pos = room_position + Vector2(
 			randf_range(-100, 100),
 			randf_range(-100, 100)
 		)
 
-		# 生成奖励物品
+		_spawn_reward_item(reward_data, spawn_pos)
+
+
+## 创建指定类型的奖励
+func _create_reward(type: RewardData.RewardType, quality: float) -> RewardData:
+	var reward = RewardData.new()
+	reward.type = type
+
+	match type:
+		RewardData.RewardType.GOLD:
+			reward.value = int(randi_range(20, 50) * quality)
+		RewardData.RewardType.ATTACK_UP:
+			reward.value = int(randi_range(2, 5) * quality)
+		RewardData.RewardType.HEALTH_UP:
+			reward.value = int(randi_range(10, 25) * quality)
+		RewardData.RewardType.HEAL:
+			reward.value = int(randi_range(15, 40) * quality)
+
+	reward._setup_defaults()
+	return reward
+
+
+## 获取稀有度倍率
+func _get_rarity_multiplier(rarity: String) -> float:
+	match rarity:
+		"common":
+			return 1.0
+		"uncommon":
+			return 1.3
+		"rare":
+			return 1.6
+		"epic":
+			return 2.0
+		"legendary":
+			return 3.0
+		_:
+			return 1.0
+
+
+## 生成随机奖励（保持兼容）
+func _spawn_random_rewards(reward_count: int, reward_quality: float, room_position: Vector2) -> void:
+	for i in range(reward_count):
+		var reward_data = _generate_quality_reward(i, reward_quality)
+
+		var spawn_pos = room_position + Vector2(
+			randf_range(-100, 100),
+			randf_range(-100, 100)
+		)
+
 		_spawn_reward_item(reward_data, spawn_pos)
 
 

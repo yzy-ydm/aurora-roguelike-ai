@@ -365,22 +365,85 @@ class AIService:
     ) -> Dict[str, Any]:
         """生成奖励配置"""
         quality = 1.0
+        strategy = ""
+        items = []
 
         if room_type == "combat":
             quality = 1.0 + (floor_level - 1) * 0.1
+            strategy = random.choice(["power_growth", "balanced", "survival"])
         elif room_type == "elite":
             quality = 1.5 + (floor_level - 1) * 0.15
+            strategy = "power_growth"
+            items = self._generate_reward_items("elite", quality)
         elif room_type == "boss":
             quality = 2.0 + (floor_level - 1) * 0.2
+            strategy = "power_growth"
+            items = self._generate_reward_items("boss", quality)
         elif room_type == "reward":
             quality = 1.2 + (floor_level - 1) * 0.12
+            strategy = "balanced"
+            items = self._generate_reward_items("reward", quality)
         elif room_type == "treasure":
             quality = 1.3 + (floor_level - 1) * 0.13
+            strategy = "balanced"
+            items = self._generate_reward_items("treasure", quality)
 
         return {
             "count": random.randint(1, 3),
-            "quality": quality
+            "quality": quality,
+            "strategy": strategy,
+            "items": items
         }
+
+    def _generate_reward_items(
+        self,
+        room_type: str,
+        quality: float
+    ) -> List[Dict[str, Any]]:
+        """生成具体的奖励物品列表"""
+        items = []
+
+        if room_type == "elite":
+            # 精英房间：高概率武器或攻击提升
+            items.append({
+                "type": random.choice(["weapon", "attack_up"]),
+                "rarity": random.choice(["uncommon", "rare"]),
+                "value": random.randint(3, 8)
+            })
+        elif room_type == "boss":
+            # Boss房间：稀有武器 + 大量金币
+            items.append({
+                "type": "weapon",
+                "rarity": random.choice(["rare", "epic"]),
+                "value": random.randint(10, 20)
+            })
+            items.append({
+                "type": "gold",
+                "rarity": "rare",
+                "value": random.randint(50, 100)
+            })
+        elif room_type == "reward":
+            # 奖励房间：平衡奖励
+            items.append({
+                "type": random.choice(["health_up", "attack_up", "heal"]),
+                "rarity": random.choice(["common", "uncommon"]),
+                "value": random.randint(5, 15)
+            })
+        elif room_type == "treasure":
+            # 宝箱房间：金币为主
+            items.append({
+                "type": "gold",
+                "rarity": "uncommon",
+                "value": random.randint(30, 60)
+            })
+            if random.random() < 0.5:
+                items.append({
+                    "type": random.choice(["attack_up", "health_up"]),
+                    "rarity": "common",
+                    "value": random.randint(2, 5)
+                })
+
+        return items
 
     def _generate_chest_config(self, room_type: str) -> int:
         """生成宝箱配置"""

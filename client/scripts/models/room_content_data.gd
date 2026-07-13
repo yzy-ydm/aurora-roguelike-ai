@@ -19,6 +19,8 @@ var monster_types: Array[String] = []
 ## 奖励配置
 var reward_count: int = 3
 var reward_quality: float = 1.0  # 奖励品质倍率
+var reward_strategy: String = ""  # 奖励策略（如 "power_growth", "balanced", "random"）
+var reward_items: Array[Dictionary] = []  # AI指定的具体奖励列表
 
 ## 宝箱配置
 var chest_count: int = 0
@@ -117,6 +119,8 @@ func to_dict() -> Dictionary:
 		"monster_types": monster_types,
 		"reward_count": reward_count,
 		"reward_quality": reward_quality,
+		"reward_strategy": reward_strategy,
+		"reward_items": reward_items,
 		"chest_count": chest_count,
 		"chest_quality": chest_quality,
 		"event_id": event_id,
@@ -135,6 +139,8 @@ static func from_dict(data: Dictionary) -> RoomContentData:
 	content.monster_types = data.get("monster_types", [])
 	content.reward_count = data.get("reward_count", 3)
 	content.reward_quality = data.get("reward_quality", 1.0)
+	content.reward_strategy = data.get("reward_strategy", "")
+	content.reward_items = data.get("reward_items", [])
 	content.chest_count = data.get("chest_count", 0)
 	content.chest_quality = data.get("chest_quality", 1.0)
 	content.event_id = data.get("event_id", -1)
@@ -157,4 +163,13 @@ func print_info() -> void:
 	print("  Difficulty: ", difficulty)
 	print("  Monsters: ", monster_count, " (level ", monster_level, ")")
 	print("  Rewards: ", reward_count, " (quality ", reward_quality, ")")
+	if reward_strategy != "":
+		print("  Reward Strategy: ", reward_strategy)
+	if reward_items.size() > 0:
+		print("  Reward Items: ", reward_items.size())
 	print("  Chests: ", chest_count)
+
+
+## 检查是否有AI指定的奖励策略
+func has_reward_strategy() -> bool:
+	return reward_strategy != "" or reward_items.size() > 0
