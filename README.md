@@ -4,231 +4,234 @@
 
 ## 📖 项目简介
 
-本项目设计并实现了一个结合云端AI动态内容生成能力的Roguelike游戏系统。系统采用经典的客户端-服务器架构，通过调用云端AI接口，实现游戏内容（怪物、武器、事件等）的动态生成，为玩家提供丰富多变的游戏体验。
+本项目设计并实现了一个基于云端AI动态内容生成能力的2D Roguelike游戏系统。项目采用客户端-服务器架构，通过REST API进行网络通信，使用MySQL数据库管理游戏数据，并计划集成云端AI服务实现动态内容生成。
 
-### 核心特性
+**项目定位：** 本项目不是单纯的游戏制作，而是网络工程专业毕业设计，重点体现客户端-服务器架构、网络通信、数据库管理、后端服务设计和云端AI服务调用等核心技术。
 
-- 🎮 **Roguelike游戏玩法**：随机生成的地牢地图、回合制战斗、永久死亡机制
-- 🤖 **AI动态内容生成**：利用云端AI实时生成怪物、武器、剧情事件
-- 🌐 **客户端-服务器架构**：Godot客户端 + Python FastAPI服务端
-- 💾 **数据持久化**：MySQL数据库存储用户数据、游戏存档、AI生成记录
-- 🔐 **用户系统**：注册、登录、JWT身份认证
+**参考游戏：** 霓虹深渊（Neon Abyss）
 
-## 🏗️ 技术架构
+---
+
+## 🏗️ 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    客户端 (Godot 4.x)                      │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────┐  │
-│  │ 游戏场景 │ │ 玩家控制 │ │ 地图渲染 │ │  HTTP请求模块 │  │
-│  └─────────┘ └─────────┘ └─────────┘ └──────────────┘  │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTP/HTTPS (RESTful API)
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                   服务端 (Python FastAPI)                  │
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌─────────┐ │
-│  │ 用户认证   │ │ 游戏数据   │ │ AI调用     │ │ 数据处理 │ │
-│  └───────────┘ └───────────┘ └───────────┘ └─────────┘ │
-└────────────────────────┬────────────────────────────────┘
-                         │
-         ┌───────────────┼───────────────┐
-         ▼               ▼               ▼
-    ┌─────────┐    ┌──────────┐    ┌──────────┐
-    │ MySQL   │    │ AI API   │    │  日志系统  │
-    │ 数据库   │    │ (云端)    │    │          │
-    └─────────┘    └──────────┘    └──────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      Godot Client                           │
+│                    (游戏客户端 4.x)                           │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTP REST API
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    FastAPI Server                            │
+│                    (Python 3.12)                             │
+├─────────────────────────────────────────────────────────────┤
+│    Router → Service → SQLAlchemy ORM → MySQL Database       │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## 🛠️ 技术栈
 
-| 层级 | 技术 | 版本 | 用途 |
-|------|------|------|------|
-| 客户端 | Godot Engine | 4.x | 游戏引擎，负责游戏逻辑和渲染 |
-| 服务端 | Python | 3.12 | 后端语言 |
-| Web框架 | FastAPI | 最新 | RESTful API服务 |
-| 数据库 | MySQL | 8.0 | 数据持久化存储 |
-| ORM | SQLAlchemy | 最新 | 数据库对象映射 |
-| 认证 | JWT | - | 用户身份认证 |
-| AI接口 | OpenAI API | - | 云端AI内容生成 |
+| 层级 | 技术 | 用途 |
+|------|------|------|
+| 客户端 | Godot 4 + GDScript | 游戏界面、玩家控制、游戏逻辑 |
+| 服务端 | Python 3.12 + FastAPI | REST API、业务逻辑、数据处理 |
+| 数据库 | MySQL 8.0 + SQLAlchemy | 数据持久化存储 |
+| 认证 | JWT + bcrypt | 用户认证、密码加密 |
+| AI服务 | DeepSeek/Claude API | 动态内容生成（计划中） |
+
+---
 
 ## 📁 项目结构
 
 ```
 GraduationProject/
 │
-├── 📄 README.md                    # 项目说明文档
+├── 📄 README.md                    # 项目说明（本文件）
+├── 📄 SYSTEM_PROMPT.md             # AI工程师工作规则
+├── 📄 PROJECT_STATUS.md            # 项目当前状态
+├── 📄 ROADMAP.md                   # 开发路线图
+├── 📄 TODO.md                      # 任务清单
+├── 📄 CHANGELOG.md                 # 变更记录
+├── 📄 ARCHITECTURE.md              # 系统架构
+├── 📄 AI_CONTEXT.md                # 设计理念
+├── 📄 FEATURE_SPEC.md              # 功能需求
+├── 📄 DEVELOPMENT_GUIDE.md         # 开发规范
+├── 📄 API_DOCUMENT.md              # API接口文档
+├── 📄 DATABASE.md                  # 数据库设计
+├── 📄 DEPLOYMENT.md                # 部署说明
 ├── 📄 .gitignore                   # Git忽略规则
 │
-├── 📂 docs/                        # 项目文档
-│   ├── 📄 开发规范.md               # 开发规范文档
-│   ├── 📄 API接口文档.md            # API设计文档
-│   ├── 📄 数据库设计.md             # 数据库设计文档
-│   └── 📂 架构设计/                 # 架构图等
-│
-├── 📂 client/                      # Godot客户端项目
-│   ├── 📄 project.godot            # Godot项目配置
-│   ├── 📂 scenes/                  # 游戏场景
-│   │   ├── 📂 main/               # 主场景
-│   │   ├── 📂 game/               # 游戏场景
-│   │   ├── 📂 ui/                 # UI场景
-│   │   └── 📂 login/              # 登录场景
-│   ├── 📂 scripts/                 # GDScript脚本
-│   │   ├── 📂 player/             # 玩家相关
-│   │   ├── 📂 enemy/              # 怪物相关
-│   │   ├── 📂 map/                # 地图相关
-│   │   ├── 📂 network/            # 网络请求
-│   │   ├── 📂 ui/                 # UI逻辑
-│   │   └── 📂 utils/              # 工具函数
-│   ├── 📂 assets/                  # 游戏资源
-│   │   ├── 📂 sprites/            # 精灵图
-│   │   ├── 📂 tilesets/           # 地图素材
-│   │   ├── 📂 fonts/              # 字体
-│   │   ├── 📂 sounds/             # 音效
-│   │   └── 📂 themes/             # 主题样式
-│   └── 📂 resources/               # Godot资源文件
-│
 ├── 📂 server/                      # Python服务端
-│   ├── 📄 main.py                  # 入口文件
+│   ├── 📄 main.py                  # 应用入口
 │   ├── 📄 requirements.txt         # Python依赖
 │   ├── 📄 .env.example             # 环境变量示例
 │   └── 📂 app/                     # 应用核心
-│       ├── 📂 api/                # API路由
-│       │   ├── 📂 auth/           # 认证相关
-│       │   ├── 📂 user/           # 用户相关
-│       │   ├── 📂 game/           # 游戏数据
-│       │   └── 📂 ai/             # AI生成
-│       ├── 📂 models/             # 数据模型
+│       ├── 📂 api/                # API路由层
+│       │   └── 📂 auth/           # 认证模块
+│       ├── 📂 core/               # 核心模块（安全）
+│       ├── 📂 database/           # 数据库连接
+│       ├── 📂 models/             # ORM模型
 │       ├── 📂 schemas/            # Pydantic模式
-│       ├── 📂 services/           # 业务逻辑
-│       ├── 📂 core/               # 核心配置
-│       └── 📂 utils/              # 工具函数
+│       └── 📂 services/           # 业务服务层
+│
+├── 📂 client/                      # Godot客户端（待开发）
 │
 ├── 📂 database/                    # 数据库相关
-│   ├── 📂 design/                 # 数据库设计文档
-│   │   └── 📄 README.md           # 设计说明
-│   ├── 📂 migrations/             # 迁移脚本
-│   └── 📂 seeds/                  # 测试数据
+│   ├── 📂 sql/                    # SQL脚本
+│   └── 📂 design/                 # 设计文档
 │
-├── 📂 paper_material/              # 毕业论文材料
-│   ├── 📂 images/                 # 论文插图
-│   ├── 📂 screenshots/            # 系统截图
-│   └── 📂 references/             # 参考资料
-│
-└── 📂 tools/                       # 工具脚本
+└── 📂 docs/                        # 项目文档
+    └── 📂 backend/                # 后端文档
 ```
+
+---
 
 ## 🚀 快速开始
 
 ### 环境要求
 
-- Godot Engine 4.x
 - Python 3.12+
 - MySQL 8.0
 - Git
 
-### 1. 克隆项目
+### 安装步骤
 
 ```bash
-git clone <repository-url>
-cd GraduationProject
-```
+# 1. 克隆项目
+git clone https://github.com/yzy-ydm/aurora-roguelike-ai.git
+cd aurora-roguelike-ai
 
-### 2. 服务端配置
-
-```bash
-# 进入服务端目录
+# 2. 进入服务端目录
 cd server
 
-# 创建虚拟环境
+# 3. 创建虚拟环境
 python -m venv venv
 
-# 激活虚拟环境 (Windows)
-venv\Scripts\activate
+# 4. 激活虚拟环境
+venv\Scripts\activate    # Windows
+source venv/bin/activate # Linux/Mac
 
-# 激活虚拟环境 (Linux/Mac)
-source venv/bin/activate
-
-# 安装依赖
+# 5. 安装依赖
 pip install -r requirements.txt
 
-# 配置环境变量
+# 6. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，填入数据库和API配置
-```
+# 编辑 .env 文件，配置数据库密码
 
-### 3. 数据库配置
+# 7. 初始化数据库
+mysql -u root -p < ../database/sql/create_tables.sql
 
-```bash
-# 登录MySQL
-mysql -u root -p
-
-# 执行初始化脚本
-source database/init.sql
-```
-
-### 4. 启动服务端
-
-```bash
-# 在server目录下
+# 8. 启动服务
 python main.py
 ```
 
-服务将在 http://localhost:8000 启动
+### 访问服务
 
-API文档：http://localhost:8000/docs
+- API服务：http://localhost:8000
+- Swagger文档：http://localhost:8000/docs
+- 健康检查：http://localhost:8000/health
 
-### 5. 客户端配置
+---
 
-1. 打开 Godot Engine 4.x
-2. 导入 `client/` 目录
-3. 运行项目
+## 📊 当前进度
 
-## 📚 文档
+### 已完成
 
-- [开发规范文档](docs/开发规范.md) - 代码规范和开发流程
-- [API接口文档](docs/API接口文档.md) - 接口设计说明（待创建）
-- [数据库设计文档](docs/数据库设计.md) - 数据模型设计（待创建）
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 1 | 项目初始化 | ✅ 完成 |
+| Phase 2 | Git工程管理 | ✅ 完成 |
+| Phase 3 | MySQL数据库设计 | ✅ 完成 |
+| Phase 4.1 | FastAPI数据库连接 | ✅ 完成 |
+| Phase 4.2 | 用户认证系统 | ✅ 完成 |
 
-## 🎯 毕业设计核心展示点
+### 待开发
 
-| 核心点 | 体现方式 | 关键代码位置 |
-|--------|----------|--------------|
-| 网络通信 | HTTP请求/响应、RESTful API | `client/scripts/network/`, `server/app/api/` |
-| 客户端与服务器架构 | 前后端分离、职责划分 | 整体架构设计 |
-| 数据库管理 | 数据模型设计、CRUD操作 | `server/app/models/`, `database/` |
-| 云端AI调用 | API调用、Prompt工程 | `server/app/services/ai_service.py` |
-| 动态内容生成 | AI生成游戏内容并实时应用 | `server/app/api/ai/` |
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 4.3 | 玩家角色系统 | ⬜ 待开发 |
+| Phase 4.4 | 武器系统 | ⬜ 待开发 |
+| Phase 4.5 | 怪物系统 | ⬜ 待开发 |
+| Phase 4.6 | 游戏数据接口 | ⬜ 待开发 |
+| Phase 5 | Godot客户端 | ⬜ 待开发 |
+| Phase 6 | 核心玩法 | ⬜ 待开发 |
+| Phase 7 | AI动态生成 | ⬜ 待开发 |
+| Phase 8 | 测试优化 | ⬜ 待开发 |
+| Phase 9 | 论文答辩 | ⬜ 待开发 |
 
-## 👥 开发阶段
+**总体进度：约 25%**
 
-### Phase 1: 项目初始化 ✅
-- [x] 项目架构设计
-- [x] 目录结构规划
-- [x] 开发规范制定
-- [x] 基础文档编写
+---
 
-### Phase 2: 基础框架搭建
-- [ ] 服务端框架搭建
-- [ ] 数据库模型设计
-- [ ] 客户端基础场景
+## 🔌 已实现API
 
-### Phase 3: 核心功能开发
-- [ ] 用户系统实现
-- [ ] 游戏核心逻辑
-- [ ] AI内容生成
+| 接口 | 方法 | 功能 | 状态 |
+|------|------|------|------|
+| /health | GET | 健康检查 | ✅ |
+| /api/auth/register | POST | 用户注册 | ✅ |
+| /api/auth/login | POST | 用户登录 | ✅ |
 
-### Phase 4: 功能完善与测试
-- [ ] 功能联调测试
-- [ ] 性能优化
-- [ ] 文档完善
+---
+
+## 💾 数据库
+
+**数据库名：** aurora_game
+
+**数据表（8张）：**
+- users - 用户账号表
+- player_profiles - 玩家角色信息表
+- weapons - 武器数据表
+- monsters - 怪物数据表
+- events - 随机事件表
+- maps - 地图数据表
+- game_saves - 游戏存档表
+- ai_generations - AI生成记录表
+
+---
+
+## 🎯 毕业设计价值体现
+
+| 专业方向 | 体现方式 |
+|----------|----------|
+| 网络通信 | HTTP REST API、客户端-服务器架构 |
+| 后端服务 | FastAPI框架、分层架构设计 |
+| 数据库管理 | MySQL、SQLAlchemy ORM、8张数据表 |
+| 云端服务 | AI API调用（计划中） |
+| 系统设计 | 完整的软件工程实践 |
+
+---
+
+## 📚 文档索引
+
+| 文档 | 说明 |
+|------|------|
+| [SYSTEM_PROMPT.md](SYSTEM_PROMPT.md) | AI工程师工作规则 |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md) | 项目当前状态 |
+| [ROADMAP.md](ROADMAP.md) | 开发路线图 |
+| [TODO.md](TODO.md) | 任务清单 |
+| [CHANGELOG.md](CHANGELOG.md) | 变更记录 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统架构说明 |
+| [AI_CONTEXT.md](AI_CONTEXT.md) | 设计理念 |
+| [FEATURE_SPEC.md](FEATURE_SPEC.md) | 功能需求规格 |
+| [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) | 开发规范指南 |
+| [API_DOCUMENT.md](API_DOCUMENT.md) | API接口文档 |
+| [DATABASE.md](DATABASE.md) | 数据库设计文档 |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | 部署说明 |
+
+---
 
 ## 📝 开发日志
 
-| 日期 | 内容 |
-|------|------|
-| 2026-07-12 | 项目初始化，完成架构设计和基础文档 |
-| 2026-07-12 | 工程化完善：添加服务端入口文件、依赖配置、环境变量示例、论文材料目录 |
+| 日期 | 内容 | Git Commit |
+|------|------|------------|
+| 2026-07-12 | 项目初始化 | 0e61898 |
+| 2026-07-13 | 数据库设计 | 494de64 |
+| 2026-07-13 | FastAPI数据库连接 | 4d059e8 |
+| 2026-07-13 | 用户认证系统 | 0352e25 |
+
+---
 
 ## 📄 许可证
 
@@ -236,10 +239,6 @@ API文档：http://localhost:8000/docs
 
 ---
 
-**项目作者**：[你的姓名]
+**GitHub仓库：** https://github.com/yzy-ydm/aurora-roguelike-ai
 
-**指导教师**：[导师姓名]
-
-**学校院系**：[学校名称] [院系名称]
-
-**完成日期**：2026年
+**完成日期：** 2026年
