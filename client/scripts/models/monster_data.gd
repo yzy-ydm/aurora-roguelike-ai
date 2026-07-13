@@ -29,9 +29,13 @@ var max_floor: int = 999
 static func from_dict(data: Dictionary) -> MonsterData:
 	var monster = MonsterData.new()
 	monster.id = data.get("id", 0)
-	monster.name = data.get("name", "")
-	monster.description = data.get("description", "")
-	monster.type = data.get("type", "")
+	# String 类型字段需要处理 null 值（服务器可能返回 null）
+	var name_val = data.get("name")
+	monster.name = name_val if name_val != null else ""
+	var desc_val = data.get("description")
+	monster.description = desc_val if desc_val != null else ""
+	var type_val = data.get("type")
+	monster.type = type_val if type_val != null else ""
 	monster.level = data.get("level", 1)
 	monster.health = data.get("health", 0)
 	monster.attack = data.get("attack", 0)
@@ -39,9 +43,14 @@ static func from_dict(data: Dictionary) -> MonsterData:
 	monster.speed = data.get("speed", 10)
 	monster.experience_reward = data.get("experience_reward", 10)
 	monster.gold_reward = data.get("gold_reward", 5)
-	monster.special_ability = data.get("special_ability", "")
+	# 特殊能力可能为 null
+	var ability_val = data.get("special_ability")
+	monster.special_ability = ability_val if ability_val != null else ""
+	# attributes 保持 Variant 类型，可以接受 null
 	monster.attributes = data.get("attributes", null)
-	monster.icon_path = data.get("icon_path", "")
+	# 图标路径可能为 null
+	var icon_val = data.get("icon_path")
+	monster.icon_path = icon_val if icon_val != null else ""
 	monster.min_floor = data.get("min_floor", 1)
 	monster.max_floor = data.get("max_floor", 999)
 	return monster

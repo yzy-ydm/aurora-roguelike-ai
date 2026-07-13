@@ -33,6 +33,24 @@ var _inventory_manager: Node = null
 ## 装备管理器
 var _equipment_manager: Node = null
 
+## 怪物生成器
+var _monster_spawner: Node = null
+
+## 伤害系统
+var _damage_system: Node = null
+
+## 掉落管理器
+var _drop_manager: Node = null
+
+## 房间图管理器
+var _room_graph: Node = null
+
+## 房间内容管理器
+var _room_content_manager: Node = null
+
+## AI内容服务
+var _ai_content_service: Node = null
+
 ## 玩家数据
 var _player_data: Dictionary = {}
 
@@ -70,6 +88,9 @@ func _ready() -> void:
 	# 初始化系统
 	_init_inventory_system()
 	_init_object_system()
+	_init_damage_system()
+	_init_monster_system()
+	_init_drop_system()
 	_init_world_system()
 
 	# 更新显示
@@ -109,6 +130,54 @@ func _init_object_system() -> void:
 	add_child(_object_manager)
 
 
+## 初始化伤害系统
+func _init_damage_system() -> void:
+	_damage_system = Node.new()
+	_damage_system.name = "DamageSystem"
+	_damage_system.set_script(load("res://scripts/combat/damage_system.gd"))
+	add_child(_damage_system)
+	print("[GameScene] Damage system initialized")
+
+
+## 初始化掉落系统
+func _init_drop_system() -> void:
+	_drop_manager = Node.new()
+	_drop_manager.name = "DropManager"
+	_drop_manager.set_script(load("res://scripts/drop/drop_manager.gd"))
+	add_child(_drop_manager)
+
+	# 设置奖励容器
+	_drop_manager.setup_container($GameWorld)
+
+	# 设置玩家引用
+	_drop_manager.set_player(player)
+
+	# 连接信号
+	_drop_manager.reward_collected.connect(_on_reward_collected)
+	_drop_manager.all_rewards_collected.connect(_on_all_rewards_collected)
+
+	print("[GameScene] Drop system initialized")
+
+
+## 初始化怪物系统
+func _init_monster_system() -> void:
+	# 创建怪物生成器
+	_monster_spawner = Node.new()
+	_monster_spawner.name = "MonsterSpawner"
+	_monster_spawner.set_script(load("res://scripts/enemy/monster_spawner.gd"))
+	add_child(_monster_spawner)
+
+	# 设置怪物容器
+	_monster_spawner.setup_container($GameWorld)
+
+	# 连接信号
+	_monster_spawner.monster_spawned.connect(_on_monster_spawned)
+	_monster_spawner.all_monsters_dead.connect(_on_all_monsters_dead)
+	_monster_spawner.monster_died_signal.connect(_on_monster_died)
+
+	print("[GameScene] Monster system initialized")
+
+
 ## 初始化世界系统
 func _init_world_system() -> void:
 	# 创建房间管理器
@@ -116,6 +185,38 @@ func _init_world_system() -> void:
 	_room_manager.name = "RoomManager"
 	_room_manager.set_script(load("res://scripts/world/room_manager.gd"))
 	add_child(_room_manager)
+
+	# 创建房间图管理器
+	_room_graph = Node.new()
+	_room_graph.name = "RoomGraph"
+	_room_graph.set_script(load("res://scripts/world/room_graph.gd"))
+	add_child(_room_graph)
+
+	# 创建AI内容服务
+	_ai_content_service = Node.new()
+	_ai_content_service.name = "AIContentService"
+	_ai_content_service.set_script(load("res://scripts/ai/ai_content_service.gd"))
+	add_child(_ai_content_service)
+
+	# 创建房间内容管理器
+	_room_content_manager = Node.new()
+	_room_content_manager.name = "RoomContentManager"
+	_room_content_manager.set_script(load("res://scripts/world/room_content_manager.gd"))
+	add_child(_room_content_manager)
+
+	# 连接房间图信号
+	_room_graph.room_graph_generated.connect(_on_room_graph_generated)
+	_room_graph.current_room_changed.connect(_on_current_room_changed)
+
+	# 设置RoomManager的RoomGraph引用
+	_room_manager.set_room_graph(_room_graph)
+
+	# 设置RoomManager的RoomContentManager引用
+	_room_manager.set_room_content_manager(_room_content_manager)
+
+	# 设置RoomContentManager的AIContentService引用
+	_room_content_manager.set_ai_content_service(_ai_content_service)
+	_room_content_manager.set_use_ai(true)
 
 	# 创建世界管理器
 	_world_manager = Node.new()
@@ -130,6 +231,17 @@ func _init_world_system() -> void:
 	_world_manager.world_initialized.connect(_on_world_initialized)
 	_world_manager.world_load_error.connect(_on_world_load_error)
 	_world_manager.room_changed.connect(_on_room_changed)
+
+	# 连接房间管理器信号
+	_room_manager.room_entered.connect(_on_room_entered)
+	_room_manager.room_state_changed.connect(_on_room_state_changed)
+	_room_manager.room_cleared.connect(_on_room_cleared)
+
+	# 设置MonsterSpawner的RoomManager引用
+	_monster_spawner.set_room_manager(_room_manager)
+
+	# 生成房间图
+	_room_graph.generate_new_floor(1)
 
 	# 加载世界
 	_world_manager.load_world()
@@ -186,6 +298,9 @@ func _create_test_objects() -> void:
 		interactive_weapon2.set_linked_node(_create_weapon_node(weapon2, Vector2(700, 200)))
 		_object_manager.register_object(weapon_obj2)
 		interaction_manager.register_object(interactive_weapon2)
+
+	# 注意：怪物现在由房间系统自动生成
+	print("[GameScene] Test objects created. Monsters will spawn when entering combat rooms.")
 
 
 ## 创建占位节点
@@ -284,6 +399,50 @@ func _input(event: InputEvent) -> void:
 		_toggle_pause()
 	elif event.is_action_pressed("interaction"):
 		_try_interact()
+	elif event.is_action_pressed("ui_accept"):  # N键或回车键
+		_try_enter_next_room()
+	elif event is InputEventKey and event.pressed:
+		_handle_number_key(event)
+
+
+## 处理数字键输入
+func _handle_number_key(event: InputEventKey) -> void:
+	# 数字键1-9选择房间
+	if event.keycode >= KEY_1 and event.keycode <= KEY_9:
+		var room_index = event.keycode - KEY_1
+		_try_enter_room_by_index(room_index)
+
+
+## 尝试进入下一房间
+func _try_enter_next_room() -> void:
+	if not _room_manager:
+		return
+
+	# 检查房间是否已清除
+	if _room_manager.is_room_cleared():
+		print("[GameScene] Entering next room...")
+		_room_manager.enter_next_room()
+	else:
+		print("[GameScene] Room not cleared yet")
+
+
+## 尝试进入指定索引的房间
+func _try_enter_room_by_index(index: int) -> void:
+	if not _room_graph:
+		return
+
+	# 获取可用房间
+	var available = _room_graph.get_available_room_ids()
+
+	# 检查索引是否有效
+	if index < available.size():
+		var room_id = available[index]
+		print("[GameScene] Entering room: ", room_id)
+		_room_manager.enter_room_by_id(room_id)
+	else:
+		print("[GameScene] Invalid room index: ", index)
+	else:
+		print("[GameScene] Room not cleared yet")
 
 
 ## 每帧处理
@@ -464,3 +623,119 @@ func _on_resource_pressed() -> void:
 func _on_logout_pressed() -> void:
 	hud.set_status("正在保存游戏...")
 	GameFlowController.exit_game()
+
+
+## 怪物生成回调
+func _on_monster_spawned(monster_entity: MonsterEntity) -> void:
+	print("[GameScene] Monster spawned: ", monster_entity.get_monster_name())
+	hud.set_status("怪物出现了: " + monster_entity.get_monster_name())
+
+
+## 所有怪物死亡回调
+func _on_all_monsters_dead() -> void:
+	print("[GameScene] All monsters defeated!")
+	hud.set_status("所有怪物已被消灭！")
+
+
+## 怪物死亡回调
+func _on_monster_died(monster_entity: MonsterEntity) -> void:
+	print("[GameScene] Monster died: ", monster_entity.get_monster_name())
+
+
+## 房间进入回调
+func _on_room_entered(room_data: RoomData) -> void:
+	print("[GameScene] Room entered: ", room_data.room_name)
+
+	# 获取房间内容数据
+	var content = _room_manager.get_current_content()
+	if not content:
+		print("[GameScene] No content data for room")
+		return
+
+	print("[GameScene] Room content: monsters=", content.monster_count, " rewards=", content.reward_count)
+
+	# 根据房间内容生成怪物
+	if content.monster_count > 0:
+		var room_position = room_data.position
+		var room_size = Vector2(room_data.width, room_data.height)
+
+		# 使用MonsterSpawner生成怪物
+		var monster_count = _monster_spawner.spawn_monsters_from_content(content, room_position, room_size)
+
+		# 开始房间战斗
+		if monster_count > 0:
+			_room_manager.start_room_combat(monster_count)
+		else:
+			print("[GameScene] No monsters spawned")
+	else:
+		print("[GameScene] No monsters in this room")
+
+
+## 房间状态变化回调
+func _on_room_state_changed(new_state: int) -> void:
+	match new_state:
+		0:  # EMPTY
+			hud.set_status("房间状态: 空")
+		1:  # SPAWNING
+			hud.set_status("房间状态: 生成怪物中...")
+		2:  # COMBAT
+			hud.set_status("房间状态: 战斗中！")
+		3:  # CLEARED
+			hud.set_status("房间状态: 已清除！可以进入下一房间")
+		4:  # REWARD
+			hud.set_status("房间状态: 奖励阶段")
+
+
+## 房间清除回调
+func _on_room_cleared() -> void:
+	print("[GameScene] Room cleared!")
+	hud.set_status("房间已清除！拾取奖励后按N进入下一房间")
+
+	# 获取房间内容数据
+	var content = _room_manager.get_current_content()
+
+	# 生成奖励
+	if _drop_manager and _room_manager:
+		var current_room = _room_manager.get_current_room()
+		if current_room:
+			var room_position = current_room.position
+
+			# 使用RoomContentData生成奖励
+			if content and content.reward_count > 0:
+				_drop_manager.spawn_rewards_from_content(content, room_position)
+			else:
+				# 默认生成3个奖励
+				_drop_manager.spawn_rewards_for_room(room_position, 3)
+
+
+## 奖励收集回调
+func _on_reward_collected(reward_data: RewardData) -> void:
+	print("[GameScene] Reward collected: ", reward_data.name)
+	hud.set_status("获得: " + reward_data.description)
+
+	# 更新玩家显示
+	_player_data = player.get_player_data()
+	_update_game_display()
+
+
+## 所有奖励收集完成回调
+func _on_all_rewards_collected() -> void:
+	print("[GameScene] All rewards collected!")
+	hud.set_status("所有奖励已收集！按N进入下一房间")
+
+
+## 房间图生成回调
+func _on_room_graph_generated() -> void:
+	print("[GameScene] Room graph generated")
+	if _room_graph:
+		_room_graph.print_status()
+		hud.set_status("房间图已生成！当前房间: " + str(_room_graph.get_current_room_id()))
+
+
+## 当前房间变化回调
+func _on_current_room_changed(old_id: int, new_id: int) -> void:
+	print("[GameScene] Current room changed: ", old_id, " -> ", new_id)
+	if _room_graph:
+		var available = _room_graph.get_available_room_ids()
+		print("[GameScene] Available rooms: ", available)
+		hud.set_status("当前房间: " + str(new_id) + " | 可用房间: " + str(available))
