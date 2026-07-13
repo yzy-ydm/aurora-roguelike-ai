@@ -15,6 +15,21 @@
 
 ---
 
+## [0.22.1] - 2026-07-13
+
+### Fixed - 用户注册自动创建玩家角色
+
+**Git Commit:** 待提交
+
+- 修复用户注册后登录返回"玩家角色不存在"的问题
+- 修改 `server/app/services/auth_service.py`
+  - register_user() 方法：注册成功后自动创建 PlayerProfile
+  - authenticate_user() 方法：登录时检测并自动创建角色（兼容已有用户）
+  - 新增 _ensure_player_profile() 方法：确保玩家角色档案存在
+- 保持现有架构：Router → Service → ORM → Database
+
+---
+
 ## [0.22.0] - 2026-07-13
 
 ### Added - 玩家资源系统 (Phase 6.1)

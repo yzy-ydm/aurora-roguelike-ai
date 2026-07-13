@@ -2,8 +2,8 @@
 认证服务模块
 
 本模块提供用户认证相关的业务逻辑，包括：
-- 用户注册
-- 用户认证（登录）
+- 用户注册（自动创建玩家角色）
+- 用户认证（登录，兼容已有用户）
 - Token生成
 
 设计原则：
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.models.user import User
+from app.models.player_profile import PlayerProfile
 from app.schemas.auth import UserRegister, UserLogin, TokenResponse, UserInfo
 from app.core.security import (
     hash_password,
@@ -58,7 +59,8 @@ class AuthService:
         2. 检查邮箱是否已被使用
         3. 对密码进行bcrypt哈希加密
         4. 创建用户记录
-        5. 返回用户信息
+        5. 自动创建玩家角色档案
+        6. 返回用户信息
 
         Args:
             user_data: 用户注册数据（用户名、密码、邮箱）
@@ -110,10 +112,33 @@ class AuthService:
 
         # 添加到数据库
         self.db.add(new_user)
-        self.db.commit()
-        self.db.refresh(new_user)  # 刷新以获取自增ID等
+        self.db.flush()  # 刷新以获取自增ID，但不提交事务
 
-        # 5. 构建返回的用户信息
+        # 5. 自动创建玩家角色档案
+        new_profile = PlayerProfile(
+            user_id=new_user.id,
+            nickname=user_data.username,  # 默认使用用户名作为昵称
+            level=1,
+            experience=0,
+            experience_to_next_level=100,
+            max_health=100,
+            current_health=100,
+            attack=10,
+            defense=5,
+            crit_rate=5.00,
+            gold=0,
+            total_play_time=0,
+            max_floor_reached=1,
+            total_kills=0,
+            death_count=0
+        )
+        self.db.add(new_profile)
+
+        # 提交事务（用户和角色档案同时提交）
+        self.db.commit()
+        self.db.refresh(new_user)
+
+        # 6. 构建返回的用户信息
         user_info = UserInfo(
             id=new_user.id,
             username=new_user.username,
@@ -132,7 +157,8 @@ class AuthService:
         1. 根据用户名查找用户
         2. 验证密码是否匹配
         3. 检查账号是否启用
-        4. 更新最后登录时间
+        4. 确保玩家角色档案存在（兼容已有用户）
+        5. 更新最后登录时间
 
         Args:
             login_data: 用户登录数据（用户名、密码）
@@ -168,11 +194,50 @@ class AuthService:
         if not user.is_active:
             return False, "账号已被禁用", None
 
-        # 4. 更新最后登录时间
+        # 4. 确保玩家角色档案存在（兼容已有用户）
+        self._ensure_player_profile(user.id, user.username)
+
+        # 5. 更新最后登录时间
         user.last_login_at = datetime.utcnow()
         self.db.commit()
 
         return True, "登录成功", user
+
+    def _ensure_player_profile(self, user_id: int, username: str) -> None:
+        """
+        确保玩家角色档案存在
+
+        如果用户没有角色档案，自动创建一个。
+        用于兼容注册时未创建角色档案的已有用户。
+
+        Args:
+            user_id: 用户ID
+            username: 用户名（用作默认昵称）
+        """
+        existing_profile = self.db.query(PlayerProfile).filter(
+            PlayerProfile.user_id == user_id
+        ).first()
+
+        if not existing_profile:
+            new_profile = PlayerProfile(
+                user_id=user_id,
+                nickname=username,
+                level=1,
+                experience=0,
+                experience_to_next_level=100,
+                max_health=100,
+                current_health=100,
+                attack=10,
+                defense=5,
+                crit_rate=5.00,
+                gold=0,
+                total_play_time=0,
+                max_floor_reached=1,
+                total_kills=0,
+                death_count=0
+            )
+            self.db.add(new_profile)
+            self.db.commit()
 
     def create_access_token(self, user: User) -> TokenResponse:
         """
