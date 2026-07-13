@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.6 已完成，准备进入 Phase 5.7
+## 当前阶段：Phase 5.7 已完成，准备进入 Phase 5.8
 
 ---
 
@@ -172,6 +172,16 @@
 - [x] 游戏流程控制器（client/scripts/managers/game_flow_controller.gd）
 - [x] 登录→游戏流程集成
 - [x] 退出保存功能
+- [x] 暂停菜单系统（client/scenes/ui/pause_menu.tscn）
+- [x] 暂停菜单控制器（client/scripts/ui/pause_menu.gd）
+- [x] 设置菜单场景（client/scenes/ui/settings_menu.tscn）
+- [x] 设置菜单控制器（client/scripts/ui/settings_menu.gd）
+- [x] 存档选择界面（client/scenes/ui/save_selection.tscn）
+- [x] 存档选择控制器（client/scripts/ui/save_selection.gd）
+- [x] 设置管理器（client/scripts/managers/settings_manager.gd）
+- [x] ESC暂停/继续功能
+- [x] 音量设置（主音量、音乐、音效）
+- [x] ConfigFile本地配置保存
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

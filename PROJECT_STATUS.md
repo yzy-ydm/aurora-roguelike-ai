@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.6 已完成**（游戏循环系统） → 准备进入 **Phase 5.7 基础游戏交互准备**
+**Phase 5.7 已完成**（基础游戏交互系统） → 准备进入 **Phase 5.8 基础游戏世界构建准备**
 
 ---
 
@@ -34,12 +34,13 @@
 | Phase 5.4 | 游戏资源加载系统 | ✅ 完成 | 100% |
 | Phase 5.5 | 基础游戏资源展示 | ✅ 完成 | 100% |
 | Phase 5.6 | 游戏循环系统 | ✅ 完成 | 100% |
+| Phase 5.7 | 基础游戏交互系统 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 85%**
+**总体进度：约 90%**
 
 ---
 
@@ -322,6 +323,27 @@
 - [x] 登录→游戏流程集成
 - [x] 退出保存功能
 
+### 18. 基础游戏交互系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 暂停菜单场景 | client/scenes/ui/pause_menu.tscn | ESC暂停/继续 |
+| 暂停菜单控制器 | client/scripts/ui/pause_menu.gd | 暂停菜单逻辑 |
+| 设置菜单场景 | client/scenes/ui/settings_menu.tscn | 音量设置界面 |
+| 设置菜单控制器 | client/scripts/ui/settings_menu.gd | 设置管理逻辑 |
+| 存档选择场景 | client/scenes/ui/save_selection.tscn | 存档槽位选择 |
+| 存档选择控制器 | client/scripts/ui/save_selection.gd | 存档选择逻辑 |
+| 设置管理器 | client/scripts/managers/settings_manager.gd | 本地配置保存 |
+
+**技术实现：**
+- [x] 暂停菜单系统（ESC打开/关闭）
+- [x] 设置系统（主音量、音乐音量、音效音量）
+- [x] 存档选择界面（3个槽位）
+- [x] ConfigFile本地配置保存
+- [x] Godot暂停机制集成
+
 ---
 
 ## 当前技术状态
@@ -375,13 +397,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.7：基础游戏交互准备**
+**Phase 5.8：基础游戏世界构建准备**
 
 需要实现：
-1. 游戏内菜单系统
-2. 存档界面
-3. 设置界面
-4. 游戏暂停功能
+1. 地图渲染系统
+2. 房间生成框架
+3. 碰撞系统完善
+4. 游戏世界初始化
 
 ---
 
@@ -389,7 +411,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement game loop system |
+| (待提交) | feat(client): implement basic game interaction system |
+| 0e0ed0e | feat(client): implement game loop system |
 | cd60e47 | feat(client): implement resource display system |
 | 25397e4 | feat(client): implement resource loading system |
 | 7621303 | feat(player): implement basic player controller |

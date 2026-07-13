@@ -1,8 +1,7 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 集成GameStateManager进行状态管理
-## 支持退出保存功能
+## 集成暂停菜单、设置、存档选择功能
 
 extends Node2D
 
@@ -11,9 +10,15 @@ extends Node2D
 @onready var hud: CanvasLayer = $UI/HUD
 @onready var resource_button: Button = $UI/MenuPanel/MenuButtons/ResourceButton
 @onready var logout_button: Button = $UI/MenuPanel/MenuButtons/LogoutButton
+@onready var pause_menu: CanvasLayer = $PauseMenu
+@onready var settings_menu: CanvasLayer = $SettingsMenu
+@onready var save_selection: CanvasLayer = $SaveSelection
 
 ## 玩家数据
 var _player_data: Dictionary = {}
+
+## 暂停状态
+var _is_paused: bool = false
 
 
 func _ready() -> void:
@@ -21,9 +26,17 @@ func _ready() -> void:
 	resource_button.pressed.connect(_on_resource_pressed)
 	logout_button.pressed.connect(_on_logout_pressed)
 
-	# 连接信号
-	SaveService.save_saved.connect(_on_save_saved)
-	SaveService.save_error.connect(_on_save_error)
+	# 连接暂停菜单信号
+	pause_menu.resume_game.connect(_on_resume_game)
+	pause_menu.open_settings.connect(_on_open_settings)
+	pause_menu.exit_to_menu.connect(_on_exit_to_menu)
+
+	# 连接设置菜单信号
+	settings_menu.settings_closed.connect(_on_settings_closed)
+
+	# 连接存档选择信号
+	save_selection.save_selected.connect(_on_save_selected)
+	save_selection.save_selection_closed.connect(_on_save_selection_closed)
 
 	# 从GameStateManager获取玩家数据
 	_player_data = GameStateManager.get_player_data()
@@ -38,10 +51,43 @@ func _ready() -> void:
 	set_process(true)
 
 
+## 输入处理
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_toggle_pause()
+
+
 ## 每帧处理
 func _process(delta: float) -> void:
 	# 更新游戏运行时间
-	GameStateManager.add_play_time(delta)
+	if not _is_paused:
+		GameStateManager.add_play_time(delta)
+
+
+## 切换暂停状态
+func _toggle_pause() -> void:
+	if _is_paused:
+		_resume_game()
+	else:
+		_pause_game()
+
+
+## 暂停游戏
+func _pause_game() -> void:
+	_is_paused = true
+	get_tree().paused = true
+	GameStateManager.set_state(GameStateManager.GameState.PAUSED)
+	pause_menu.show_pause()
+	hud.set_status("游戏暂停")
+
+
+## 恢复游戏
+func _resume_game() -> void:
+	_is_paused = false
+	get_tree().paused = false
+	GameStateManager.set_state(GameStateManager.GameState.PLAYING)
+	pause_menu.hide_pause()
+	hud.set_status("游戏进行中")
 
 
 ## 更新资源显示
@@ -56,26 +102,55 @@ func _update_resource_display() -> void:
 
 ## 更新游戏显示
 func _update_game_display() -> void:
-	# 更新HUD
 	hud.update_hud(_player_data)
-
-	# 更新玩家节点
 	player.set_player_data(_player_data)
-
-	hud.set_status("游戏进行中 - 使用WASD或方向键移动")
-
-
-## 存档保存成功
-func _on_save_saved(success: bool, message: String) -> void:
-	if success:
-		hud.set_status("存档保存成功")
-	else:
-		hud.set_status("存档保存失败: " + message)
+	hud.set_status("游戏进行中 - 按ESC暂停")
 
 
-## 存档保存错误
-func _on_save_error(error: String) -> void:
-	hud.set_status("存档保存错误: " + error)
+## 暂停菜单：继续游戏
+func _on_resume_game() -> void:
+	_resume_game()
+
+
+## 暂停菜单：打开设置
+func _on_open_settings() -> void:
+	pause_menu.hide_pause()
+	settings_menu.show_settings()
+
+
+## 暂停菜单：退出到主菜单
+func _on_exit_to_menu() -> void:
+	pause_menu.hide_pause()
+	save_selection.show_save_selection()
+
+
+## 设置菜单：关闭
+func _on_settings_closed() -> void:
+	pause_menu.show_pause()
+
+
+## 存档选择：选择存档槽位
+func _on_save_selected(slot: int) -> void:
+	# 保存当前游戏数据
+	var save_data = GameStateManager.get_save_data()
+	SaveService.save_game(slot, save_data)
+
+	# 等待保存完成后退出
+	await get_tree().create_timer(1.0).timeout
+	_exit_to_menu()
+
+
+## 存档选择：关闭
+func _on_save_selection_closed() -> void:
+	pause_menu.show_pause()
+
+
+## 退出到主菜单
+func _exit_to_menu() -> void:
+	_is_paused = false
+	get_tree().paused = false
+	GameStateManager.set_state(GameStateManager.GameState.NOT_STARTED)
+	SceneManager.go_to_main()
 
 
 ## 资源中心按钮

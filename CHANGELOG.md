@@ -11,7 +11,54 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.7 基础游戏交互准备
+- Phase 5.8 基础游戏世界构建准备
+
+---
+
+## [0.17.0] - 2026-07-13
+
+### Added - 基础游戏交互系统 (Phase 5.7)
+
+**Git Commit:** 待提交
+
+- 新增暂停菜单场景 `client/scenes/ui/pause_menu.tscn`
+  - Continue继续游戏按钮
+  - Save保存游戏按钮
+  - Settings设置按钮
+  - Exit退出游戏按钮
+- 新增暂停菜单控制器 `client/scripts/ui/pause_menu.gd`
+  - ESC打开/关闭暂停
+  - 保存游戏功能
+  - Godot暂停机制集成（process_mode = 3）
+- 新增设置菜单场景 `client/scenes/ui/settings_menu.tscn`
+  - 主音量滑块
+  - 音乐音量滑块
+  - 音效音量滑块
+  - 恢复默认按钮
+- 新增设置菜单控制器 `client/scripts/ui/settings_menu.gd`
+  - 音量设置管理
+  - 设置保存和加载
+- 新增存档选择场景 `client/scenes/ui/save_selection.tscn`
+  - 3个存档槽位
+  - 存档信息显示
+  - 返回按钮
+- 新增存档选择控制器 `client/scripts/ui/save_selection.gd`
+  - 存档列表加载
+  - 槽位选择
+  - SaveService集成
+- 新增设置管理器 `client/scripts/managers/settings_manager.gd`
+  - ConfigFile本地配置保存
+  - 音量设置管理
+  - 信号机制（settings_changed）
+- 更新游戏场景 `client/scenes/game/game_scene.tscn`
+  - 添加暂停菜单、设置菜单、存档选择节点
+- 更新游戏场景脚本 `client/scenes/game/game_scene.gd`
+  - 集成暂停菜单（ESC切换）
+  - 集成设置菜单
+  - 集成存档选择界面
+  - 暂停时冻结游戏逻辑
+- 更新项目配置 `client/project.godot`
+  - 添加SettingsManager全局单例
 
 ---
 
