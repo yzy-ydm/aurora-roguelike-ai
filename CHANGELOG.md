@@ -11,7 +11,41 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.11 基础玩法对象接入准备
+- Phase 5.12 基础游戏玩法对象扩展准备
+
+---
+
+## [0.21.0] - 2026-07-13
+
+### Added - 基础游戏对象实例化系统 (Phase 5.11)
+
+**Git Commit:** 待提交
+
+- 新增游戏对象基础类 `client/scripts/object/game_object.gd`
+  - GameObject类，所有游戏对象的基类
+  - ObjectState枚举（CREATED, ACTIVE, INTERACTED, DISABLED）
+  - 对象唯一ID系统
+  - 位置管理
+  - 生命周期状态管理
+  - InteractiveObject关联
+- 新增对象管理器 `client/scripts/object/object_manager.gd`
+  - ObjectManager，统一管理GameObject
+  - register_object()注册对象
+  - unregister_object()注销对象
+  - get_object()查询对象
+  - get_objects_by_type()按类型查询
+  - 类型索引机制
+  - 信号机制（object_registered, object_state_changed）
+- 新增测试宝箱对象 `client/scripts/object/test_chest.gd`
+  - TestChest类，继承GameObject
+  - 创建InteractiveObject并关联
+  - 交互完成回调
+  - 宝箱打开状态管理
+- 更新游戏场景 `client/scenes/game/game_scene.gd`
+  - 集成ObjectManager
+  - 创建测试宝箱实例
+  - 宝箱与InteractiveObject关联
+  - 玩家靠近宝箱可交互
 
 ---
 

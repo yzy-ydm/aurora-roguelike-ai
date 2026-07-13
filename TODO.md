@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.10 已完成，准备进入 Phase 5.11
+## 当前阶段：Phase 5.11 已完成，准备进入 Phase 5.12
 
 ---
 
@@ -200,6 +200,11 @@
 - [x] InteractionHint UI（client/scripts/ui/interaction_hint.gd）
 - [x] E键交互输入配置
 - [x] 游戏场景集成交互系统
+- [x] GameObject基础类（client/scripts/object/game_object.gd）
+- [x] ObjectManager（client/scripts/object/object_manager.gd）
+- [x] TestChest测试对象（client/scripts/object/test_chest.gd）
+- [x] 游戏场景集成对象系统
+- [x] 测试宝箱实例化和交互
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

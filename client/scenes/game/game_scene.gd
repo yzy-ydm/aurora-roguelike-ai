@@ -1,7 +1,7 @@
 ## 游戏主场景脚本
 ##
 ## 负责游戏场景的初始化和管理
-## 集成世界系统、交互系统、暂停菜单、设置、存档选择功能
+## 集成世界系统、对象系统、交互系统、暂停菜单、设置、存档选择功能
 
 extends Node2D
 
@@ -23,6 +23,9 @@ var _world_manager: Node = null
 
 ## 房间管理器
 var _room_manager: Node = null
+
+## 对象管理器
+var _object_manager: Node = null
 
 ## 玩家数据
 var _player_data: Dictionary = {}
@@ -58,7 +61,8 @@ func _ready() -> void:
 	# 从GameStateManager获取玩家数据
 	_player_data = GameStateManager.get_player_data()
 
-	# 初始化世界系统
+	# 初始化系统
+	_init_object_system()
 	_init_world_system()
 
 	# 更新显示
@@ -69,6 +73,15 @@ func _ready() -> void:
 
 	# 更新游戏运行时间
 	set_process(true)
+
+
+## 初始化对象系统
+func _init_object_system() -> void:
+	# 创建对象管理器
+	_object_manager = Node.new()
+	_object_manager.name = "ObjectManager"
+	_object_manager.set_script(load("res://scripts/object/object_manager.gd"))
+	add_child(_object_manager)
 
 
 ## 初始化世界系统
@@ -98,6 +111,74 @@ func _init_world_system() -> void:
 
 	# 进入第一个房间
 	_world_manager.enter_first_room()
+
+	# 创建测试对象
+	_create_test_objects()
+
+
+## 创建测试对象
+func _create_test_objects() -> void:
+	# 创建测试宝箱1
+	var chest1 = TestChest.new()
+	chest1.object_name = "木制宝箱"
+	chest1.set_position(Vector2(400, 300))
+
+	# 创建InteractiveObject并注册到InteractionManager
+	var interactive1 = chest1.create_interactive_object()
+	interactive1.set_linked_node(_create_placeholder_node("木制宝箱", Vector2(400, 300)))
+	_object_manager.register_object(chest1)
+	interaction_manager.register_object(interactive1)
+
+	# 创建测试宝箱2
+	var chest2 = TestChest.new()
+	chest2.object_name = "铁制宝箱"
+	chest2.set_position(Vector2(800, 500))
+
+	var interactive2 = chest2.create_interactive_object()
+	interactive2.set_linked_node(_create_placeholder_node("铁制宝箱", Vector2(800, 500)))
+	_object_manager.register_object(chest2)
+	interaction_manager.register_object(interactive2)
+
+
+## 创建占位节点
+func _create_placeholder_node(obj_name: String, pos: Vector2) -> Node2D:
+	var node = Node2D.new()
+	node.name = obj_name
+	node.position = pos
+
+	# 创建可视化占位
+	var sprite = Sprite2D.new()
+	sprite.name = "Sprite"
+	var image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0.8, 0.6, 0.2, 1.0))  # 金色
+	var texture = ImageTexture.create_from_image(image)
+	sprite.texture = texture
+	node.add_child(sprite)
+
+	# 创建Area2D用于交互检测
+	var area = Area2D.new()
+	area.name = "InteractionArea"
+	var collision = CollisionShape2D.new()
+	var shape = CircleShape2D.new()
+	shape.radius = 40.0
+	collision.shape = shape
+	area.add_child(collision)
+
+	# 设置meta数据用于交互检测
+	area.set_meta("interactive_object_id", _get_interactive_id_for_chest(obj_name))
+	node.add_child(area)
+
+	add_child(node)
+	return node
+
+
+## 获取宝箱对应的InteractiveObject ID
+func _get_interactive_id_for_chest(chest_name: String) -> int:
+	# 遍历InteractionManager中的对象找到匹配的
+	for obj in interaction_manager.get_all_objects():
+		if obj.object_name == chest_name:
+			return obj.object_id
+	return -1
 
 
 ## 输入处理

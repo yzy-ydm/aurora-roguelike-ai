@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.10 已完成**（基础游戏对象交互框架） → 准备进入 **Phase 5.11 基础玩法对象接入准备**
+**Phase 5.11 已完成**（基础游戏对象实例化系统） → 准备进入 **Phase 5.12 基础游戏玩法对象扩展准备**
 
 ---
 
@@ -38,6 +38,7 @@
 | Phase 5.8 | 基础游戏世界构建 | ✅ 完成 | 100% |
 | Phase 5.9 | 游戏实体基础框架 | ✅ 完成 | 100% |
 | Phase 5.10 | 基础游戏对象交互框架 | ✅ 完成 | 100% |
+| Phase 5.11 | 基础游戏对象实例化系统 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
@@ -404,6 +405,23 @@
 - [x] E键交互输入配置
 - [x] 游戏场景集成交互系统
 
+### 22. 基础游戏对象实例化系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 游戏对象基础类 | client/scripts/object/game_object.gd | GameObject定义 |
+| 对象管理器 | client/scripts/object/object_manager.gd | 对象注册/查询/删除 |
+| 测试宝箱对象 | client/scripts/object/test_chest.gd | TestChest测试对象 |
+
+**技术实现：**
+- [x] GameObject基础类（对象ID、状态、生命周期）
+- [x] ObjectManager（对象注册、查询、删除、类型索引）
+- [x] TestChest测试对象（GameObject → InteractiveObject流程）
+- [x] 游戏场景集成对象系统
+- [x] 测试宝箱实例化和交互
+
 ---
 
 ## 当前技术状态
@@ -457,13 +475,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.11：基础玩法对象接入准备**
+**Phase 5.12：基础游戏玩法对象扩展准备**
 
 需要实现：
-1. 玩家与世界交互
-2. 房间对象管理
-3. 基础事件触发
-4. 游戏对象生命周期
+1. 更多游戏对象类型
+2. 对象与房间关联
+3. 对象状态持久化
+4. 玩家与对象交互扩展
 
 ---
 
@@ -471,7 +489,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement interaction framework |
+| (待提交) | feat(client): implement game object system |
+| 9593727 | feat(client): implement interaction framework |
 | 06f50e4 | feat(client): implement entity framework |
 | 705cbb1 | feat(client): implement basic game world framework |
 | a386857 | feat(client): implement basic game interaction system |
