@@ -92,19 +92,13 @@ async def health_check():
 
 # ============================================================
 # 路由注册区域
-# 后续开发时在此处注册各模块的路由
 # ============================================================
 
-# 示例（后续开发时取消注释并导入）：
-# from app.api.auth.router import router as auth_router
-# from app.api.user.router import router as user_router
-# from app.api.game.router import router as game_router
-# from app.api.ai.router import router as ai_router
-#
-# app.include_router(auth_router, prefix="/api/auth", tags=["认证"])
-# app.include_router(user_router, prefix="/api/users", tags=["用户"])
-# app.include_router(game_router, prefix="/api/game", tags=["游戏"])
-# app.include_router(ai_router, prefix="/api/ai", tags=["AI生成"])
+# 导入认证路由
+from app.api.auth.router import router as auth_router
+
+# 注册路由
+app.include_router(auth_router)  # 认证接口: /api/auth/*
 
 
 # 启动入口
