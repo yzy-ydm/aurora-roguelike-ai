@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.3 已完成**（玩家角色系统） → 准备进入 **Phase 4.4 武器系统**
+**Phase 4.4 已完成**（武器系统） → 准备进入 **Phase 4.5 怪物系统**
 
 ---
 
@@ -23,7 +23,7 @@
 | Phase 4.2 | 用户认证系统 | ✅ 完成 | 100% |
 | Phase 4.2.5 | 安全修复与文档同步 | ✅ 完成 | 100% |
 | Phase 4.3 | 玩家角色系统 | ✅ 完成 | 100% |
-| Phase 4.4 | 武器系统 | ⬜ 待开发 | 0% |
+| Phase 4.4 | 武器系统 | ✅ 完成 | 100% |
 | Phase 4.5 | 怪物系统 | ⬜ 待开发 | 0% |
 | Phase 4.6 | 游戏数据接口 | ⬜ 待开发 | 0% |
 | Phase 5 | Godot客户端 | ⬜ 待开发 | 0% |
@@ -32,7 +32,7 @@
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 30%**
+**总体进度：约 35%**
 
 ---
 
@@ -120,6 +120,25 @@
 - [x] JWT认证集成
 - [x] users与player_profiles 1:1关系
 
+### 7. 武器系统 ✅
+
+**已实现接口：**
+
+| 接口 | 方法 | 功能 | 状态 |
+|------|------|------|------|
+| /api/weapons | GET | 武器列表 | ✅ 测试通过 |
+| /api/weapons/{id} | GET | 武器详情 | ✅ 测试通过 |
+| /api/player/weapons | GET | 玩家武器 | ✅ 测试通过 |
+| /api/player/weapons | POST | 添加武器 | ✅ 测试通过 |
+
+**技术实现：**
+- [x] Weapon ORM模型（映射weapons表）
+- [x] PlayerWeapon ORM模型（玩家武器关联表）
+- [x] WeaponService业务逻辑
+- [x] 武器列表/详情查询
+- [x] 玩家武器管理
+- [x] 新增player_weapons关联表
+
 ---
 
 ## 当前技术状态
@@ -148,6 +167,10 @@ server/app/
 | /api/player/profile | POST | 创建玩家角色 | JWT |
 | /api/player/profile | GET | 查询玩家角色 | JWT |
 | /api/player/profile | PUT | 更新玩家角色 | JWT |
+| /api/weapons | GET | 武器列表 | 否 |
+| /api/weapons/{id} | GET | 武器详情 | 否 |
+| /api/player/weapons | GET | 玩家武器 | JWT |
+| /api/player/weapons | POST | 添加武器 | JWT |
 
 ---
 
@@ -159,12 +182,12 @@ server/app/
 
 ## 下一步任务
 
-**Phase 4.4：武器系统**
+**Phase 4.5：怪物系统**
 
 需要实现：
-1. weapons 模型
-2. 武器列表查询接口
-3. 武器详情查询接口
+1. monsters 模型
+2. 怪物列表查询接口
+3. 怪物详情查询接口
 
 ---
 
@@ -172,7 +195,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(player): implement player profile system |
+| (待提交) | feat(weapon): implement weapon system |
+| d11725b | feat(player): implement player profile system |
 | 7ff7998 | fix(config): secure environment configuration |
 | fcaf9f4 | docs(context): add project context management system |
 | 0352e25 | feat(auth): implement user authentication system with JWT |

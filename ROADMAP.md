@@ -67,7 +67,7 @@
 
 ## Phase 4：后端系统开发
 
-**状态：** 进行中（4.3完成）
+**状态：** 进行中（4.4完成）
 
 **目标：** 实现完整的FastAPI后端服务
 
@@ -105,18 +105,19 @@
 - [x] 更新角色信息接口（PUT /api/player/profile）
 - [x] JWT认证集成
 
-### Phase 4.4：武器系统 ⬜
+### Phase 4.4：武器系统 ✅
 
-**状态：** 待开发
+**状态：** 已完成
 
 **目标：** 实现武器数据管理
 
-**计划内容：**
-- [ ] weapons 模型
-- [ ] 武器列表查询接口
-- [ ] 武器详情查询接口
-- [ ] 武器随机生成逻辑
-- [ ] AI武器生成预留
+**完成内容：**
+- [x] weapons 模型（app/models/weapon.py）
+- [x] player_weapons 模型（app/models/player_weapon.py）
+- [x] 武器列表查询接口（GET /api/weapons）
+- [x] 武器详情查询接口（GET /api/weapons/{id}）
+- [x] 玩家武器查询接口（GET /api/player/weapons）
+- [x] 添加玩家武器接口（POST /api/player/weapons）
 
 ### Phase 4.5：怪物系统 ⬜
 

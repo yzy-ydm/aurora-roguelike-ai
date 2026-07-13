@@ -24,12 +24,13 @@
 |------|------|------|------|
 | 1 | users | 用户账号表 | ✅ 已使用 |
 | 2 | player_profiles | 玩家角色信息表 | ✅ 已使用 |
-| 3 | weapons | 武器数据表 | ⬜ 待使用 |
+| 3 | weapons | 武器数据表 | ✅ 已使用 |
 | 4 | monsters | 怪物数据表 | ⬜ 待使用 |
 | 5 | events | 随机事件表 | ⬜ 待使用 |
 | 6 | maps | 地图数据表 | ⬜ 待使用 |
 | 7 | game_saves | 游戏存档表 | ⬜ 待使用 |
 | 8 | ai_generations | AI生成记录表 | ⬜ 待使用 |
+| 9 | player_weapons | 玩家武器关联表 | ✅ 已使用 |
 
 ---
 
@@ -129,7 +130,7 @@
 - weapon_type: sword, axe, bow, staff, dagger, spear, hammer
 - rarity: common, uncommon, rare, epic, legendary
 
-**当前状态:** 待使用（Phase 4.4）
+**当前状态:** 已使用，Phase 4.4 武器系统已实现
 
 ---
 
@@ -283,10 +284,38 @@
 
 ---
 
+### 9. player_weapons - 玩家武器关联表
+
+**用途:** 记录玩家拥有哪些武器
+
+**字段说明:**
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| id | INT | 是 | 自增 | 主键 |
+| player_id | INT | 是 | - | 外键，关联player_profiles表 |
+| weapon_id | INT | 是 | - | 外键，关联weapons表 |
+| is_equipped | TINYINT(1) | 否 | 0 | 是否装备中 |
+| created_at | DATETIME | 否 | CURRENT_TIMESTAMP | 获取时间 |
+
+**索引:**
+- PRIMARY KEY (id)
+- INDEX (player_id)
+- INDEX (weapon_id)
+- INDEX (is_equipped)
+
+**外键:**
+- player_id → player_profiles.id (CASCADE)
+- weapon_id → weapons.id (CASCADE)
+
+**当前状态:** 已使用，Phase 4.4 武器系统已实现
+
+---
+
 ## 表关系图
 
 ```
-users ──1:1──→ player_profiles
+users ──1:1──→ player_profiles ──1:N──→ player_weapons ──N:1──→ weapons
   │
   ├──1:N──→ game_saves
   │
@@ -304,5 +333,6 @@ users ──1:1──→ player_profiles
 |------|------|
 | database/sql/create_database.sql | 创建数据库 |
 | database/sql/create_tables.sql | 创建数据表 |
+| database/sql/create_player_weapons_table.sql | 玩家武器关联表 |
 | database/sql/insert_test_data.sql | 测试数据 |
 | database/design/数据库设计说明.md | 设计文档 |

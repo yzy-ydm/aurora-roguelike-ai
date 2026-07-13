@@ -15,6 +15,12 @@ from app.schemas.player import (
     PlayerUpdate,
     PlayerResponse
 )
+from app.schemas.weapon import (
+    WeaponResponse,
+    PlayerWeaponResponse,
+    WeaponCreate,
+    AddPlayerWeaponRequest
+)
 
 __all__ = [
     "UserRegister",
@@ -23,5 +29,9 @@ __all__ = [
     "UserInfo",
     "PlayerCreate",
     "PlayerUpdate",
-    "PlayerResponse"
+    "PlayerResponse",
+    "WeaponResponse",
+    "PlayerWeaponResponse",
+    "WeaponCreate",
+    "AddPlayerWeaponRequest"
 ]

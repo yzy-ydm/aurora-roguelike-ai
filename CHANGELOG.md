@@ -11,9 +11,41 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.4 武器系统
 - Phase 4.5 怪物系统
 - Phase 4.6 游戏数据接口
+
+---
+
+## [0.6.0] - 2026-07-13
+
+### Added - 武器系统 (Phase 4.4)
+
+**Git Commit:** 待提交
+
+- 新增武器ORM模型 `app/models/weapon.py`
+  - Weapon类映射weapons表
+  - 包含武器属性：name, weapon_type, rarity, attack_bonus, crit_rate_bonus等
+- 新增玩家武器关联模型 `app/models/player_weapon.py`
+  - PlayerWeapon类映射player_weapons表
+  - 实现玩家与武器的多对多关系
+- 新增武器Schema `app/schemas/weapon.py`
+  - WeaponResponse: 武器信息响应（字段映射：type→weapon_type, damage→attack_bonus, attributes→special_effect_data）
+  - PlayerWeaponResponse: 玩家武器响应（包含武器详情和装备状态）
+  - AddPlayerWeaponRequest: 添加武器请求
+- 新增武器服务 `app/services/weapon_service.py`
+  - get_all_weapons(): 获取所有武器列表
+  - get_weapon_by_id(): 获取武器详情
+  - get_player_weapons(): 查询玩家武器
+  - add_player_weapon(): 添加玩家武器
+- 新增武器API路由 `app/api/weapon/router.py`
+  - GET /api/weapons: 武器列表（公开接口）
+  - GET /api/weapons/{weapon_id}: 武器详情（公开接口）
+  - GET /api/player/weapons: 玩家武器（JWT认证）
+  - POST /api/player/weapons: 添加武器（JWT认证）
+- 新增共享认证依赖模块 `app/api/deps.py`
+- 创建player_weapons关联表SQL脚本
+- 更新main.py注册武器路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

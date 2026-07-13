@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.3 已完成，准备进入 Phase 4.4
+## 当前阶段：Phase 4.4 已完成，准备进入 Phase 4.5
 
 ---
 
@@ -93,12 +93,15 @@
 - [x] 更新角色接口（PUT /api/player/profile）
 
 ### Phase 4.4：武器系统
-- [ ] weapons 模型（app/models/weapon.py）
-- [ ] 武器Schema（app/schemas/weapon.py）
-- [ ] 武器服务（app/services/weapon_service.py）
-- [ ] 武器路由（app/api/weapon/router.py）
-- [ ] 武器列表接口（GET /api/weapons）
-- [ ] 武器详情接口（GET /api/weapons/{id}）
+- [x] weapons 模型（app/models/weapon.py）
+- [x] player_weapons 模型（app/models/player_weapon.py）
+- [x] 武器Schema（app/schemas/weapon.py）
+- [x] 武器服务（app/services/weapon_service.py）
+- [x] 武器路由（app/api/weapon/router.py）
+- [x] 武器列表接口（GET /api/weapons）
+- [x] 武器详情接口（GET /api/weapons/{id}）
+- [x] 玩家武器接口（GET /api/player/weapons）
+- [x] 添加武器接口（POST /api/player/weapons）
 
 ### Phase 4.5：怪物系统
 - [ ] monsters 模型（app/models/monster.py）

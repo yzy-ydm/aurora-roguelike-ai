@@ -13,7 +13,7 @@
 | 系统接口 | 2 | ✅ 已完成 |
 | 认证接口 | 2 | ✅ 已完成 |
 | 玩家接口 | 3 | ✅ 已完成 |
-| 武器接口 | 0 | ⬜ 待开发 |
+| 武器接口 | 4 | ✅ 已完成 |
 | 怪物接口 | 0 | ⬜ 待开发 |
 
 **Base URL:** `http://localhost:8000`
@@ -330,14 +330,198 @@
 
 ---
 
+## 武器接口
+
+### 8. 获取武器列表
+
+**接口:** `GET /api/weapons`
+
+**功能:** 获取所有基础武器数据
+
+**认证:** 不需要
+
+**请求参数:** 无
+
+**响应示例:**
+
+成功（200）：
+```json
+[
+    {
+        "id": 1,
+        "name": "铁剑",
+        "description": "一把普通的铁制长剑",
+        "type": "sword",
+        "rarity": "common",
+        "damage": 5,
+        "crit_rate_bonus": 0.0,
+        "special_effect": null,
+        "attributes": null,
+        "icon_path": null,
+        "price": 50
+    }
+]
+```
+
+**状态码:**
+- 200: 成功
+
+---
+
+### 9. 获取武器详情
+
+**接口:** `GET /api/weapons/{weapon_id}`
+
+**功能:** 根据武器ID获取单个武器的详细信息
+
+**认证:** 不需要
+
+**路径参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| weapon_id | int | 是 | 武器ID |
+
+**响应示例:**
+
+成功（200）：
+```json
+{
+    "id": 1,
+    "name": "铁剑",
+    "description": "一把普通的铁制长剑",
+    "type": "sword",
+    "rarity": "common",
+    "damage": 5,
+    "crit_rate_bonus": 0.0,
+    "special_effect": null,
+    "attributes": null,
+    "icon_path": null,
+    "price": 50
+}
+```
+
+失败（404）：
+```json
+{
+    "detail": "武器不存在"
+}
+```
+
+**状态码:**
+- 200: 成功
+- 404: 武器不存在
+
+---
+
+### 10. 获取玩家武器
+
+**接口:** `GET /api/player/weapons`
+
+**功能:** 获取当前登录用户拥有的所有武器
+
+**认证:** 需要JWT Token
+
+**请求参数:** 无
+
+**响应示例:**
+
+成功（200）：
+```json
+[
+    {
+        "id": 1,
+        "player_id": 1,
+        "weapon_id": 1,
+        "is_equipped": 0,
+        "created_at": "2026-07-13T00:00:00",
+        "weapon": {
+            "id": 1,
+            "name": "铁剑",
+            "description": "一把普通的铁制长剑",
+            "type": "sword",
+            "rarity": "common",
+            "damage": 5,
+            "crit_rate_bonus": 0.0,
+            "special_effect": null,
+            "attributes": null,
+            "icon_path": null,
+            "price": 50
+        }
+    }
+]
+```
+
+**状态码:**
+- 200: 成功
+- 401: 未认证或Token无效
+- 404: 玩家角色不存在
+
+---
+
+### 11. 添加玩家武器
+
+**接口:** `POST /api/player/weapons`
+
+**功能:** 为当前登录用户添加一把武器
+
+**认证:** 需要JWT Token
+
+**请求参数:**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| weapon_id | int | 是 | 武器ID |
+
+**请求示例:**
+```json
+{
+    "weapon_id": 1
+}
+```
+
+**响应示例:**
+
+成功（201）：
+```json
+{
+    "id": 1,
+    "player_id": 1,
+    "weapon_id": 1,
+    "is_equipped": 0,
+    "created_at": "2026-07-13T00:00:00",
+    "weapon": {
+        "id": 1,
+        "name": "铁剑",
+        "description": "一把普通的铁制长剑",
+        "type": "sword",
+        "rarity": "common",
+        "damage": 5,
+        "crit_rate_bonus": 0.0,
+        "special_effect": null,
+        "attributes": null,
+        "icon_path": null,
+        "price": 50
+    }
+}
+```
+
+失败（404）：
+```json
+{
+    "detail": "武器不存在"
+}
+```
+
+**状态码:**
+- 201: 添加成功
+- 401: 未认证或Token无效
+- 404: 玩家角色不存在或武器不存在
+- 422: 请求数据验证失败
+
+---
+
 ## 待开发接口
-
-### 武器接口（Phase 4.4）
-
-| 接口 | 方法 | 功能 |
-|------|------|------|
-| /api/weapons | GET | 武器列表 |
-| /api/weapons/{id} | GET | 武器详情 |
 
 ### 怪物接口（Phase 4.5）
 

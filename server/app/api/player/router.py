@@ -16,11 +16,10 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
-from app.core.security import decode_access_token
+from app.api.deps import get_current_user_id
 from app.schemas.player import PlayerCreate, PlayerUpdate, PlayerResponse
 from app.schemas.auth import MessageResponse
 from app.services.player_service import PlayerService
@@ -30,64 +29,6 @@ router = APIRouter(
     prefix="/api/player",
     tags=["玩家角色"]
 )
-
-# HTTP Bearer 认证方案
-security_scheme = HTTPBearer()
-
-
-# ============================================================
-# 认证依赖注入
-# ============================================================
-
-def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
-) -> int:
-    """
-    从JWT Token中获取当前用户ID
-
-    解析Authorization Header中的Bearer Token，
-    验证Token有效性并提取用户ID。
-
-    Args:
-        credentials: HTTP Bearer认证凭据
-
-    Returns:
-        int: 当前用户ID
-
-    Raises:
-        HTTPException: Token无效或已过期时返回401
-    """
-    # 获取Token字符串
-    token = credentials.credentials
-
-    # 解码Token
-    payload = decode_access_token(token)
-
-    # Token无效或已过期
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的认证凭据，请重新登录",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
-    # 获取用户ID
-    user_id = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token中缺少用户信息",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
-    try:
-        return int(user_id)
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token中用户ID格式无效",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
 
 
 # ============================================================

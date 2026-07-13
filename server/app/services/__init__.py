@@ -6,8 +6,10 @@
 
 from app.services.auth_service import AuthService
 from app.services.player_service import PlayerService
+from app.services.weapon_service import WeaponService
 
 __all__ = [
     "AuthService",
-    "PlayerService"
+    "PlayerService",
+    "WeaponService"
 ]
