@@ -11,10 +11,36 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 4.3 玩家角色系统
 - Phase 4.4 武器系统
 - Phase 4.5 怪物系统
 - Phase 4.6 游戏数据接口
+
+---
+
+## [0.5.0] - 2026-07-13
+
+### Added - 玩家角色系统 (Phase 4.3)
+
+**Git Commit:** 待提交
+
+- 新增玩家角色ORM模型 `app/models/player_profile.py`
+  - PlayerProfile类映射player_profiles表
+  - 与users表1:1关系（UNIQUE约束）
+  - 包含角色属性：level, experience, health, attack, defense, gold等
+- 新增玩家角色Schema `app/schemas/player.py`
+  - PlayerCreate: 创建角色请求（nickname）
+  - PlayerUpdate: 更新角色请求（nickname）
+  - PlayerResponse: 角色信息响应
+- 新增玩家角色服务 `app/services/player_service.py`
+  - create_player(): 创建角色（检查唯一性）
+  - get_player_profile(): 查询角色信息
+  - update_player_profile(): 更新角色昵称
+- 新增玩家角色API路由 `app/api/player/router.py`
+  - POST /api/player/profile: 创建角色（JWT认证）
+  - GET /api/player/profile: 查询角色（JWT认证）
+  - PUT /api/player/profile: 更新角色（JWT认证）
+- 更新main.py注册玩家路由
+- 更新models/schemas/services __init__.py导出
 
 ---
 

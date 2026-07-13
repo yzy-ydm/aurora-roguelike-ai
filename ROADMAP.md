@@ -67,7 +67,7 @@
 
 ## Phase 4：后端系统开发
 
-**状态：** 进行中（4.2完成）
+**状态：** 进行中（4.3完成）
 
 **目标：** 实现完整的FastAPI后端服务
 
@@ -92,18 +92,18 @@
 - [x] JWT Token认证
 - [x] bcrypt密码加密
 
-### Phase 4.3：玩家角色系统 ⬜
+### Phase 4.3：玩家角色系统 ✅
 
-**状态：** 待开发
+**状态：** 已完成
 
 **目标：** 实现玩家角色管理
 
-**计划内容：**
-- [ ] player_profiles 模型
-- [ ] 创建角色接口
-- [ ] 查询角色信息接口
-- [ ] 更新角色信息接口
-- [ ] 角色属性管理
+**完成内容：**
+- [x] player_profiles 模型（app/models/player_profile.py）
+- [x] 创建角色接口（POST /api/player/profile）
+- [x] 查询角色信息接口（GET /api/player/profile）
+- [x] 更新角色信息接口（PUT /api/player/profile）
+- [x] JWT认证集成
 
 ### Phase 4.4：武器系统 ⬜
 

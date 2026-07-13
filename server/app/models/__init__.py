@@ -5,7 +5,9 @@
 """
 
 from app.models.user import User
+from app.models.player_profile import PlayerProfile
 
 __all__ = [
-    "User"
+    "User",
+    "PlayerProfile"
 ]

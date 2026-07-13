@@ -10,10 +10,18 @@ from app.schemas.auth import (
     TokenResponse,
     UserInfo
 )
+from app.schemas.player import (
+    PlayerCreate,
+    PlayerUpdate,
+    PlayerResponse
+)
 
 __all__ = [
     "UserRegister",
     "UserLogin",
     "TokenResponse",
-    "UserInfo"
+    "UserInfo",
+    "PlayerCreate",
+    "PlayerUpdate",
+    "PlayerResponse"
 ]

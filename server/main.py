@@ -96,9 +96,12 @@ async def health_check():
 
 # 导入认证路由
 from app.api.auth.router import router as auth_router
+# 导入玩家角色路由
+from app.api.player.router import router as player_router
 
 # 注册路由
-app.include_router(auth_router)  # 认证接口: /api/auth/*
+app.include_router(auth_router)   # 认证接口: /api/auth/*
+app.include_router(player_router) # 玩家角色接口: /api/player/*
 
 
 # 启动入口

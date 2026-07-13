@@ -5,7 +5,9 @@
 """
 
 from app.services.auth_service import AuthService
+from app.services.player_service import PlayerService
 
 __all__ = [
-    "AuthService"
+    "AuthService",
+    "PlayerService"
 ]

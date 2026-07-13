@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.2.5 已完成，准备进入 Phase 4.3
+## 当前阶段：Phase 4.3 已完成，准备进入 Phase 4.4
 
 ---
 
@@ -83,14 +83,14 @@
 
 ## ⬜ 待开发任务
 
-### Phase 4.3：玩家角色系统（当前）
-- [ ] player_profiles 模型（app/models/player.py）
-- [ ] 玩家Schema（app/schemas/player.py）
-- [ ] 玩家服务（app/services/player_service.py）
-- [ ] 玩家路由（app/api/player/router.py）
-- [ ] 创建角色接口（POST /api/player/profile）
-- [ ] 查询角色接口（GET /api/player/profile）
-- [ ] 更新角色接口（PUT /api/player/profile）
+### Phase 4.3：玩家角色系统
+- [x] player_profiles 模型（app/models/player_profile.py）
+- [x] 玩家Schema（app/schemas/player.py）
+- [x] 玩家服务（app/services/player_service.py）
+- [x] 玩家路由（app/api/player/router.py）
+- [x] 创建角色接口（POST /api/player/profile）
+- [x] 查询角色接口（GET /api/player/profile）
+- [x] 更新角色接口（PUT /api/player/profile）
 
 ### Phase 4.4：武器系统
 - [ ] weapons 模型（app/models/weapon.py）

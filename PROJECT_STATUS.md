@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.2.5 已完成**（安全修复与文档同步） → 准备进入 **Phase 4.3 玩家角色系统**
+**Phase 4.3 已完成**（玩家角色系统） → 准备进入 **Phase 4.4 武器系统**
 
 ---
 
@@ -22,7 +22,7 @@
 | Phase 4.1 | FastAPI数据库连接 | ✅ 完成 | 100% |
 | Phase 4.2 | 用户认证系统 | ✅ 完成 | 100% |
 | Phase 4.2.5 | 安全修复与文档同步 | ✅ 完成 | 100% |
-| Phase 4.3 | 玩家角色系统 | ⬜ 待开发 | 0% |
+| Phase 4.3 | 玩家角色系统 | ✅ 完成 | 100% |
 | Phase 4.4 | 武器系统 | ⬜ 待开发 | 0% |
 | Phase 4.5 | 怪物系统 | ⬜ 待开发 | 0% |
 | Phase 4.6 | 游戏数据接口 | ⬜ 待开发 | 0% |
@@ -32,7 +32,7 @@
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 25%**
+**总体进度：约 30%**
 
 ---
 
@@ -103,6 +103,23 @@
 - [x] 用户名唯一性验证
 - [x] 邮箱唯一性验证
 
+### 6. 玩家角色系统 ✅
+
+**已实现接口：**
+
+| 接口 | 方法 | 功能 | 状态 |
+|------|------|------|------|
+| /api/player/profile | POST | 创建角色 | ✅ 测试通过 |
+| /api/player/profile | GET | 查询角色 | ✅ 测试通过 |
+| /api/player/profile | PUT | 更新角色 | ✅ 测试通过 |
+
+**技术实现：**
+- [x] PlayerProfile ORM模型
+- [x] Pydantic Schema验证
+- [x] PlayerService业务逻辑
+- [x] JWT认证集成
+- [x] users与player_profiles 1:1关系
+
 ---
 
 ## 当前技术状态
@@ -128,6 +145,9 @@ server/app/
 | /health | GET | 健康检查 | 否 |
 | /api/auth/register | POST | 用户注册 | 否 |
 | /api/auth/login | POST | 用户登录 | 否 |
+| /api/player/profile | POST | 创建玩家角色 | JWT |
+| /api/player/profile | GET | 查询玩家角色 | JWT |
+| /api/player/profile | PUT | 更新玩家角色 | JWT |
 
 ---
 
@@ -139,13 +159,12 @@ server/app/
 
 ## 下一步任务
 
-**Phase 4.3：玩家角色系统**
+**Phase 4.4：武器系统**
 
 需要实现：
-1. player_profiles 模型
-2. 玩家创建角色接口
-3. 玩家信息查询接口
-4. 玩家信息更新接口
+1. weapons 模型
+2. 武器列表查询接口
+3. 武器详情查询接口
 
 ---
 
@@ -153,7 +172,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | fix(config): secure environment configuration |
+| (待提交) | feat(player): implement player profile system |
+| 7ff7998 | fix(config): secure environment configuration |
 | fcaf9f4 | docs(context): add project context management system |
 | 0352e25 | feat(auth): implement user authentication system with JWT |
 | 4d059e8 | feat(server): add FastAPI database connection layer |
