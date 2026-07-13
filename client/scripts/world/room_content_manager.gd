@@ -72,7 +72,7 @@ func load_monster_types_from_resource() -> void:
 	print("[RoomContentManager] Loaded monster types: ", _available_monster_types)
 
 
-## 为房间生成内容
+## 为房间生成内容（永远返回有效的RoomContentData）
 func generate_content_for_room(room_node: RoomNodeData) -> RoomContentData:
 	# 检查缓存
 	if _room_contents.has(room_node.id):
@@ -84,14 +84,21 @@ func generate_content_for_room(room_node: RoomNodeData) -> RoomContentData:
 	if _use_ai and _ai_content_service:
 		content = await _ai_content_service.generate_room_content(room_node, _current_floor, _player_level)
 
-	# 如果AI失败，使用本地生成
-	if not content:
-		print("[RoomContentManager] Using local generation for room ", room_node.id)
+	# 如果AI失败或返回null，使用本地生成
+	if content == null:
+		print("[RoomContentManager] AI returned null, using local generation for room ", room_node.id)
 		content = RoomContentData.from_room_node(room_node, _current_floor)
 
 		# 设置怪物类型
 		if _available_monster_types.size() > 0:
 			content.set_monster_types(_available_monster_types)
+
+	# 确保content不为null（双重保护）
+	if content == null:
+		print("[RoomContentManager] Error: content is still null, creating default")
+		content = RoomContentData.new()
+		content.room_id = room_node.id
+		content.room_type = room_node.get_type_string()
 
 	# 缓存内容
 	_room_contents[room_node.id] = content

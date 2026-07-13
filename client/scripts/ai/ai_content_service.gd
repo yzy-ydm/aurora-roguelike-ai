@@ -29,6 +29,7 @@ var _http_request: HTTPRequest = null
 ## AI服务端Token
 var _ai_token: String = ""
 var _token_loading: bool = false
+var _token_failed: bool = false  # Token获取失败标记
 
 ## 降级策略：是否使用本地随机生成
 var _use_fallback: bool = true
@@ -236,6 +237,11 @@ func _call_cloud_ai_floor(floor_level: int, player_level: int) -> Dictionary:
 	# 确保有Token
 	await _ensure_ai_token()
 
+	# 检查Token是否获取失败
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
+
 	# 构建请求数据
 	var request_data = {
 		"floor_level": floor_level,
@@ -259,6 +265,11 @@ func _call_cloud_ai_room(room_node: RoomNodeData, floor_level: int, player_level
 
 	# 确保有Token
 	await _ensure_ai_token()
+
+	# 检查Token是否获取失败
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
 
 	# 构建请求数据
 	var request_data = {
@@ -285,15 +296,22 @@ func _ensure_ai_token() -> void:
 	if _ai_token != "":
 		return
 
+	# 如果之前获取失败，不再尝试
+	if _token_failed:
+		return
+
 	# 如果正在加载Token，等待
 	if _token_loading:
 		print("[AIContentService] Waiting for token...")
-		while _token_loading:
+		var wait_count = 0
+		while _token_loading and wait_count < 50:  # 最多等待5秒
 			await get_tree().process_frame
+			wait_count += 1
 		return
 
 	# 获取Token
 	_token_loading = true
+	_token_failed = false
 	print("[AIContentService] Fetching AI service token...")
 
 	var token_url = APIConfig.get_ai_url(APIConfig.AI_AUTH_TOKEN)
@@ -309,21 +327,48 @@ func _ensure_ai_token() -> void:
 		print("[AIContentService] Failed to request token: ", error)
 		http.queue_free()
 		_token_loading = false
+		_token_failed = true
 		return
 
-	# 等待响应
-	var result = await http.request_completed
+	# 等待响应（带超时保护）
+	var result = null
+	var timeout_counter = 0
+	while timeout_counter < 50:  # 最多等待5秒
+		if http.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
+			break
+		await get_tree().process_frame
+		timeout_counter += 1
+
+	# 检查是否超时
+	if timeout_counter >= 50:
+		print("[AIContentService] Token request timeout")
+		http.cancel_request()
+		http.queue_free()
+		_token_loading = false
+		_token_failed = true
+		return
+
+	# 获取结果
+	result = http.request_completed.get_value() if http.request_completed else null
 	http.queue_free()
+
+	if result == null:
+		print("[AIContentService] Token request failed: no response")
+		_token_loading = false
+		_token_failed = true
+		return
 
 	# 检查结果
 	if result[0] != HTTPRequest.RESULT_SUCCESS:
 		print("[AIContentService] Token request failed: ", result[0])
 		_token_loading = false
+		_token_failed = true
 		return
 
 	if result[1] != 200:
 		print("[AIContentService] Token request returned status: ", result[1])
 		_token_loading = false
+		_token_failed = true
 		return
 
 	# 解析响应
@@ -366,8 +411,28 @@ func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 		http.queue_free()
 		return {}
 
-	# 等待响应（带超时检测）
-	var result = await http.request_completed
+	# 等待响应（带手动超时保护）
+	var result = null
+	var timeout_counter = 0
+	var max_wait = 100  # 10秒 (100 * 0.1秒)
+
+	while timeout_counter < max_wait:
+		# 检查请求是否完成
+		if http.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
+			break
+
+		await get_tree().process_frame
+		timeout_counter += 1
+
+	# 检查是否超时
+	if timeout_counter >= max_wait:
+		print("[AIContentService] HTTP request timeout after 10 seconds, will use fallback")
+		http.cancel_request()
+		http.queue_free()
+		return {}
+
+	# 获取结果
+	result = http.request_completed.get_value() if http.request_completed else null
 	http.queue_free()
 
 	# 检查结果

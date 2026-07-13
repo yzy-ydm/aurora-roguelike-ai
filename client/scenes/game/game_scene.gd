@@ -199,7 +199,8 @@ func _init_world_system() -> void:
 	add_child(_ai_content_service)
 
 	# 设置AI服务类型为REAL（使用云端AI服务）
-	_ai_content_service.set_service_type(1)  # AIServiceType.REAL = 1
+	# AIServiceType.REAL = 1
+	_ai_content_service.set_service_type(_ai_content_service.AIServiceType.REAL)
 
 	# 设置RoomGraph的AIContentService引用
 	_room_graph.set_ai_content_service(_ai_content_service)
