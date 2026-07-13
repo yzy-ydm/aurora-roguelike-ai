@@ -43,7 +43,7 @@ func _on_refresh_pressed() -> void:
 ## 退出按钮按下
 func _on_logout_pressed() -> void:
 	TokenManager.clear_token()
-	get_tree().change_scene_to_file("res://scenes/login/login_scene.tscn")
+	SceneManager.go_to_login()
 
 
 ## API请求成功回调
@@ -72,7 +72,7 @@ func _on_api_error(error: String, status_code: int) -> void:
 		status_label.text = "认证失败，请重新登录"
 		TokenManager.clear_token()
 		await get_tree().create_timer(2.0).timeout
-		get_tree().change_scene_to_file("res://scenes/login/login_scene.tscn")
+		SceneManager.go_to_login()
 		return
 
 	status_label.text = "错误: " + error

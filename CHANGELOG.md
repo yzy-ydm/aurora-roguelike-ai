@@ -11,7 +11,46 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.2 基础游戏场景
+- Phase 5.3 玩家基础控制
+
+---
+
+## [0.12.0] - 2026-07-13
+
+### Added - 基础游戏场景 (Phase 5.2)
+
+**Git Commit:** 待提交
+
+- 新增游戏主场景 `client/scenes/game/game_scene.tscn`
+  - 游戏世界容器
+  - 背景层
+  - UI层
+  - 摄像机配置
+- 新增玩家节点 `client/scenes/game/player.tscn`
+  - CharacterBody2D基础节点
+  - Sprite占位显示
+  - CollisionShape碰撞体
+- 新增玩家控制器 `client/scripts/player/player_controller.gd`
+  - 玩家数据管理
+  - 显示初始化
+- 新增HUD系统 `client/scenes/game/hud.tscn`
+  - 玩家昵称显示
+  - 等级显示
+  - 生命值进度条
+  - 金币显示
+  - 状态栏
+- 新增HUD控制器 `client/scripts/ui/hud_controller.gd`
+  - HUD数据更新
+  - 生命值进度条计算
+- 新增场景管理器 `client/scripts/managers/scene_manager.gd`
+  - 登录/主界面/游戏场景切换
+  - 场景状态管理
+- 新增资源管理器 `client/scripts/managers/resource_manager.gd`
+  - 纹理资源加载缓存
+  - 音频资源加载缓存
+- 更新登录场景使用场景管理器
+- 更新主界面场景使用场景管理器
+- 更新project.godot添加SceneManager和ResourceManager单例
 
 ---
 

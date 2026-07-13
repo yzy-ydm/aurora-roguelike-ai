@@ -177,13 +177,22 @@
 - [x] 登录/注册界面（client/scenes/login/）
 - [x] 玩家信息界面（client/scenes/main/）
 
-**Phase 5.2：基础游戏场景 ⬜**
+**Phase 5.2：基础游戏场景 ✅**
+
+**完成内容：**
+- [x] 游戏主场景框架（client/scenes/game/）
+- [x] 玩家节点显示（CharacterBody2D）
+- [x] HUD系统（昵称、等级、生命值、金币）
+- [x] 场景管理器（scene_manager.gd）
+- [x] 资源管理器框架（resource_manager.gd）
+
+**Phase 5.3：玩家基础控制 ⬜**
 
 **计划内容：**
-- [ ] 游戏主场景框架
-- [ ] 玩家角色显示
-- [ ] 基础UI布局
-- [ ] 资源加载系统
+- [ ] 键盘输入处理
+- [ ] 玩家移动逻辑
+- [ ] 摄像机跟随
+- [ ] 基础碰撞检测
 
 ---
 

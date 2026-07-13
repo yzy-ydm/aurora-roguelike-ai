@@ -138,6 +138,6 @@ func _on_api_error(error: String, status_code: int) -> void:
 	status_label.text = "错误: " + error
 
 
-## 跳转到主界面
+## 跳转到游戏场景
 func _go_to_main_scene() -> void:
-	get_tree().change_scene_to_file("res://scenes/main/main_scene.tscn")
+	SceneManager.go_to_game()

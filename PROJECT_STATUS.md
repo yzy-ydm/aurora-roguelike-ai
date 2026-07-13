@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.1 已完成**（Godot客户端基础框架） → 准备进入 **Phase 5.2 基础游戏场景**
+**Phase 5.2 已完成**（基础游戏场景） → 准备进入 **Phase 5.3 玩家基础控制**
 
 ---
 
@@ -29,12 +29,13 @@
 | Phase 4.6.2 | 地图资源接口 | ✅ 完成 | 100% |
 | Phase 4.6.3 | 事件资源接口 | ✅ 完成 | 100% |
 | Phase 5.1 | Godot客户端基础框架 | ✅ 完成 | 100% |
+| Phase 5.2 | 基础游戏场景 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 60%**
+**总体进度：约 65%**
 
 ---
 
@@ -222,6 +223,26 @@
 - [x] 玩家信息显示
 - [x] 客户端-服务器通信验证
 
+### 13. 基础游戏场景 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 游戏主场景 | client/scenes/game/ | 游戏运行入口场景 |
+| 玩家节点 | client/scripts/player/ | CharacterBody2D玩家显示 |
+| HUD系统 | client/scripts/ui/ | 游戏内信息显示 |
+| 场景管理器 | client/scripts/managers/scene_manager.gd | 场景切换管理 |
+| 资源管理器 | client/scripts/managers/resource_manager.gd | 资源加载缓存 |
+
+**技术实现：**
+- [x] 游戏主场景框架
+- [x] 基础Player节点（CharacterBody2D）
+- [x] HUD系统（昵称、等级、生命值、金币）
+- [x] 场景管理器（登录→游戏切换）
+- [x] 资源管理器框架
+- [x] 玩家数据加载和显示
+
 ---
 
 ## 当前技术状态
@@ -275,13 +296,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.2：基础游戏场景**
+**Phase 5.3：玩家基础控制**
 
 需要实现：
-1. 游戏主场景框架
-2. 玩家角色显示
-3. 基础UI布局
-4. 资源加载系统
+1. 键盘输入处理
+2. 玩家移动逻辑
+3. 摄像机跟随
+4. 基础碰撞检测
 
 ---
 
@@ -289,7 +310,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(godot): initialize client framework |
+| (待提交) | feat(client): implement basic game scene framework |
+| 808bf19 | feat(godot): initialize client framework |
 | c0b903c | feat(event): implement event resource api |
 | 3b3edab | feat(map): implement map resource api |
 | ef901de | feat(save): implement game save system |

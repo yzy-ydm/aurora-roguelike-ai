@@ -21,6 +21,8 @@ config/icon="res://icon.svg"
 APIConfig="*res://scripts/api/api_config.gd"
 TokenManager="*res://scripts/api/token_manager.gd"
 ApiClient="*res://scripts/api/api_client.gd"
+SceneManager="*res://scripts/managers/scene_manager.gd"
+ResourceManager="*res://scripts/managers/resource_manager.gd"
 
 [display]
 

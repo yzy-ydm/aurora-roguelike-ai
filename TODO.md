@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.1 已完成，准备进入 Phase 5.2
+## 当前阶段：Phase 5.2 已完成，准备进入 Phase 5.3
 
 ---
 
@@ -142,9 +142,16 @@
 - [x] 注册功能
 - [x] JWT Token保存和管理
 - [x] 玩家信息显示界面（client/scenes/main/）
-- [ ] 基础游戏场景
-- [ ] 玩家角色显示
-- [ ] 基础UI布局
+- [x] 游戏主场景（client/scenes/game/game_scene.tscn）
+- [x] 玩家节点（client/scenes/game/player.tscn）
+- [x] 玩家控制器（client/scripts/player/player_controller.gd）
+- [x] HUD系统（client/scenes/game/hud.tscn）
+- [x] HUD控制器（client/scripts/ui/hud_controller.gd）
+- [x] 场景管理器（client/scripts/managers/scene_manager.gd）
+- [x] 资源管理器（client/scripts/managers/resource_manager.gd）
+- [x] 登录→游戏场景切换
+- [ ] 玩家移动控制
+- [ ] 摄像机跟随
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成
