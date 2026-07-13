@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.2 已完成**（基础游戏场景） → 准备进入 **Phase 5.3 玩家基础控制**
+**Phase 5.3 已完成**（玩家基础控制） → 准备进入 **Phase 5.4 武器显示与资源加载**
 
 ---
 
@@ -30,12 +30,13 @@
 | Phase 4.6.3 | 事件资源接口 | ✅ 完成 | 100% |
 | Phase 5.1 | Godot客户端基础框架 | ✅ 完成 | 100% |
 | Phase 5.2 | 基础游戏场景 | ✅ 完成 | 100% |
+| Phase 5.3 | 玩家基础控制 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 65%**
+**总体进度：约 70%**
 
 ---
 
@@ -243,6 +244,23 @@
 - [x] 资源管理器框架
 - [x] 玩家数据加载和显示
 
+### 14. 玩家基础控制 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 输入系统 | client/project.godot | WASD和方向键输入映射 |
+| 玩家移动 | client/scripts/player/player_controller.gd | CharacterBody2D移动控制 |
+| 摄像机跟随 | client/scenes/game/player.tscn | Camera2D跟随玩家 |
+| 碰撞测试 | client/scenes/game/game_scene.tscn | 测试边界碰撞墙 |
+
+**技术实现：**
+- [x] Input Map配置（WASD + 方向键）
+- [x] 玩家移动逻辑（CharacterBody2D + move_and_slide）
+- [x] Camera2D跟随玩家
+- [x] 基础碰撞检测（边界碰撞墙）
+
 ---
 
 ## 当前技术状态
@@ -296,13 +314,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.3：玩家基础控制**
+**Phase 5.4：武器显示与资源加载**
 
 需要实现：
-1. 键盘输入处理
-2. 玩家移动逻辑
-3. 摄像机跟随
-4. 基础碰撞检测
+1. 武器资源加载
+2. 玩家武器显示
+3. 资源预加载系统
+4. 基础动画框架
 
 ---
 
@@ -310,7 +328,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement basic game scene framework |
+| (待提交) | feat(player): implement basic player controller |
+| 51d640f | feat(client): implement basic game scene framework |
 | 808bf19 | feat(godot): initialize client framework |
 | c0b903c | feat(event): implement event resource api |
 | 3b3edab | feat(map): implement map resource api |

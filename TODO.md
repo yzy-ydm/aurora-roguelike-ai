@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.2 已完成，准备进入 Phase 5.3
+## 当前阶段：Phase 5.3 已完成，准备进入 Phase 5.4
 
 ---
 
@@ -150,8 +150,10 @@
 - [x] 场景管理器（client/scripts/managers/scene_manager.gd）
 - [x] 资源管理器（client/scripts/managers/resource_manager.gd）
 - [x] 登录→游戏场景切换
-- [ ] 玩家移动控制
-- [ ] 摄像机跟随
+- [x] Input Map配置（WASD + 方向键）
+- [x] 玩家移动控制（CharacterBody2D + move_and_slide）
+- [x] 摄像机跟随（Camera2D作为Player子节点）
+- [x] 基础碰撞检测（测试边界碰撞墙）
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

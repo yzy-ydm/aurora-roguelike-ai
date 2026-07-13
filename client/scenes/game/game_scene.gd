@@ -45,7 +45,7 @@ func _update_game_display() -> void:
 	# 更新玩家节点
 	player.set_player_data(_player_data)
 
-	hud.set_status("游戏加载完成")
+	hud.set_status("游戏加载完成 - 使用WASD或方向键移动")
 
 
 ## API请求失败回调

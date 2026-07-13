@@ -11,7 +11,32 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.3 玩家基础控制
+- Phase 5.4 武器显示与资源加载
+
+---
+
+## [0.13.0] - 2026-07-13
+
+### Added - 玩家基础控制 (Phase 5.3)
+
+**Git Commit:** 待提交
+
+- 更新项目配置 `client/project.godot`
+  - 添加Input Map配置（move_up, move_down, move_left, move_right）
+  - 支持WASD和方向键输入
+- 更新玩家控制器 `client/scripts/player/player_controller.gd`
+  - 实现输入处理（_get_input_direction）
+  - 实现移动逻辑（_physics_process + move_and_slide）
+  - 移动速度200像素/秒
+  - 对角线移动归一化
+- 更新玩家场景 `client/scenes/game/player.tscn`
+  - 添加Camera2D子节点
+  - 摄像机跟随玩家移动
+- 更新游戏场景 `client/scenes/game/game_scene.tscn`
+  - 添加测试边界碰撞墙（上下左右四面墙）
+  - 使用StaticBody2D + CollisionShape2D
+- 更新游戏场景脚本 `client/scenes/game/game_scene.gd`
+  - 更新状态提示信息
 
 ---
 
