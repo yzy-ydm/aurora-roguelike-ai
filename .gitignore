@@ -218,3 +218,7 @@ local_settings.py
 !README.md
 !docs/
 !LICENSE
+
+# ==================== 旧版本备份 ====================
+# 旧版本备份目录
+aurora-roguelike-ai-(4.2)/
