@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 4.6.3 已完成**（事件资源接口） → Phase 4.6 游戏数据接口阶段全部完成
+**Phase 5.1 已完成**（Godot客户端基础框架） → 准备进入 **Phase 5.2 基础游戏场景**
 
 ---
 
@@ -28,13 +28,13 @@
 | Phase 4.6.1 | 游戏存档系统 | ✅ 完成 | 100% |
 | Phase 4.6.2 | 地图资源接口 | ✅ 完成 | 100% |
 | Phase 4.6.3 | 事件资源接口 | ✅ 完成 | 100% |
-| Phase 5 | Godot客户端 | ⬜ 待开发 | 0% |
+| Phase 5.1 | Godot客户端基础框架 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 55%**
+**总体进度：约 60%**
 
 ---
 
@@ -201,6 +201,27 @@
 - [x] EventService业务逻辑
 - [x] 事件列表/详情查询（只读接口）
 
+### 12. Godot客户端基础框架 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 项目配置 | client/project.godot | Godot项目初始化 |
+| API配置 | client/scripts/api/api_config.gd | 服务器地址和端点配置 |
+| Token管理 | client/scripts/api/token_manager.gd | JWT Token保存/读取/清除 |
+| HTTP客户端 | client/scripts/api/api_client.gd | HTTP请求封装 |
+| 登录界面 | client/scenes/login/ | 登录和注册UI |
+| 主界面 | client/scenes/main/ | 玩家信息显示 |
+
+**技术实现：**
+- [x] Godot 4.x项目初始化
+- [x] HTTP请求模块
+- [x] JWT Token管理
+- [x] 登录/注册界面
+- [x] 玩家信息显示
+- [x] 客户端-服务器通信验证
+
 ---
 
 ## 当前技术状态
@@ -254,13 +275,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5：Godot客户端开发**
+**Phase 5.2：基础游戏场景**
 
 需要实现：
-1. Godot项目初始化
-2. 登录/注册界面
-3. HTTP请求模块
-4. 游戏主场景
+1. 游戏主场景框架
+2. 玩家角色显示
+3. 基础UI布局
+4. 资源加载系统
 
 ---
 
@@ -268,7 +289,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(event): implement event resource api |
+| (待提交) | feat(godot): initialize client framework |
+| c0b903c | feat(event): implement event resource api |
 | 3b3edab | feat(map): implement map resource api |
 | ef901de | feat(save): implement game save system |
 | dfd633f | feat(monster): implement monster system |

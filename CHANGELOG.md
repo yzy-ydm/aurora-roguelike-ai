@@ -11,7 +11,38 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5 Godot客户端开发
+- Phase 5.2 基础游戏场景
+
+---
+
+## [0.11.0] - 2026-07-13
+
+### Added - Godot客户端基础框架 (Phase 5.1)
+
+**Git Commit:** 待提交
+
+- 初始化Godot 4.x项目 `client/project.godot`
+- 新增API配置模块 `client/scripts/api/api_config.gd`
+  - 服务器地址配置
+  - API端点常量定义
+- 新增Token管理模块 `client/scripts/api/token_manager.gd`
+  - JWT Token保存/读取/清除
+  - Token文件持久化
+  - Authorization头生成
+- 新增HTTP客户端模块 `client/scripts/api/api_client.gd`
+  - GET/POST/PUT请求封装
+  - JSON解析
+  - 统一错误处理
+  - 信号机制
+- 新增登录界面 `client/scenes/login/`
+  - 登录功能
+  - 注册功能
+  - Tab切换
+- 新增主界面 `client/scenes/main/`
+  - 玩家信息显示
+  - 刷新功能
+  - 退出登录
+- 验证客户端-服务器通信链路
 
 ---
 

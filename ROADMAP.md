@@ -163,18 +163,27 @@
 
 ## Phase 5：Godot客户端开发
 
-**状态：** 待开发
+**状态：** 进行中（5.1完成）
 
 **目标：** 实现游戏客户端基础框架
 
+**Phase 5.1：客户端基础框架 ✅**
+
+**完成内容：**
+- [x] Godot项目初始化（client/project.godot）
+- [x] API配置模块（client/scripts/api/api_config.gd）
+- [x] Token管理模块（client/scripts/api/token_manager.gd）
+- [x] HTTP客户端模块（client/scripts/api/api_client.gd）
+- [x] 登录/注册界面（client/scenes/login/）
+- [x] 玩家信息界面（client/scenes/main/）
+
+**Phase 5.2：基础游戏场景 ⬜**
+
 **计划内容：**
-- [ ] Godot项目初始化
-- [ ] 主菜单场景
-- [ ] 登录/注册界面
-- [ ] HTTP请求模块
 - [ ] 游戏主场景框架
-- [ ] 玩家角色控制
-- [ ] 地图渲染系统
+- [ ] 玩家角色显示
+- [ ] 基础UI布局
+- [ ] 资源加载系统
 
 ---
 

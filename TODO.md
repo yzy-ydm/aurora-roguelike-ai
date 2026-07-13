@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 4.6.3 已完成，Phase 4.6 全部完成
+## 当前阶段：Phase 5.1 已完成，准备进入 Phase 5.2
 
 ---
 
@@ -134,10 +134,17 @@
 - [x] 事件详情接口（GET /api/events/{id}）
 
 ### Phase 5：Godot客户端
-- [ ] Godot项目初始化
-- [ ] 登录/注册界面
-- [ ] HTTP请求模块
-- [ ] 游戏主场景
+- [x] Godot项目初始化（client/project.godot）
+- [x] API配置模块（client/scripts/api/api_config.gd）
+- [x] Token管理模块（client/scripts/api/token_manager.gd）
+- [x] HTTP客户端模块（client/scripts/api/api_client.gd）
+- [x] 登录界面（client/scenes/login/）
+- [x] 注册功能
+- [x] JWT Token保存和管理
+- [x] 玩家信息显示界面（client/scenes/main/）
+- [ ] 基础游戏场景
+- [ ] 玩家角色显示
+- [ ] 基础UI布局
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成
