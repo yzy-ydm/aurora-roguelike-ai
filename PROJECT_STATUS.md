@@ -8,7 +8,7 @@
 
 ## 当前阶段
 
-**Phase 5.4 已完成**（游戏资源加载系统） → 准备进入 **Phase 5.5 基础游戏资源展示**
+**Phase 5.5 已完成**（基础游戏资源展示系统） → 准备进入 **Phase 5.6 基础游戏循环准备**
 
 ---
 
@@ -32,12 +32,13 @@
 | Phase 5.2 | 基础游戏场景 | ✅ 完成 | 100% |
 | Phase 5.3 | 玩家基础控制 | ✅ 完成 | 100% |
 | Phase 5.4 | 游戏资源加载系统 | ✅ 完成 | 100% |
+| Phase 5.5 | 基础游戏资源展示 | ✅ 完成 | 100% |
 | Phase 6 | 核心玩法 | ⬜ 待开发 | 0% |
 | Phase 7 | AI动态生成 | ⬜ 待开发 | 0% |
 | Phase 8 | 测试优化 | ⬜ 待开发 | 0% |
 | Phase 9 | 论文答辩 | ⬜ 待开发 | 0% |
 
-**总体进度：约 75%**
+**总体进度：约 80%**
 
 ---
 
@@ -282,6 +283,27 @@
 - [x] 资源数据缓存
 - [x] HUD资源统计显示
 
+### 16. 基础游戏资源展示系统 ✅
+
+**已实现模块：**
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 资源中心场景 | client/scenes/resource/resource_center.tscn | 资源查看入口 |
+| 资源中心控制器 | client/scripts/ui/resource_center.gd | 资源展示逻辑 |
+| 武器展示 | 资源中心武器Tab | 武器列表和详情 |
+| 怪物展示 | 资源中心怪物Tab | 怪物列表和详情 |
+| 地图展示 | 资源中心地图Tab | 地图列表和详情 |
+| 事件展示 | 资源中心事件Tab | 事件列表和详情 |
+
+**技术实现：**
+- [x] 资源中心场景（TabContainer四Tab布局）
+- [x] 武器展示（列表+详情面板）
+- [x] 怪物展示（列表+详情面板）
+- [x] 地图展示（列表+详情面板）
+- [x] 事件展示（列表+详情面板）
+- [x] 游戏场景资源中心入口按钮
+
 ---
 
 ## 当前技术状态
@@ -335,13 +357,13 @@ server/app/
 
 ## 下一步任务
 
-**Phase 5.5：基础游戏资源展示与交互**
+**Phase 5.6：基础游戏循环准备**
 
 需要实现：
-1. 武器列表展示
-2. 怪物信息展示
-3. 地图信息展示
-4. 事件信息展示
+1. 游戏状态管理
+2. 存档加载集成
+3. 基础游戏流程
+4. 场景切换优化
 
 ---
 
@@ -349,7 +371,8 @@ server/app/
 
 | Commit | 说明 |
 |--------|------|
-| (待提交) | feat(client): implement resource loading system |
+| (待提交) | feat(client): implement resource display system |
+| 25397e4 | feat(client): implement resource loading system |
 | 7621303 | feat(player): implement basic player controller |
 | 51d640f | feat(client): implement basic game scene framework |
 | 808bf19 | feat(godot): initialize client framework |

@@ -9,6 +9,7 @@ extends Node
 const LOGIN_SCENE: String = "res://scenes/login/login_scene.tscn"
 const MAIN_SCENE: String = "res://scenes/main/main_scene.tscn"
 const GAME_SCENE: String = "res://scenes/game/game_scene.tscn"
+const RESOURCE_CENTER: String = "res://scenes/resource/resource_center.tscn"
 
 ## 当前场景名称
 var _current_scene: String = ""
@@ -30,6 +31,11 @@ func go_to_main() -> void:
 ## 切换到游戏场景
 func go_to_game() -> void:
 	_change_scene(GAME_SCENE, "game")
+
+
+## 切换到资源中心场景
+func go_to_resource_center() -> void:
+	_change_scene(RESOURCE_CENTER, "resource_center")
 
 
 ## 内部场景切换方法

@@ -1,0 +1,108 @@
+[gd_scene load_steps=2 format=3 uid="uid://resource_center"]
+
+[ext_resource type="Script" path="res://scripts/ui/resource_center.gd" id="1"]
+
+[node name="ResourceCenter" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.12, 0.18, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "资源中心"
+horizontal_alignment = 1
+
+[node name="TabContainer" type="TabContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Weapons" type="HSplitContainer" parent="VBoxContainer/TabContainer"]
+layout_mode = 2
+
+[node name="WeaponList" type="ItemList" parent="VBoxContainer/TabContainer/Weapons"]
+layout_mode = 2
+custom_minimum_size = Vector2(250, 0)
+item_count = 0
+
+[node name="WeaponDetail" type="RichTextLabel" parent="VBoxContainer/TabContainer/Weapons"]
+layout_mode = 2
+bbcode_enabled = true
+text = "选择武器查看详情"
+
+[node name="Monsters" type="HSplitContainer" parent="VBoxContainer/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="MonsterList" type="ItemList" parent="VBoxContainer/TabContainer/Monsters"]
+layout_mode = 2
+custom_minimum_size = Vector2(250, 0)
+item_count = 0
+
+[node name="MonsterDetail" type="RichTextLabel" parent="VBoxContainer/TabContainer/Monsters"]
+layout_mode = 2
+bbcode_enabled = true
+text = "选择怪物查看详情"
+
+[node name="Maps" type="HSplitContainer" parent="VBoxContainer/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="MapList" type="ItemList" parent="VBoxContainer/TabContainer/Maps"]
+layout_mode = 2
+custom_minimum_size = Vector2(250, 0)
+item_count = 0
+
+[node name="MapDetail" type="RichTextLabel" parent="VBoxContainer/TabContainer/Maps"]
+layout_mode = 2
+bbcode_enabled = true
+text = "选择地图查看详情"
+
+[node name="Events" type="HSplitContainer" parent="VBoxContainer/TabContainer"]
+visible = false
+layout_mode = 2
+
+[node name="EventList" type="ItemList" parent="VBoxContainer/TabContainer/Events"]
+layout_mode = 2
+custom_minimum_size = Vector2(250, 0)
+item_count = 0
+
+[node name="EventDetail" type="RichTextLabel" parent="VBoxContainer/TabContainer/Events"]
+layout_mode = 2
+bbcode_enabled = true
+text = "选择事件查看详情"
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "就绪"
+horizontal_alignment = 2
+
+[node name="BackButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 40)
+text = "返回游戏"

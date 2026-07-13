@@ -6,7 +6,7 @@
 
 ---
 
-## 当前阶段：Phase 5.4 已完成，准备进入 Phase 5.5
+## 当前阶段：Phase 5.5 已完成，准备进入 Phase 5.6
 
 ---
 
@@ -160,6 +160,13 @@
 - [x] 事件数据模型（client/scripts/models/event_data.gd）
 - [x] 资源加载服务（client/scripts/services/resource_service.gd）
 - [x] HUD资源统计显示
+- [x] 资源中心场景（client/scenes/resource/resource_center.tscn）
+- [x] 资源中心控制器（client/scripts/ui/resource_center.gd）
+- [x] 武器列表和详情展示
+- [x] 怪物列表和详情展示
+- [x] 地图列表和详情展示
+- [x] 事件列表和详情展示
+- [x] 游戏场景资源中心入口
 
 ### Phase 6：核心玩法
 - [ ] 随机地图生成

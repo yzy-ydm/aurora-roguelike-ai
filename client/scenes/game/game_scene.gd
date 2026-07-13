@@ -8,12 +8,18 @@ extends Node2D
 ## 节点引用
 @onready var player: CharacterBody2D = $GameWorld/Player
 @onready var hud: CanvasLayer = $UI/HUD
+@onready var resource_button: Button = $UI/MenuPanel/MenuButtons/ResourceButton
+@onready var logout_button: Button = $UI/MenuPanel/MenuButtons/LogoutButton
 
 ## 玩家数据
 var _player_data: Dictionary = {}
 
 
 func _ready() -> void:
+	# 连接按钮信号
+	resource_button.pressed.connect(_on_resource_pressed)
+	logout_button.pressed.connect(_on_logout_pressed)
+
 	# 连接API信号
 	ApiClient.request_completed.connect(_on_api_success)
 	ApiClient.request_failed.connect(_on_api_error)
@@ -90,6 +96,12 @@ func _on_api_error(error: String, status_code: int) -> void:
 	hud.set_status("错误: " + error)
 
 
-## 返回主界面
-func _go_to_main() -> void:
-	SceneManager.go_to_main()
+## 资源中心按钮
+func _on_resource_pressed() -> void:
+	SceneManager.go_to_resource_center()
+
+
+## 退出登录按钮
+func _on_logout_pressed() -> void:
+	TokenManager.clear_token()
+	SceneManager.go_to_login()

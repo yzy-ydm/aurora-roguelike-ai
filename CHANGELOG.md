@@ -11,7 +11,33 @@
 ## [Unreleased]
 
 ### 待开发
-- Phase 5.5 基础游戏资源展示与交互
+- Phase 5.6 基础游戏循环准备
+
+---
+
+## [0.15.0] - 2026-07-13
+
+### Added - 基础游戏资源展示系统 (Phase 5.5)
+
+**Git Commit:** 待提交
+
+- 新增资源中心场景 `client/scenes/resource/resource_center.tscn`
+  - TabContainer四Tab布局（武器/怪物/地图/事件）
+  - 每个Tab包含列表和详情面板
+  - 返回游戏按钮
+- 新增资源中心控制器 `client/scripts/ui/resource_center.gd`
+  - 调用ResourceService加载资源
+  - 填充武器/怪物/地图/事件列表
+  - 显示选中资源详情
+  - 错误处理
+- 更新场景管理器 `client/scripts/managers/scene_manager.gd`
+  - 添加RESOURCE_CENTER常量
+  - 添加go_to_resource_center()方法
+- 更新游戏场景 `client/scenes/game/game_scene.tscn`
+  - 添加菜单面板（资源中心按钮、退出登录按钮）
+- 更新游戏场景脚本 `client/scenes/game/game_scene.gd`
+  - 添加资源中心按钮处理
+  - 添加退出登录按钮处理
 
 ---
 
