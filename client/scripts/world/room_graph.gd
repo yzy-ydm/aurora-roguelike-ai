@@ -2,6 +2,7 @@
 ##
 ## 管理房间节点和连接关系
 ## 追踪当前房间和可访问房间
+## 支持AI楼层生成（带本地降级）
 
 extends Node
 
@@ -14,8 +15,14 @@ var _current_room_id: int = -1
 ## 当前楼层
 var _current_floor: int = 1
 
-## FloorGenerator引用
+## 当前玩家等级
+var _player_level: int = 1
+
+## FloorGenerator引用（本地降级）
 var _floor_generator: Node = null
+
+## AIContentService引用
+var _ai_content_service: Node = null
 
 ## 信号
 signal room_graph_generated()
@@ -27,13 +34,24 @@ signal floor_completed()
 
 ## 初始化
 func _ready() -> void:
-	# 创建FloorGenerator
+	# 创建FloorGenerator（本地降级用）
 	_floor_generator = Node.new()
 	_floor_generator.name = "FloorGenerator"
 	_floor_generator.set_script(load("res://scripts/world/floor_generator.gd"))
 	add_child(_floor_generator)
 
 	print("[RoomGraph] Initialized")
+
+
+## 设置AIContentService引用
+func set_ai_content_service(ai_service: Node) -> void:
+	_ai_content_service = ai_service
+	print("[RoomGraph] Connected to AIContentService")
+
+
+## 设置玩家等级
+func set_player_level(level: int) -> void:
+	_player_level = level
 
 
 ## 生成新的楼层
@@ -45,8 +63,24 @@ func generate_new_floor(floor_level: int = 1) -> void:
 	_current_room_id = -1
 	_current_floor = floor_level
 
-	# 生成房间结构
-	var rooms = _floor_generator.generate_floor(floor_level)
+	# 尝试使用AI生成楼层
+	var rooms: Array[RoomNodeData] = []
+	var used_ai = false
+
+	if _ai_content_service:
+		print("[RoomGraph] Calling AI for floor generation...")
+		rooms = await _ai_content_service.generate_floor_content(floor_level, _player_level)
+
+		if rooms.size() > 0:
+			used_ai = true
+			print("[RoomGraph] AI generated ", rooms.size(), " rooms")
+		else:
+			print("[RoomGraph] AI returned empty, falling back to local generation")
+
+	# 如果AI失败，使用本地FloorGenerator
+	if rooms.size() == 0:
+		print("[RoomGraph] Using local FloorGenerator")
+		rooms = _floor_generator.generate_floor(floor_level)
 
 	# 添加到字典
 	for room in rooms:
@@ -61,7 +95,11 @@ func generate_new_floor(floor_level: int = 1) -> void:
 	_floor_generator.print_floor_graph(rooms)
 
 	room_graph_generated.emit()
-	print("[RoomGraph] Floor generated with ", rooms.size(), " rooms")
+
+	if used_ai:
+		print("[RoomGraph] Floor generated with AI: ", rooms.size(), " rooms")
+	else:
+		print("[RoomGraph] Floor generated locally: ", rooms.size(), " rooms")
 
 
 ## 获取当前房间
