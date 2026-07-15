@@ -195,6 +195,8 @@ func spawn_boss(boss_data: BossData, room_center: Vector2) -> MonsterEntity:
 		print("[RoomSpawner] Error: No boss data")
 		return null
 
+	print("[BOSS SPAWN] Starting boss spawn: ", boss_data.name)
+
 	# 清除旧怪物
 	clear_monsters()
 
@@ -237,15 +239,77 @@ func spawn_boss(boss_data: BossData, room_center: Vector2) -> MonsterEntity:
 	if monster_node.has_method("set_monster_entity"):
 		monster_node.set_monster_entity(entity)
 
+	# 创建BossController
+	var boss_controller = _create_boss_controller(monster_node, entity, boss_data)
+	if boss_controller:
+		print("[BOSS CONTROLLER CREATED] BossController created for: ", boss_data.name)
+	else:
+		print("[RoomSpawner] Warning: Failed to create BossController")
+
 	# 激活实体
 	entity.activate()
 
 	# Boss不需要等级修正，已经是最终属性
 	_current_monsters.append(entity)
 
-	print("[RoomSpawner] Spawned boss: ", boss_data.name)
+	print("[BOSS SPAWN] Boss spawned successfully: ", boss_data.name)
 	monster_spawned.emit(entity)
 	return entity
+
+
+## 创建BossController
+func _create_boss_controller(boss_node: CharacterBody2D, boss_entity: MonsterEntity, boss_data: BossData) -> Node:
+	# 加载BossController脚本
+	var boss_controller_script = load("res://scripts/boss/boss_controller.gd")
+	if not boss_controller_script:
+		print("[RoomSpawner] Error: Failed to load BossController script")
+		return null
+
+	# 创建BossController实例
+	var boss_controller = boss_controller_script.new()
+	if not boss_controller:
+		print("[RoomSpawner] Error: Failed to create BossController instance")
+		return null
+
+	# 设置名称
+	boss_controller.name = "BossController"
+
+	# 添加到怪物容器（与MonsterNode同级）
+	_monster_container.add_child(boss_controller)
+
+	# 初始化BossController
+	boss_controller.initialize(boss_node, boss_entity, boss_data)
+
+	# 连接boss_defeated信号到CombatManager
+	_connect_boss_signals(boss_controller)
+
+	return boss_controller
+
+
+## 连接Boss信号到CombatManager
+func _connect_boss_signals(boss_controller: Node) -> void:
+	# 获取CombatManager引用
+	var combat_manager = _find_combat_manager()
+	if not combat_manager:
+		print("[RoomSpawner] Warning: CombatManager not found, signals not connected")
+		return
+
+	# 连接boss_defeated信号到CombatManager.on_boss_defeated()
+	if boss_controller.has_signal("boss_defeated") and combat_manager.has_method("on_boss_defeated"):
+		boss_controller.boss_defeated.connect(combat_manager.on_boss_defeated)
+		print("[BOSS SIGNAL CONNECTED] boss_defeated -> CombatManager.on_boss_defeated")
+	else:
+		print("[RoomSpawner] Warning: Failed to connect boss_defeated signal")
+
+
+## 查找CombatManager
+func _find_combat_manager() -> Node:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			return game_scene.get_node_or_null("CombatManager")
+	return null
 
 
 ## ==================== 奖励生成 ====================
