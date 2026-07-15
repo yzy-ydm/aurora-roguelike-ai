@@ -2,12 +2,6 @@
 ##
 ## 玩家接近时自动拾取
 ## 根据奖励类型显示不同像素艺术Sprite
-##
-## Phase 16.2.2:
-## - 为每种奖励类型生成独特像素艺术纹理
-## - 增加旋转动画
-## - 增加发光脉冲效果
-## - 保留浮动动画和拾取逻辑
 
 extends Area2D
 
@@ -40,18 +34,18 @@ signal reward_collected(reward_data: RewardData)
 
 ## 初始化
 func _ready() -> void:
-	# 碰撞层: 检测Player(Layer 2)进入拾取范围
-	collision_layer = 0  # 奖励本身不需要被检测
-	collision_mask = 2   # 检测Player(Layer 2)
+	# 碰撞层
+	collision_layer = 0
+	collision_mask = 2
 
 	# 设置碰撞检测
 	body_entered.connect(_on_body_entered)
 
-	# 创建外观
-	_setup_appearance()
-
 	# 记录起始位置
 	_start_position = position
+
+	# 创建默认外观 (白色方块)
+	_setup_default_appearance()
 
 
 ## 每帧更新
@@ -74,23 +68,51 @@ func _process(delta: float) -> void:
 		sprite.modulate.a = glow
 
 
-## 设置奖励数据
+## 设置奖励数据 (由 RoomSpawner 调用)
 func set_reward_data(data: RewardData) -> void:
 	_reward_data = data
-	_update_appearance()
 
-
-## 设置外观 (Phase 16.2.2: 生成像素艺术纹理)
-func _setup_appearance() -> void:
+	# 确保 sprite 已就绪
 	if not sprite:
-		push_warning("[RewardItem] Sprite node not found")
+		push_warning("[RewardItem] Sprite not ready in set_reward_data, deferring")
+		call_deferred("_apply_reward_visual")
 		return
 
-	# 默认纹理 (白色方块，等待 set_reward_data 替换)
+	_apply_reward_visual()
+
+
+## 应用奖励视觉 (延迟调用版本)
+func _apply_reward_visual() -> void:
+	if not _reward_data:
+		print("[RewardVisual] ERROR: _reward_data is null")
+		return
+
+	if not sprite:
+		print("[RewardVisual] ERROR: sprite is null")
+		return
+
+	# 生成类型专属纹理
+	var type_name = _reward_data.get_type_string()
+	var texture = _generate_reward_texture(_reward_data.type)
+
+	if texture:
+		sprite.texture = texture
+		sprite.modulate = Color.WHITE  # 不叠加颜色，纹理已经是正确颜色
+		print("[RewardVisual] type=", type_name, " visual_created=", _get_visual_name(_reward_data.type))
+	else:
+		# Fallback: 使用颜色方块
+		_setup_color_fallback()
+		print("[RewardVisual] type=", type_name, " visual_created=color_fallback")
+
+
+## 设置默认外观 (白色方块)
+func _setup_default_appearance() -> void:
+	if not sprite:
+		return
+
 	var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
-	var texture = ImageTexture.create_from_image(image)
-	sprite.texture = texture
+	sprite.texture = ImageTexture.create_from_image(image)
 
 	# 创建碰撞形状
 	if collision_shape:
@@ -99,31 +121,38 @@ func _setup_appearance() -> void:
 		collision_shape.set_deferred("shape", shape)
 
 
-## 更新外观 (Phase 16.2.2: 根据类型生成像素艺术)
-func _update_appearance() -> void:
-	if not _reward_data:
-		return
-	if not sprite:
-		push_warning("[RewardItem] Sprite node not found")
+## 颜色方块 Fallback
+func _setup_color_fallback() -> void:
+	if not sprite or not _reward_data:
 		return
 
-	# 生成类型专属像素艺术纹理
-	var texture = _generate_reward_texture(_reward_data.type)
-	sprite.texture = texture
+	var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	image.fill(_reward_data.color)
+	sprite.texture = ImageTexture.create_from_image(image)
+	sprite.modulate = Color.WHITE
 
-	# 保留颜色叠加 (轻微着色)
-	sprite.modulate = _reward_data.color.lerp(Color.WHITE, 0.3)
 
-	# 根据类型调整旋转速度
-	match _reward_data.type:
+## 获取视觉名称 (用于日志)
+func _get_visual_name(type: RewardData.RewardType) -> String:
+	match type:
 		RewardData.RewardType.GOLD:
-			_rotation_speed = 0.8  # 金币转快一点
+			return "coin"
+		RewardData.RewardType.ATTACK_UP:
+			return "sword"
+		RewardData.RewardType.HEALTH_UP:
+			return "heart"
+		RewardData.RewardType.HEAL:
+			return "potion"
 		RewardData.RewardType.WEAPON_UPGRADE:
-			_rotation_speed = 0.3  # 武器升级慢一点
+			return "arrow"
+		RewardData.RewardType.ATTRIBUTE_BOOST:
+			return "gem"
 		RewardData.RewardType.NEW_WEAPON:
-			_rotation_speed = 0.3
+			return "dual_swords"
+		RewardData.RewardType.PASSIVE_ITEM:
+			return "star"
 		_:
-			_rotation_speed = 0.5
+			return "unknown"
 
 
 ## ==================== 像素艺术生成 ====================
@@ -131,6 +160,9 @@ func _update_appearance() -> void:
 ## 生成奖励类型专属纹理
 func _generate_reward_texture(type: RewardData.RewardType) -> Texture2D:
 	var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
+
+	# 填充透明背景
+	image.fill(Color(0, 0, 0, 0))
 
 	match type:
 		RewardData.RewardType.GOLD:
@@ -155,7 +187,7 @@ func _generate_reward_texture(type: RewardData.RewardType) -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
-## 金币: 金色圆形 + ¥符号
+## 金币: 金色圆形
 func _draw_gold_coin(image: Image) -> void:
 	var gold = Color(1.0, 0.84, 0.0)
 	var gold_dark = Color(0.85, 0.68, 0.0)
@@ -164,19 +196,14 @@ func _draw_gold_coin(image: Image) -> void:
 	# 圆形主体
 	_fill_circle(image, 8, 8, 6, gold)
 	# 边缘暗色
-	_set_pixel(image, 3, 6, gold_dark)
-	_set_pixel(image, 3, 7, gold_dark)
-	_set_pixel(image, 3, 8, gold_dark)
-	_set_pixel(image, 3, 9, gold_dark)
-	_set_pixel(image, 12, 6, gold_dark)
-	_set_pixel(image, 12, 7, gold_dark)
-	_set_pixel(image, 12, 8, gold_dark)
-	_set_pixel(image, 12, 9, gold_dark)
+	for y in range(5, 11):
+		_set_pixel(image, 3, y, gold_dark)
+		_set_pixel(image, 12, y, gold_dark)
 	# 高光
 	_set_pixel(image, 6, 4, gold_light)
 	_set_pixel(image, 7, 4, gold_light)
 	_set_pixel(image, 5, 5, gold_light)
-	# $ 符号简化
+	# $ 符号
 	_set_pixel(image, 7, 6, gold_dark)
 	_set_pixel(image, 8, 6, gold_dark)
 	_set_pixel(image, 6, 7, gold_dark)
@@ -202,7 +229,7 @@ func _draw_attack_boost(image: Image) -> void:
 	_set_pixel(image, 7, 3, red_light)
 	_set_pixel(image, 8, 2, red_light)
 	# 剑柄横档
-	_fill_pixels(image, 5, 11, 6, gray)
+	_fill_hline(image, 5, 11, 6, gray)
 	# 剑柄
 	_set_pixel(image, 8, 12, gray)
 	_set_pixel(image, 7, 12, gray)
@@ -222,11 +249,11 @@ func _draw_health_boost(image: Image) -> void:
 	_set_pixel(image, 9, 4, green)
 	_set_pixel(image, 10, 4, green)
 	_set_pixel(image, 11, 5, green)
-	_fill_pixels(image, 3, 6, 10, green)
-	_fill_pixels(image, 4, 7, 8, green)
-	_fill_pixels(image, 5, 8, 6, green)
-	_fill_pixels(image, 6, 9, 4, green)
-	_fill_pixels(image, 7, 10, 2, green)
+	_fill_hline(image, 3, 6, 10, green)
+	_fill_hline(image, 4, 7, 8, green)
+	_fill_hline(image, 5, 8, 6, green)
+	_fill_hline(image, 6, 9, 4, green)
+	_fill_hline(image, 7, 10, 2, green)
 	# 高光
 	_set_pixel(image, 5, 5, green_light)
 	_set_pixel(image, 5, 6, green_light)
@@ -239,18 +266,18 @@ func _draw_heal_potion(image: Image) -> void:
 	var gray = Color(0.5, 0.5, 0.5)
 
 	# 瓶口
-	_fill_pixels(image, 6, 2, 4, gray)
-	_fill_pixels(image, 6, 3, 4, gray)
+	_fill_hline(image, 6, 2, 4, gray)
+	_fill_hline(image, 6, 3, 4, gray)
 	# 瓶颈
-	_fill_pixels(image, 7, 4, 2, cyan)
+	_fill_hline(image, 7, 4, 2, cyan)
 	# 瓶身
-	_fill_pixels(image, 5, 5, 6, cyan)
-	_fill_pixels(image, 4, 6, 8, cyan)
-	_fill_pixels(image, 4, 7, 8, cyan)
-	_fill_pixels(image, 4, 8, 8, cyan)
-	_fill_pixels(image, 4, 9, 8, cyan)
-	_fill_pixels(image, 5, 10, 6, cyan)
-	_fill_pixels(image, 6, 11, 4, cyan)
+	_fill_hline(image, 5, 5, 6, cyan)
+	_fill_hline(image, 4, 6, 8, cyan)
+	_fill_hline(image, 4, 7, 8, cyan)
+	_fill_hline(image, 4, 8, 8, cyan)
+	_fill_hline(image, 4, 9, 8, cyan)
+	_fill_hline(image, 5, 10, 6, cyan)
+	_fill_hline(image, 6, 11, 4, cyan)
 	# 高光
 	_set_pixel(image, 5, 6, cyan_light)
 	_set_pixel(image, 5, 7, cyan_light)
@@ -269,18 +296,18 @@ func _draw_weapon_upgrade(image: Image) -> void:
 
 	# 上箭头
 	_set_pixel(image, 8, 2, orange_light)
-	_fill_pixels(image, 7, 3, 3, orange_light)
-	_fill_pixels(image, 6, 4, 5, orange)
-	_fill_pixels(image, 5, 5, 7, orange)
+	_fill_hline(image, 7, 3, 3, orange_light)
+	_fill_hline(image, 6, 4, 5, orange)
+	_fill_hline(image, 5, 5, 7, orange)
 	# 箭杆
-	_fill_pixels(image, 7, 6, 3, orange)
-	_fill_pixels(image, 7, 7, 3, orange)
-	_fill_pixels(image, 7, 8, 3, orange)
-	_fill_pixels(image, 7, 9, 3, orange)
-	_fill_pixels(image, 7, 10, 3, orange)
+	_fill_hline(image, 7, 6, 3, orange)
+	_fill_hline(image, 7, 7, 3, orange)
+	_fill_hline(image, 7, 8, 3, orange)
+	_fill_hline(image, 7, 9, 3, orange)
+	_fill_hline(image, 7, 10, 3, orange)
 	# 底座
-	_fill_pixels(image, 5, 11, 7, orange)
-	_fill_pixels(image, 5, 12, 7, orange)
+	_fill_hline(image, 5, 11, 7, orange)
+	_fill_hline(image, 5, 12, 7, orange)
 
 
 ## 属性强化: 紫色菱形宝石
@@ -291,15 +318,15 @@ func _draw_attribute_boost(image: Image) -> void:
 
 	# 菱形
 	_set_pixel(image, 8, 2, purple_light)
-	_fill_pixels(image, 7, 3, 3, purple_light)
-	_fill_pixels(image, 6, 4, 5, purple)
-	_fill_pixels(image, 5, 5, 7, purple)
-	_fill_pixels(image, 4, 6, 9, purple)
-	_fill_pixels(image, 4, 7, 9, purple)
-	_fill_pixels(image, 5, 8, 7, purple)
-	_fill_pixels(image, 6, 9, 5, purple)
-	_fill_pixels(image, 7, 10, 3, purple)
-	_fill_pixels(image, 8, 11, 1, purple_dark)
+	_fill_hline(image, 7, 3, 3, purple_light)
+	_fill_hline(image, 6, 4, 5, purple)
+	_fill_hline(image, 5, 5, 7, purple)
+	_fill_hline(image, 4, 6, 9, purple)
+	_fill_hline(image, 4, 7, 9, purple)
+	_fill_hline(image, 5, 8, 7, purple)
+	_fill_hline(image, 6, 9, 5, purple)
+	_fill_hline(image, 7, 10, 3, purple)
+	_set_pixel(image, 8, 11, purple_dark)
 	# 高光
 	_set_pixel(image, 6, 5, purple_light)
 	_set_pixel(image, 7, 4, purple_light)
@@ -340,13 +367,13 @@ func _draw_passive_item(image: Image) -> void:
 	# 星形
 	_set_pixel(image, 8, 1, yellow)
 	_set_pixel(image, 8, 2, white)
-	_fill_pixels(image, 7, 3, 3, white)
-	_fill_pixels(image, 2, 6, 12, white)
-	_fill_pixels(image, 3, 7, 10, white)
-	_fill_pixels(image, 4, 8, 8, white)
-	_fill_pixels(image, 5, 9, 6, white)
-	_fill_pixels(image, 4, 10, 8, white)
-	_fill_pixels(image, 3, 11, 10, white)
+	_fill_hline(image, 7, 3, 3, white)
+	_fill_hline(image, 2, 6, 12, white)
+	_fill_hline(image, 3, 7, 10, white)
+	_fill_hline(image, 4, 8, 8, white)
+	_fill_hline(image, 5, 9, 6, white)
+	_fill_hline(image, 4, 10, 8, white)
+	_fill_hline(image, 3, 11, 10, white)
 	# 中心高光
 	_set_pixel(image, 7, 6, yellow)
 	_set_pixel(image, 8, 6, yellow)
@@ -357,7 +384,7 @@ func _draw_passive_item(image: Image) -> void:
 ## ==================== 辅助函数 ====================
 
 ## 填充水平像素行
-func _fill_pixels(image: Image, x: int, y: int, width: int, color: Color) -> void:
+func _fill_hline(image: Image, x: int, y: int, width: int, color: Color) -> void:
 	for i in range(width):
 		_set_pixel(image, x + i, y, color)
 
@@ -384,7 +411,6 @@ func _on_body_entered(body: Node2D) -> void:
 	if _collected:
 		return
 
-	# 检查是否是玩家
 	if body.name == "Player" or body.has_method("get_player_data"):
 		call_deferred("_collect", body)
 
@@ -444,7 +470,7 @@ func _spawn_attribute_popup(collector: Node2D) -> void:
 		RewardData.RewardType.NEW_WEAPON:
 			attribute_name = "新武器"
 		RewardData.RewardType.PASSIVE_ITEM:
-			attribute_name = _reward_data.name + ": " + _reward_data.description
+			attribute_name = _reward_data.name
 
 	var popup_script = load("res://scripts/ui/attribute_popup.gd")
 	if popup_script and popup_script.has_method("create_attribute_popup"):
@@ -459,7 +485,6 @@ func _spawn_attribute_popup(collector: Node2D) -> void:
 
 ## 播放收集动画
 func _play_collect_animation() -> void:
-	# 禁用碰撞
 	if collision_shape:
 		collision_shape.set_deferred("disabled", true)
 
@@ -467,10 +492,8 @@ func _play_collect_animation() -> void:
 		queue_free()
 		return
 
-	# 停止浮动和旋转
 	set_process(false)
 
-	# 淡出 + 放大动画
 	var tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(sprite, "modulate:a", 0.0, 0.3)
@@ -480,11 +503,9 @@ func _play_collect_animation() -> void:
 
 ## ==================== 查询接口 ====================
 
-## 获取奖励数据
 func get_reward_data() -> RewardData:
 	return _reward_data
 
 
-## 是否已收集
 func is_collected() -> bool:
 	return _collected
