@@ -41,6 +41,29 @@ layout_mode = 2
 custom_minimum_size = Vector2(150, 20)
 value = 100.0
 
+[node name="ExpBar" type="VBoxContainer" parent="TopBar/StatsContainer"]
+layout_mode = 2
+
+[node name="ExpLabel" type="Label" parent="TopBar/StatsContainer/ExpBar"]
+layout_mode = 2
+text = "EXP: 0/100"
+
+[node name="ExpProgress" type="ProgressBar" parent="TopBar/StatsContainer/ExpBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 16)
+value = 0.0
+
+[node name="FloorInfo" type="VBoxContainer" parent="TopBar"]
+layout_mode = 2
+
+[node name="FloorLabel" type="Label" parent="TopBar/FloorInfo"]
+layout_mode = 2
+text = "楼层: 1"
+
+[node name="RoomLabel" type="Label" parent="TopBar/FloorInfo"]
+layout_mode = 2
+text = "房间: 0"
+
 [node name="GoldContainer" type="HBoxContainer" parent="TopBar"]
 layout_mode = 2
 
@@ -95,3 +118,42 @@ grow_vertical = 0
 layout_mode = 2
 text = "就绪"
 horizontal_alignment = 2
+
+[node name="CombatPanel" type="PanelContainer" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -80.0
+offset_top = 10.0
+offset_right = 80.0
+offset_bottom = 50.0
+grow_horizontal = 2
+
+[node name="CombatInfo" type="VBoxContainer" parent="CombatPanel"]
+layout_mode = 2
+
+[node name="MonsterCount" type="Label" parent="CombatPanel/CombatInfo"]
+layout_mode = 2
+text = "怪物: 0/0"
+horizontal_alignment = 1
+
+[node name="BossPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 60.0
+offset_right = 100.0
+offset_bottom = 100.0
+grow_horizontal = 2
+
+[node name="BossName" type="Label" parent="BossPanel"]
+layout_mode = 2
+text = "Boss"
+horizontal_alignment = 1
+
+[node name="BossHealthBar" type="ProgressBar" parent="BossPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 16)
+value = 100.0

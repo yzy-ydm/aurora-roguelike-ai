@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://game_scene"]
+[gd_scene load_steps=9 format=3 uid="uid://game_scene"]
 
 [ext_resource type="Script" path="res://scenes/game/game_scene.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://player_scene" path="res://scenes/game/player.tscn" id="2"]
@@ -6,10 +6,9 @@
 [ext_resource type="PackedScene" uid="uid://pause_menu" path="res://scenes/ui/pause_menu.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://settings_menu" path="res://scenes/ui/settings_menu.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://save_selection" path="res://scenes/ui/save_selection.tscn" id="6"]
-[ext_resource type="PackedScene" uid="uid://world_scene" path="res://scenes/world/world.tscn" id="7"]
-[ext_resource type="Script" path="res://scripts/interaction/interaction_manager.gd" id="8"]
-[ext_resource type="Script" path="res://scripts/interaction/interaction_detector.gd" id="9"]
-[ext_resource type="PackedScene" uid="uid://interaction_hint" path="res://scenes/ui/interaction_hint.tscn" id="10"]
+[ext_resource type="Script" path="res://scripts/interaction/interaction_manager.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/interaction/interaction_detector.gd" id="8"]
+[ext_resource type="PackedScene" uid="uid://interaction_hint" path="res://scenes/ui/interaction_hint.tscn" id="9"]
 
 [node name="GameScene" type="Node2D"]
 script = ExtResource("1")
@@ -22,22 +21,20 @@ color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="GameWorld" type="Node2D" parent="."]
 
-[node name="World" parent="GameWorld" instance=ExtResource("7")]
-
 [node name="Player" parent="GameWorld" instance=ExtResource("2")]
 position = Vector2(640, 360)
 
 [node name="InteractionDetector" type="Area2D" parent="GameWorld/Player"]
-script = ExtResource("9")
+script = ExtResource("8")
 
 [node name="InteractionManager" type="Node" parent="."]
-script = ExtResource("8")
+script = ExtResource("7")
 
 [node name="UI" type="Node" parent="."]
 
 [node name="HUD" parent="UI" instance=ExtResource("3")]
 
-[node name="InteractionHint" parent="UI" instance=ExtResource("10")]
+[node name="InteractionHint" parent="UI" instance=ExtResource("9")]
 
 [node name="MenuPanel" type="PanelContainer" parent="UI"]
 anchors_preset = 1

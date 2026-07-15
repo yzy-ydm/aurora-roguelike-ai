@@ -17,6 +17,11 @@ var _checking_token: bool = false
 ## 是否正在进入游戏（防重复触发）
 var _entering_game: bool = false
 
+## Token验证超时计时器
+var _token_timeout_timer: float = 0.0
+const TOKEN_TIMEOUT: float = 8.0  # 8秒超时
+var _token_checking_in_progress: bool = false
+
 ## 节点引用
 @onready var username_input: LineEdit = $VBoxContainer/TabContainer/Login/UsernameInput
 @onready var password_input: LineEdit = $VBoxContainer/TabContainer/Login/PasswordInput
@@ -43,13 +48,36 @@ func _ready() -> void:
 	GameFlowController.flow_completed.connect(_on_flow_completed)
 	GameFlowController.flow_error.connect(_on_flow_error)
 
+	# 开发模式：跳过自动登录
+	var dev_mode = OS.get_environment("AURORA_DEV_MODE")
+	if dev_mode == "1" or dev_mode.to_lower() == "true":
+		print("[LoginScene] DEV MODE: Skipping auto-login")
+		status_label.text = "开发模式 - 请输入账号密码"
+		return
+
 	# 检查是否有保存的Token
 	if TokenManager.has_token():
 		print("[LoginScene] TOKEN CHECK START - found saved token")
 		status_label.text = "检测到已保存的Token，正在验证..."
 		_set_buttons_enabled(false)
 		_checking_token = true
+		_token_checking_in_progress = true
+		_token_timeout_timer = 0.0
 		_check_existing_token()
+
+
+func _process(delta: float) -> void:
+	# Token验证超时处理
+	if _token_checking_in_progress:
+		_token_timeout_timer += delta
+		if _token_timeout_timer >= TOKEN_TIMEOUT:
+			print("[LoginScene] TOKEN CHECK TIMEOUT")
+			_token_checking_in_progress = false
+			_checking_token = false
+			_is_processing = false
+			_set_buttons_enabled(true)
+			TokenManager.clear_token()
+			status_label.text = "验证超时，请检查网络后重新登录"
 
 
 ## 检查已保存的Token
@@ -136,6 +164,7 @@ func _on_api_success(result: Variant) -> void:
 		print("[LoginScene] TOKEN CHECK SUCCESS - valid player profile")
 		print("[LoginScene] Starting game flow from saved token")
 		_checking_token = false
+		_token_checking_in_progress = false
 		_is_processing = true
 		_set_buttons_enabled(false)
 		TokenManager.set_user_info(result)
@@ -189,6 +218,7 @@ func _on_api_error(error: String, status_code: int) -> void:
 	if _checking_token:
 		print("[LoginScene] TOKEN CHECK FAILED - clearing token")
 		_checking_token = false
+		_token_checking_in_progress = false
 		_is_processing = false
 		_set_buttons_enabled(true)
 		TokenManager.clear_token()
