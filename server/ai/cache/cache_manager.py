@@ -251,3 +251,84 @@ class RoomCacheManager(CacheManager):
 # 全局缓存实例
 floor_cache = FloorCacheManager()
 room_cache = RoomCacheManager()
+
+
+class MonsterCacheManager(CacheManager):
+    """怪物缓存管理器"""
+
+    def __init__(self, max_size: int = 300, ttl: int = 3600):
+        super().__init__(max_size, ttl)
+
+    def get_monsters(
+        self,
+        room_type: str,
+        floor_level: int,
+        player_level: int,
+        monster_count: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """获取怪物缓存"""
+        key = self._generate_key("monsters", {
+            "room_type": room_type,
+            "floor_level": floor_level,
+            "player_level": player_level,
+            "monster_count": monster_count
+        })
+        return self.get(key)
+
+    def set_monsters(
+        self,
+        room_type: str,
+        floor_level: int,
+        player_level: int,
+        monster_count: Optional[int],
+        data: Dict[str, Any]
+    ) -> None:
+        """设置怪物缓存"""
+        key = self._generate_key("monsters", {
+            "room_type": room_type,
+            "floor_level": floor_level,
+            "player_level": player_level,
+            "monster_count": monster_count
+        })
+        self.set(key, data)
+
+
+class WeaponCacheManager(CacheManager):
+    """武器缓存管理器"""
+
+    def __init__(self, max_size: int = 200, ttl: int = 7200):
+        super().__init__(max_size, ttl)
+
+    def get_weapon(
+        self,
+        player_level: int,
+        rarity: Optional[str] = None,
+        weapon_type: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """获取武器缓存"""
+        key = self._generate_key("weapon", {
+            "player_level": player_level,
+            "rarity": rarity,
+            "weapon_type": weapon_type
+        })
+        return self.get(key)
+
+    def set_weapon(
+        self,
+        player_level: int,
+        rarity: Optional[str],
+        weapon_type: Optional[str],
+        data: Dict[str, Any]
+    ) -> None:
+        """设置武器缓存"""
+        key = self._generate_key("weapon", {
+            "player_level": player_level,
+            "rarity": rarity,
+            "weapon_type": weapon_type
+        })
+        self.set(key, data)
+
+
+# 全局缓存实例
+monster_cache = MonsterCacheManager()
+weapon_cache = WeaponCacheManager()

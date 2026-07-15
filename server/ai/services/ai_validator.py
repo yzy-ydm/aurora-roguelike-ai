@@ -1,0 +1,299 @@
+"""
+AI响应验证器
+
+负责验证AI返回数据的格式和合法性
+提供默认修复机制
+"""
+
+import json
+from typing import Dict, Any, List, Optional
+
+from logger.logger import logger
+
+
+class AIValidator:
+    """
+    AI响应验证器
+
+    职责：
+    - JSON合法性检查
+    - 必需字段检查
+    - 类型检查
+    - 默认修复机制
+    """
+
+    # 楼层数据必需字段
+    FLOOR_REQUIRED_FIELDS = {
+        "floor": int,
+        "room_count": int,
+        "rooms": list
+    }
+
+    # 房间数据必需字段
+    ROOM_REQUIRED_FIELDS = {
+        "room_id": int,
+        "room_type": str,
+        "monsters": list,
+        "rewards": dict
+    }
+
+    # 怪物数据必需字段
+    MONSTER_REQUIRED_FIELDS = {
+        "monsters": list,
+        "total_count": int
+    }
+
+    # 武器数据必需字段
+    WEAPON_REQUIRED_FIELDS = {
+        "weapon": dict
+    }
+
+    # 武器对象必需字段
+    WEAPON_OBJECT_FIELDS = {
+        "name": str,
+        "type": str,
+        "rarity": str,
+        "damage": (int, float)
+    }
+
+    def validate_floor_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        验证楼层数据
+
+        Args:
+            data: AI返回的楼层数据
+
+        Returns:
+            验证后的数据（可能已修复）
+
+        Raises:
+            ValueError: 数据无效且无法修复
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Floor data must be dict, got {type(data).__name__}")
+
+        # 检查必需字段
+        data = self._ensure_fields(data, self.FLOOR_REQUIRED_FIELDS, "floor")
+
+        # 修复floor字段
+        if not isinstance(data.get("floor"), int):
+            data["floor"] = 1
+
+        # 修复room_count字段
+        if not isinstance(data.get("room_count"), int):
+            data["room_count"] = len(data.get("rooms", []))
+
+        # 验证rooms列表
+        rooms = data.get("rooms", [])
+        if not isinstance(rooms, list):
+            data["rooms"] = []
+            rooms = []
+
+        # 验证每个房间
+        validated_rooms = []
+        for i, room in enumerate(rooms):
+            if isinstance(room, dict):
+                validated_room = self._validate_room(room, i)
+                validated_rooms.append(validated_room)
+
+        data["rooms"] = validated_rooms
+        data["room_count"] = len(validated_rooms)
+
+        logger.debug(f"Floor data validated: {data['room_count']} rooms")
+        return data
+
+    def validate_room_content(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        验证房间内容数据
+
+        Args:
+            data: AI返回的房间内容数据
+
+        Returns:
+            验证后的数据
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Room content must be dict, got {type(data).__name__}")
+
+        # 检查必需字段
+        data = self._ensure_fields(data, self.ROOM_REQUIRED_FIELDS, "room_content")
+
+        # 修复room_id
+        if not isinstance(data.get("room_id"), int):
+            data["room_id"] = 0
+
+        # 修复room_type
+        if not isinstance(data.get("room_type"), str):
+            data["room_type"] = "combat"
+
+        # 验证monsters列表
+        monsters = data.get("monsters", [])
+        if not isinstance(monsters, list):
+            data["monsters"] = []
+
+        # 验证rewards字典
+        rewards = data.get("rewards", {})
+        if not isinstance(rewards, dict):
+            data["rewards"] = {"count": 1, "quality": 1.0}
+
+        logger.debug(f"Room content validated: room_id={data['room_id']}")
+        return data
+
+    def validate_monster_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        验证怪物数据
+
+        Args:
+            data: AI返回的怪物数据
+
+        Returns:
+            验证后的数据
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Monster data must be dict, got {type(data).__name__}")
+
+        # 检查必需字段
+        data = self._ensure_fields(data, self.MONSTER_REQUIRED_FIELDS, "monster")
+
+        # 验证monsters列表
+        monsters = data.get("monsters", [])
+        if not isinstance(monsters, list):
+            data["monsters"] = []
+            monsters = []
+
+        # 验证每个怪物
+        validated_monsters = []
+        for monster in monsters:
+            if isinstance(monster, dict):
+                validated_monster = self._validate_single_monster(monster)
+                validated_monsters.append(validated_monster)
+
+        data["monsters"] = validated_monsters
+        data["total_count"] = len(validated_monsters)
+
+        logger.debug(f"Monster data validated: {data['total_count']} monsters")
+        return data
+
+    def validate_weapon_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        验证武器数据
+
+        Args:
+            data: AI返回的武器数据
+
+        Returns:
+            验证后的数据
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Weapon data must be dict, got {type(data).__name__}")
+
+        # 检查必需字段
+        data = self._ensure_fields(data, self.WEAPON_REQUIRED_FIELDS, "weapon")
+
+        # 验证weapon对象
+        weapon = data.get("weapon", {})
+        if not isinstance(weapon, dict):
+            data["weapon"] = {}
+            weapon = {}
+
+        # 验证weapon字段
+        weapon = self._ensure_fields(weapon, self.WEAPON_OBJECT_FIELDS, "weapon_object")
+
+        # 修复damage类型
+        if not isinstance(weapon.get("damage"), (int, float)):
+            weapon["damage"] = 10
+
+        data["weapon"] = weapon
+
+        logger.debug(f"Weapon data validated: {weapon.get('name', 'unknown')}")
+        return data
+
+    def _validate_room(self, room: Dict[str, Any], index: int) -> Dict[str, Any]:
+        """验证单个房间"""
+        # 修复id
+        if not isinstance(room.get("id"), int):
+            room["id"] = index
+
+        # 修复type
+        if not isinstance(room.get("type"), str):
+            room["type"] = "combat"
+
+        # 修复connections
+        connections = room.get("connections", [])
+        if not isinstance(connections, list):
+            room["connections"] = []
+
+        # 修复monsters
+        monsters = room.get("monsters", [])
+        if not isinstance(monsters, list):
+            room["monsters"] = []
+
+        # 修复rewards
+        rewards = room.get("rewards", {})
+        if not isinstance(rewards, dict):
+            room["rewards"] = {}
+
+        # 修复chests
+        if not isinstance(room.get("chests"), int):
+            room["chests"] = 0
+
+        return room
+
+    def _validate_single_monster(self, monster: Dict[str, Any]) -> Dict[str, Any]:
+        """验证单个怪物"""
+        # 修复id
+        if not isinstance(monster.get("id"), str):
+            monster["id"] = "goblin"
+
+        # 修复count
+        if not isinstance(monster.get("count"), int):
+            monster["count"] = 1
+
+        # 修复level（可选字段）
+        if "level" in monster and not isinstance(monster["level"], int):
+            monster["level"] = 1
+
+        return monster
+
+    def _ensure_fields(
+        self,
+        data: Dict[str, Any],
+        required_fields: Dict[str, type],
+        context: str
+    ) -> Dict[str, Any]:
+        """确保必需字段存在"""
+        for field_name, field_type in required_fields.items():
+            if field_name not in data:
+                logger.warning(f"[{context}] Missing field '{field_name}', adding default")
+                data[field_name] = self._get_default_value(field_type)
+            elif not isinstance(data[field_name], field_type):
+                # 特殊处理：int可以接受float
+                if field_type == int and isinstance(data[field_name], float):
+                    data[field_name] = int(data[field_name])
+                # tuple类型表示多种可接受类型
+                elif isinstance(field_type, tuple):
+                    if not isinstance(data[field_name], field_type):
+                        logger.warning(f"[{context}] Field '{field_name}' type mismatch, fixing")
+                        data[field_name] = self._get_default_value(field_type[0])
+                else:
+                    logger.warning(f"[{context}] Field '{field_name}' type mismatch, fixing")
+                    data[field_name] = self._get_default_value(field_type)
+
+        return data
+
+    def _get_default_value(self, field_type: type) -> Any:
+        """获取类型的默认值"""
+        if field_type == int:
+            return 0
+        elif field_type == float:
+            return 0.0
+        elif field_type == str:
+            return ""
+        elif field_type == list:
+            return []
+        elif field_type == dict:
+            return {}
+        elif field_type == bool:
+            return False
+        else:
+            return None
