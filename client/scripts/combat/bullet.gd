@@ -12,9 +12,16 @@ var speed: float = 500.0
 var direction: Vector2 = Vector2.RIGHT
 var source: Node2D = null  # 发射者
 
-## 生命周期
-var lifetime: float = 3.0
+## 生命周期 (Phase 17.2: 优化限制)
+var lifetime: float = 2.0  # 最大存活时间
 var _age: float = 0.0
+var _start_position: Vector2 = Vector2.ZERO  # 起始位置
+const MAX_DISTANCE: float = 1200.0  # 最大飞行距离
+
+## Phase 17.3: 房间边界检测
+const ROOM_HALF_WIDTH: float = 640.0
+const ROOM_HALF_HEIGHT: float = 360.0
+var _room_center: Vector2 = Vector2.ZERO
 
 ## 节点引用
 @onready var sprite: Sprite2D = $Sprite
@@ -45,6 +52,12 @@ func _ready() -> void:
 	# 渲染层级: 子弹在玩家和敌人之上
 	z_index = 20
 
+	# Phase 17.2: 记录起始位置
+	_start_position = global_position
+
+	# Phase 17.3: 记录房间中心（用于边界检测）
+	_room_center = _get_room_center()
+
 	# 出生保护: 短暂禁用碰撞，防止与发射者重叠时立即销毁
 	if collision_shape:
 		collision_shape.disabled = true
@@ -66,6 +79,20 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	if collision_shape and is_inside_tree():
 		collision_shape.disabled = false
+
+
+## 获取当前房间中心（用于边界检测）
+func _get_room_center() -> Vector2:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			var floor_manager = game_scene.get_node_or_null("FloorManager")
+			if floor_manager and floor_manager.has_method("get_current_room"):
+				var current_room = floor_manager.get_current_room()
+				if current_room:
+					return current_room.position
+	return Vector2.ZERO
 
 
 ## 设置子弹属性
@@ -105,7 +132,7 @@ func _find_damage_system() -> void:
 		print("[Bullet] Warning: DamageSystem not found")
 
 
-## 每帧更新
+## 每帧更新 (Phase 17.2: 添加距离限制, Phase 17.3: 添加边界检测)
 func _process(delta: float) -> void:
 	# 移动子弹
 	position += direction * speed * delta
@@ -117,6 +144,17 @@ func _process(delta: float) -> void:
 	# 更新生命周期
 	_age += delta
 	if _age >= lifetime:
+		destroy()
+		return
+
+	# Phase 17.2: 距离检查
+	var distance_traveled = global_position.distance_to(_start_position)
+	if distance_traveled >= MAX_DISTANCE:
+		destroy()
+		return
+
+	# Phase 17.3: 房间边界检查
+	if _is_outside_room():
 		destroy()
 
 
@@ -134,9 +172,11 @@ func _on_body_entered(body: Node2D) -> void:
 	# 怪物碰撞 → 造成伤害
 	# 检查是否是MonsterNode（有take_damage和get_monster_entity）
 	if body.has_method("take_damage") and body.has_method("get_monster_entity"):
+		print("[Bullet] Hit monster: ", body.name)
 		_hit_target(body)
 	elif body.has_method("take_damage") and not body.has_method("get_player_data"):
 		# 兼容：有take_damage但不是玩家的节点
+		print("[Bullet] Hit target: ", body.name)
 		_hit_target(body)
 
 
@@ -160,11 +200,23 @@ func _on_area_entered(area: Area2D) -> void:
 func _hit_target(target: Node2D) -> void:
 	if _damage_system and _damage_system.has_method("on_bullet_hit"):
 		_damage_system.on_bullet_hit(self, target)
-	else:
-		# 如果没有DamageSystem，直接调用take_damage
-		if target.has_method("take_damage"):
-			target.take_damage(damage)
-		destroy()
+		return  # Phase 21.1.1: DamageSystem内部会调用destroy()，避免重复执行
+
+	# 如果没有DamageSystem，直接调用take_damage
+	if target.has_method("take_damage"):
+		target.take_damage(damage)
+	destroy()
+
+
+## Phase 17.3: 检查子弹是否在房间边界外
+func _is_outside_room() -> bool:
+	var local_pos = global_position - _room_center
+	return (
+		local_pos.x < -ROOM_HALF_WIDTH - 50 or
+		local_pos.x > ROOM_HALF_WIDTH + 50 or
+		local_pos.y < -ROOM_HALF_HEIGHT - 50 or
+		local_pos.y > ROOM_HALF_HEIGHT + 50
+	)
 
 
 ## 销毁子弹

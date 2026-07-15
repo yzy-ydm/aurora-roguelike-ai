@@ -14,6 +14,7 @@
 
 from datetime import datetime
 from typing import Optional, Tuple
+import time
 
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -162,33 +163,60 @@ class AuthService:
                 - str: 消息说明
                 - Optional[User]: 用户对象（成功时）
         """
+        print("[LOGIN TRACE] auth service entered")
+        total_start = time.time()
+        print(f"[AUTH TIMER] login start: {login_data.username}")
+
         # 1. 根据用户名查找用户
+        t0 = time.time()
         user = self.db.query(User).filter(
             User.username == login_data.username,
             User.is_deleted == False
         ).first()
+        t1 = time.time()
+        print(f"[AUTH TIMER] query_user: {(t1-t0)*1000:.1f} ms")
 
         # 用户不存在
         if not user:
+            total_end = time.time()
+            print(f"[AUTH TIMER] total: {(total_end-total_start)*1000:.1f} ms (user not found)")
             return False, "用户名或密码错误", None
 
         # 2. 验证密码是否匹配
-        if not verify_password(login_data.password, user.password_hash):
+        t2 = time.time()
+        password_valid = verify_password(login_data.password, user.password_hash)
+        t3 = time.time()
+        print(f"[AUTH TIMER] verify_password: {(t3-t2)*1000:.1f} ms")
+
+        if not password_valid:
+            total_end = time.time()
+            print(f"[AUTH TIMER] total: {(total_end-total_start)*1000:.1f} ms (wrong password)")
             return False, "用户名或密码错误", None
 
         # 3. 检查账号是否启用
         if not user.is_active:
+            total_end = time.time()
+            print(f"[AUTH TIMER] total: {(total_end-total_start)*1000:.1f} ms (account disabled)")
             return False, "账号已被禁用", None
 
         # 4. 确保玩家角色档案存在（兼容已有用户）
+        t4 = time.time()
         profile_exists = self._ensure_player_profile(user.id, user.username)
-        print(f"[AuthService] user id: {user.id}, username: {user.username}, player profile exists: {profile_exists}")
+        t5 = time.time()
+        print(f"[AUTH TIMER] ensure_profile: {(t5-t4)*1000:.1f} ms (exists={profile_exists})")
 
         # 5. 更新最后登录时间
         user.last_login_at = datetime.utcnow()
 
         # 统一提交事务
+        t6 = time.time()
         self.db.commit()
+        t7 = time.time()
+        print(f"[AUTH TIMER] commit: {(t7-t6)*1000:.1f} ms")
+
+        total_end = time.time()
+        print(f"[AUTH TIMER] total: {(total_end-total_start)*1000:.1f} ms")
+        print("[LOGIN TRACE] login response generated")
 
         return True, "登录成功", user
 
@@ -257,7 +285,10 @@ class AuthService:
         }
 
         # 生成Token
+        t0 = time.time()
         access_token = create_access_token(token_data)
+        t1 = time.time()
+        print(f"[AUTH TIMER] jwt: {(t1-t0)*1000:.1f} ms")
 
         # 构建用户信息
         user_info = UserInfo(

@@ -97,10 +97,13 @@ def get_db() -> Generator[Session, None, None]:
             users = db.query(User).all()
             return users
     """
+    print("[DB DEPENDENCY START]")
     db = SessionLocal()
+    print("[DB SESSION CREATED]")
     try:
         yield db
     finally:
+        print("[DB SESSION CLOSED]")
         db.close()
 
 

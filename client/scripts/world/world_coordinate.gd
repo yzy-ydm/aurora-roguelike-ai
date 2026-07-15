@@ -1,4 +1,4 @@
-## 世界坐标系统 (Phase 10.1.5)
+## 世界坐标系统 (Phase 17.1: 横版房间)
 ##
 ## 统一坐标转换规则
 ## 禁止直接使用room.position作为世界坐标
@@ -13,11 +13,15 @@
 class_name WorldCoordinate
 extends RefCounted
 
-## 房间默认尺寸(像素)
-const ROOM_WIDTH: int = 640   # 20 * 32
-const ROOM_HEIGHT: int = 480  # 15 * 32
-const HALF_WIDTH: int = 320
-const HALF_HEIGHT: int = 240
+## 房间默认尺寸(像素) - Phase 17.1: 横版宽屏
+const ROOM_WIDTH: int = 1280
+const ROOM_HEIGHT: int = 720
+const HALF_WIDTH: int = 640
+const HALF_HEIGHT: int = 360
+
+## 地面高度配置
+const GROUND_HEIGHT: int = 64
+const GROUND_Y: int = HALF_HEIGHT - GROUND_HEIGHT / 2
 
 
 ## ==================== 核心转换 ====================
@@ -44,38 +48,50 @@ static func world_to_local(room_center: Vector2, world_pos: Vector2) -> Vector2:
 
 ## ==================== 预设位置 ====================
 
-## 获取房间内预设的怪物生成区域(避开中心玩家区域)
-static func monster_spawn_pos(room_center: Vector2) -> Vector2:
-	# 怪物在房间边缘区域生成, 避开中心
-	var side = randi() % 4
-	var pos: Vector2
-	match side:
-		0:  # 上
-			pos = Vector2(randf_range(-HALF_WIDTH + 40, HALF_WIDTH - 40), -HALF_HEIGHT + 60)
-		1:  # 下
-			pos = Vector2(randf_range(-HALF_WIDTH + 40, HALF_WIDTH - 40), HALF_HEIGHT - 60)
-		2:  # 左
-			pos = Vector2(-HALF_WIDTH + 60, randf_range(-HALF_HEIGHT + 40, HALF_HEIGHT - 40))
-		3:  # 右
-			pos = Vector2(HALF_WIDTH - 60, randf_range(-HALF_HEIGHT + 40, HALF_HEIGHT - 40))
-	return room_center + pos
+## 获取房间内预设的怪物生成区域(横版: 地面上)
+## Phase 17.5: 根据index分布怪物位置，避免重叠
+static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int = 1) -> Vector2:
+	# 根据index分布怪物位置
+	var x_offset: float
+
+	if total == 1:
+		# 单个怪物：随机左侧或右侧
+		var side = randi() % 2
+		if side == 0:
+			x_offset = randf_range(-400, -200)
+		else:
+			x_offset = randf_range(200, 400)
+	else:
+		# 多个怪物：均匀分布
+		var spacing = 600.0 / (total + 1)
+		x_offset = -300 + spacing * (index + 1)
+		# 添加随机偏移
+		x_offset += randf_range(-30, 30)
+
+	# Y坐标在地面上方（怪物高度的一半）
+	var y_pos = GROUND_Y - 30
+
+	return room_center + Vector2(x_offset, y_pos)
 
 
-## 获取奖励生成位置(房间内随机, 偏中心)
+## 获取奖励生成位置(横版: 地面上)
+## Phase 17.7.3: 返回世界坐标，奖励浮在平台上方
+const REWARD_FLOAT_OFFSET: int = 40
 static func reward_spawn_pos(room_center: Vector2) -> Vector2:
-	var x = randf_range(-100, 100)
-	var y = randf_range(-80, 80)
+	var x = randf_range(-200, 200)
+	var y = GROUND_Y - REWARD_FLOAT_OFFSET  # 在地面上方40像素
+	# 返回世界坐标
 	return room_center + Vector2(x, y)
 
 
-## 获取出口传送门位置(房间右侧)
+## 获取出口传送门位置(横版: 右侧地面)
 static func exit_portal_pos(room_center: Vector2) -> Vector2:
-	return room_center + Vector2(HALF_WIDTH - 30, 0)
+	return room_center + Vector2(HALF_WIDTH - 40, GROUND_Y - 30)
 
 
-## 获取玩家出生位置(房间中心)
+## 获取玩家出生位置(横版: 地面左侧)
 static func player_spawn_pos(room_center: Vector2) -> Vector2:
-	return room_center
+	return room_center + Vector2(-HALF_WIDTH + 100, GROUND_Y - 30)
 
 
 ## ==================== 边界检查 ====================

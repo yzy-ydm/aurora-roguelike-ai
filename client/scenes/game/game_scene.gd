@@ -309,6 +309,10 @@ func _init_gameplay_systems() -> void:
 	add_child(_ai_content_service)
 	_ai_content_service.set_service_type(_ai_content_service.AIServiceType.REAL)
 
+	# Phase 21.4.1: 后台启动AI初始化
+	_ai_content_service.start_initialization()
+	print("[GameScene] AIContentService initialization started")
+
 	# 容器节点
 	var monster_container = Node2D.new()
 	monster_container.name = "MonsterContainer"
@@ -552,9 +556,9 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 			room.room_name
 		)
 
-	# Phase 20.4: 重置玩家位置到房间中心并同步Camera
+	# Phase 17.1: 重置玩家位置到横版出生点(地面左侧)
 	if player:
-		player.global_position = room.position  # 房间中心坐标
+		player.global_position = WorldCoordinate.player_spawn_pos(room.position)
 		var cam = player.get_node_or_null("Camera2D")
 		if cam:
 			cam.reset_smoothing()

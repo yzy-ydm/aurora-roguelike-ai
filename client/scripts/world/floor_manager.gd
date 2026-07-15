@@ -336,10 +336,15 @@ func _request_room_content_ai(room: NewRoomData) -> void:
 		1
 	)
 	if content:
+		# Phase 22.7.1: 检查房间内容是否已被锁定（防止覆盖已激活房间）
+		if room.content and room.content.is_finalized:
+			print("[FloorManager] AI content IGNORED for room ", room.id, " (content already finalized)")
+			return
+
 		# Phase 9.3: AI生成的内容也要经过规则校验
 		content.validate_for_room_type()
 		room.content = content
-		print("[FloorManager] AI content received for room ", room.id, " monsters=", content.monster_count)
+		print("[FloorManager] AI content applied for room ", room.id, " monsters=", content.monster_count)
 
 
 func _create_room_node_data(room: NewRoomData) -> RoomNodeData:

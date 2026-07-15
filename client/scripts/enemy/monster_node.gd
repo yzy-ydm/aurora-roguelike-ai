@@ -17,6 +17,9 @@ var _monster_ai: Node = null
 ## 是否正在受击反馈
 var _is_hit_stunned: bool = false
 
+## Phase 21.1.1: 死亡状态标志（防重复触发）
+var _is_dying: bool = false
+
 ## 受击硬直时间
 const HIT_STUN_DURATION: float = 0.1
 
@@ -37,15 +40,18 @@ func _ready() -> void:
 	# 碰撞层设计:
 	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
 	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
-	# Enemy在Layer 3，只检测Player(2)
+	# Enemy在Layer 3，检测Wall(1) + Player(2)
 	collision_layer = 4  # Enemy在第3层
-	collision_mask = 2   # 检测第2层(Player)
+	collision_mask = 3   # Phase 17.5: 检测第1层(Wall) + 第2层(Player)
 
-	# 渲染层级: 与玩家同级，始终在背景之上
-	z_index = 10
+	# Phase 17.4: 渲染层级设置
+	z_index = 10  # Monster在第10层
 
 	_setup_display()
 	_setup_ai()
+
+	# Phase 17.4: 调试日志
+	print("[MonsterNode Ready] name=", name, " position=", position, " global_position=", global_position, " parent=", get_parent().name if get_parent() else "none")
 
 
 ## 设置怪物实体
@@ -65,6 +71,9 @@ func _setup_display() -> void:
 	image.fill(Color(0.9, 0.2, 0.2, 1.0))  # 红色
 	var texture = ImageTexture.create_from_image(image)
 	sprite.texture = texture
+
+	# Phase 17.4: 确保Sprite z_index正确
+	sprite.z_index = 10
 
 	# 创建碰撞形状
 	var shape = RectangleShape2D.new()
@@ -87,7 +96,20 @@ func _setup_ai() -> void:
 	add_child(_monster_ai)
 
 
-## 每帧更新
+## ==================== Phase 17.1: 横版重力配置 ====================
+
+## 重力加速度
+const GRAVITY: float = 980.0
+
+## 最大下落速度
+const MAX_FALL_SPEED: float = 600.0
+
+## Phase 17.6: 掉落保护
+var _last_safe_position: Vector2 = Vector2.ZERO
+const FALL_LIMIT: float = 1000.0
+
+
+## 每帧更新 (Phase 17.1: 添加重力, Phase 17.6: 添加掉落保护)
 func _physics_process(delta: float) -> void:
 	if not _monster_entity or not _monster_entity.is_alive():
 		return
@@ -97,14 +119,29 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 
+	# 应用重力
+	if not is_on_floor():
+		velocity.y += GRAVITY * delta
+		velocity.y = min(velocity.y, MAX_FALL_SPEED)
+	else:
+		# 在地面上时重置垂直速度
+		if velocity.y > 0:
+			velocity.y = 0
+		# 记录安全位置
+		_last_safe_position = global_position
+
+	# Phase 17.6: 掉落保护
+	if global_position.y > FALL_LIMIT:
+		print("[Monster Respawn] name=", name, " y=", global_position.y)
+		global_position = _last_safe_position
+		velocity = Vector2.ZERO
+
 	# 更新AI
 	if _monster_ai and _monster_ai.has_method("update"):
 		_monster_ai.update(delta)
 
-	# 确保物理碰撞生效（move_and_slide在AI的chase/attack中调用）
-	# 如果AI未调用move_and_slide，这里兜底
-	if velocity.length() > 0:
-		move_and_slide()
+	# 确保物理碰撞生效
+	move_and_slide()
 
 	# 同步位置到实体
 	_monster_entity.sync_position_from_node()
@@ -266,6 +303,11 @@ func _apply_hit_stun() -> void:
 
 ## 死亡处理
 func on_death() -> void:
+	# Phase 21.1.1: 防止重复触发死亡
+	if _is_dying:
+		return
+	_is_dying = true
+
 	print("[Monster] ", _monster_entity.get_monster_name(), " died!")
 
 	# 禁用碰撞（使用set_deferred避免在物理回调期间修改状态）

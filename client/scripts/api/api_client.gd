@@ -79,6 +79,11 @@ func _process_next_request() -> void:
 	_is_processing = true
 	var request_data = _request_queue.pop_front()
 
+	# Phase 22.4: 创建HTTPRequest之前
+	print("[HTTP DEBUG] Request Create:")
+	print("  URL: ", request_data["url"])
+	print("  TIME: ", Time.get_ticks_msec())
+
 	# 创建新的HTTPRequest节点
 	var http_request = HTTPRequest.new()
 	add_child(http_request)
@@ -92,15 +97,25 @@ func _process_next_request() -> void:
 		request_data["body"]
 	)
 
+	# Phase 22.4: request()调用之后
+	print("[HTTP DEBUG] Request Sent:")
+	print("  TIME: ", Time.get_ticks_msec())
+
 	if error != OK:
 		_is_processing = false
 		http_request.queue_free()
+		print("[HTTP DEBUG] Request Failed: ", error)
 		request_failed.emit("HTTP请求创建失败", 0)
 		_process_next_request()
 
 
 ## HTTP请求完成回调
 func _on_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray, http_request: HTTPRequest) -> void:
+	# Phase 22.4: Response Received
+	print("[HTTP DEBUG] Response Received:")
+	print("  TIME: ", Time.get_ticks_msec())
+	print("  Response code: ", response_code)
+
 	# 释放HTTPRequest节点
 	http_request.queue_free()
 	_is_processing = false
@@ -126,6 +141,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 	# 检查HTTP状态码
 	if response_code >= 200 and response_code < 300:
+		# Phase 22.4: Signal Emit
+		print("[HTTP DEBUG] Signal Emit:")
+		print("  TIME: ", Time.get_ticks_msec())
 		request_completed.emit(response_data)
 	else:
 		# 提取错误信息

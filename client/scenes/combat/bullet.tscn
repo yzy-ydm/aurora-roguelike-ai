@@ -4,6 +4,7 @@
 
 [node name="Bullet" type="Area2D"]
 script = ExtResource("1")
+z_index = 30
 
 [node name="Sprite" type="Sprite2D" parent="."]
 

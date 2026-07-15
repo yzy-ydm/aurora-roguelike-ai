@@ -1,12 +1,69 @@
-## 玩家控制器脚本
+## 玩家控制器脚本 (Phase 17.0: 横版平台移动)
 ##
 ## 负责玩家节点的输入处理、移动控制和数据显示
-## 使用CharacterBody2D实现标准移动和碰撞
+## 使用CharacterBody2D实现横版平台移动
+##
+## Phase 17.0 变更:
+## - 添加重力系统
+## - 添加跳跃系统
+## - 添加冲刺接口
+## - 添加地面检测
+## - 保留原有战斗/受伤/死亡接口
 
 extends CharacterBody2D
 
-## 移动速度（像素/秒）
+## ==================== 移动配置 ====================
+
+## 水平移动速度（像素/秒）
 const MOVE_SPEED: float = 200.0
+
+## 重力加速度（像素/秒²）
+const GRAVITY: float = 980.0
+
+## 跳跃力度（像素/秒）
+const JUMP_FORCE: float = -400.0
+
+## 最大下落速度（像素/秒）
+const MAX_FALL_SPEED: float = 600.0
+
+## 冲刺速度（像素/秒）
+const DASH_SPEED: float = 500.0
+
+## 冲刺持续时间（秒）
+const DASH_DURATION: float = 0.15
+
+## 冲刺冷却时间（秒）
+const DASH_COOLDOWN: float = 0.8
+
+## ==================== 状态标志 ====================
+
+## 是否在地面
+var _is_on_ground: bool = false
+
+## 是否正在冲刺
+var _is_dashing: bool = false
+
+## 冲刺冷却计时器
+var _dash_cooldown_timer: float = 0.0
+
+## 冲刺方向
+var _dash_direction: Vector2 = Vector2.ZERO
+
+## 面朝方向 (1=右, -1=左)
+var _facing_direction: int = 1
+
+## ==================== Phase 17.2: 跳跃手感优化 ====================
+
+## Coyote Time: 离开平台后仍可跳跃的时间
+const COYOTE_TIME: float = 0.12
+var _coyote_timer: float = 0.0
+
+## Jump Buffer: 提前按跳跃键的缓存时间
+const JUMP_BUFFER_TIME: float = 0.1
+var _jump_buffer_timer: float = 0.0
+
+## Phase 17.6: 跳跃状态追踪
+var _was_jumping: bool = false
 
 ## 玩家数据 (兼容旧系统，由PlayerStats同步)
 var _player_data: Dictionary = {}
@@ -89,36 +146,100 @@ func _link_stats_to_game_state() -> void:
 ## 在属性变化后调用，确保保存时获取最新数据
 func _sync_stats_to_game_state() -> void:
 	GameStateManager.sync_from_runtime_stats()
-
-
 ## 物理帧处理（每帧调用）
+## Phase 17.6: 使用标准Godot 4 CharacterBody2D流程
 func _physics_process(delta: float) -> void:
-	# 更新击退
+	# ========== 1. 更新击退 ==========
 	if _knockback_timer > 0:
 		_knockback_timer -= delta
 		velocity = _knockback_velocity
 		move_and_slide()
 		return
 
-	# 获取输入方向
+	# ========== 2. 更新冲刺冷却 ==========
+	if _dash_cooldown_timer > 0:
+		_dash_cooldown_timer -= delta
+
+	# ========== 3. 冲刺处理 ==========
+	if _is_dashing:
+		velocity = _dash_direction * DASH_SPEED
+		move_and_slide()
+		return
+
+	# ========== 4. 获取地面状态 ==========
+	var on_floor = is_on_floor()
+
+	# ========== 5. 更新Coyote Timer ==========
+	if on_floor:
+		_coyote_timer = COYOTE_TIME
+	else:
+		_coyote_timer -= delta
+
+	# ========== 6. 应用重力 ==========
+	if not on_floor:
+		velocity.y += GRAVITY * delta
+		velocity.y = min(velocity.y, MAX_FALL_SPEED)
+	else:
+		if velocity.y > 0:
+			velocity.y = 0
+
+	# ========== 7. 跳跃输入检测 ==========
+	if Input.is_action_just_pressed("jump"):
+		_jump_buffer_timer = JUMP_BUFFER_TIME
+
+	# ========== 8. 跳跃执行 ==========
+	if _jump_buffer_timer > 0:
+		_jump_buffer_timer -= delta
+		if on_floor or _coyote_timer > 0:
+			velocity.y = JUMP_FORCE
+			_jump_buffer_timer = 0
+			_coyote_timer = 0
+			print("[Jump Start] y=", global_position.y)
+
+	# ========== 9. 跳跃峰值检测 ==========
+	if not on_floor and velocity.y >= 0 and _was_jumping:
+		print("[Jump Peak] y=", global_position.y)
+		_was_jumping = false
+
+	# ========== 10. 落地检测 ==========
+	if on_floor and _was_jumping:
+		print("[Landing] y=", global_position.y)
+		_was_jumping = false
+
+	if velocity.y < 0:
+		_was_jumping = true
+
+	# ========== 11. 获取水平输入 ==========
 	var input_direction = _get_input_direction()
+	velocity.x = input_direction.x * MOVE_SPEED
 
-	# 计算速度
-	velocity = input_direction * MOVE_SPEED
+	# ========== 12. 更新面朝方向 ==========
+	if input_direction.x > 0:
+		_facing_direction = 1
+	elif input_direction.x < 0:
+		_facing_direction = -1
 
-	# 移动并处理碰撞
+	# ========== 13. Sprite翻转 ==========
+	if sprite:
+		sprite.flip_h = (_facing_direction == -1)
+
+	# ========== 14. 移动并处理碰撞 ==========
 	move_and_slide()
 
 
-## 输入处理
+## 输入处理 (Phase 17.0: 添加冲刺)
 func _input(event: InputEvent) -> void:
 	# 鼠标左键攻击
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			_try_attack()
 
+	# 冲刺 (Shift键)
+	if event.is_action_pressed("dash"):
+		_try_dash()
 
-## 获取输入方向
+
+## 获取输入方向 (Phase 17.0: 只返回水平方向)
 func _get_input_direction() -> Vector2:
 	var direction = Vector2.ZERO
 
@@ -128,18 +249,7 @@ func _get_input_direction() -> Vector2:
 	if Input.is_action_pressed("move_right"):
 		direction.x += 1
 
-	# 垂直方向
-	if Input.is_action_pressed("move_up"):
-		direction.y -= 1
-	if Input.is_action_pressed("move_down"):
-		direction.y += 1
-
-	# 归一化防止对角线移动速度过快
-	if direction.length() > 0:
-		direction = direction.normalized()
-
 	return direction
-
 
 ## 设置玩家显示 (Phase 16.2.1: 优先加载外部Sprite，fallback为程序生成)
 func _setup_player_display() -> void:
@@ -334,7 +444,7 @@ func _create_default_weapon_data() -> WeaponData:
 	return weapon_data
 
 
-## 尝试攻击
+## 尝试攻击 (Phase 17.2: 横版朝向攻击)
 func _try_attack() -> void:
 	if not _weapon:
 		return
@@ -343,17 +453,61 @@ func _try_attack() -> void:
 	if not _bullet_container_ready:
 		return
 
-	# 计算攻击方向（朝向鼠标位置）
-	var mouse_pos = get_global_mouse_position()
-	var attack_direction = (mouse_pos - position)
-	if attack_direction.length() < 1.0:
-		# 鼠标在玩家位置上，使用默认方向（向右）
+	# 冲刺中不能攻击
+	if _is_dashing:
+		return
+
+	# Phase 17.2: 横版攻击方向（根据面朝方向）
+	var attack_direction: Vector2
+	if _facing_direction == 1:
 		attack_direction = Vector2.RIGHT
 	else:
-		attack_direction = attack_direction.normalized()
+		attack_direction = Vector2.LEFT
 
 	# 尝试发射
 	_weapon.try_attack(attack_direction)
+
+
+## ==================== Phase 17.0: 跳跃和冲刺 ====================
+
+## 尝试冲刺
+func _try_dash() -> void:
+	# 冷却中不能冲刺
+	if _dash_cooldown_timer > 0:
+		return
+
+	# 已经在冲刺中不能再次冲刺
+	if _is_dashing:
+		return
+
+	# 死亡不能冲刺
+	if is_dead():
+		return
+
+	# 确定冲刺方向（当前面朝方向）
+	_dash_direction = Vector2(_facing_direction, 0)
+	_is_dashing = true
+	_dash_cooldown_timer = DASH_COOLDOWN
+
+	# 冲刺结束后恢复
+	await get_tree().create_timer(DASH_DURATION).timeout
+	_is_dashing = false
+	print("[Player] Dash complete")
+
+
+## 是否在地面
+func is_on_ground() -> bool:
+	return _is_on_ground
+
+
+## 是否正在冲刺
+func is_dashing() -> bool:
+	return _is_dashing
+
+
+## 获取面朝方向 (Phase 17.2: 公开接口)
+func get_facing_direction() -> int:
+	return _facing_direction
 
 
 ## 获取玩家攻击力（包含武器伤害）(Phase 9.4.1: 从PlayerStats读取)

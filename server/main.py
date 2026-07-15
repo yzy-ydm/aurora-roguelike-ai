@@ -13,8 +13,9 @@
     uvicorn main:app --reload --host 0.0.0.0 --port 8000
 """
 
+import time
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 # 导入数据库连接模块
@@ -117,6 +118,24 @@ app.include_router(monster_router) # 怪物接口: /api/monsters/*
 app.include_router(save_router)    # 游戏存档接口: /api/game/save/*
 app.include_router(map_router)     # 地图接口: /api/maps/*
 app.include_router(event_router)   # 事件接口: /api/events/*
+
+
+# ==================== 请求计时中间件 ====================
+
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    """请求计时中间件"""
+    print(f"[REQUEST START] {request.method} {request.url.path}")
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    end_time = time.time()
+    total_ms = (end_time - start_time) * 1000
+    print(f"[REQUEST END] {request.method} {request.url.path}")
+    print(f"[TOTAL TIME] {total_ms:.1f} ms")
+
+    return response
 
 
 # 启动入口

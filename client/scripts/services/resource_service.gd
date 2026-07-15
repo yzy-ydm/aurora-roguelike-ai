@@ -2,7 +2,7 @@
 ##
 ## 负责从API加载游戏资源数据并缓存
 ## 作为全局单例使用
-## Phase 15.3: 并行加载优化
+## Phase 22.2: 启动时不加载资源，由GameFlowController调用
 
 extends Node
 
@@ -17,18 +17,25 @@ var _is_loading: bool = false
 var _loaded_count: int = 0
 const _TOTAL_RESOURCES: int = 4
 
+## 后台加载状态
+var _is_background_loading: bool = false
+
+## 资源是否就绪
+var _resources_ready: bool = false
+
 ## 信号
 signal all_resources_loaded
 signal resource_load_error(error: String)
 
 
 func _ready() -> void:
-	pass
+	# Phase 22.2: 启动时不加载资源，只打印就绪状态
+	print("[BOOT] ResourceService Ready (idle)")
 
 
-## 加载所有资源(并行)
+## 加载所有资源（由GameFlowController调用）
 func load_all_resources() -> void:
-	print("[ResourceService] load_all_resources called (parallel mode)")
+	print("[ResourceService] load_all_resources called")
 	if _is_loading:
 		print("[ResourceService] Already loading, skipping")
 		return
@@ -36,12 +43,32 @@ func load_all_resources() -> void:
 	_is_loading = true
 	_loaded_count = 0
 
-	# 并行发送4个独立HTTP请求
+	# 先加载默认资源（立即可用）
+	_load_all_default_resources()
+
+	# 然后并行发送API请求（后台加载）
 	print("[ResourceService] Sending parallel API requests...")
 	_send_resource_request("weapons", APIConfig.WEAPONS_LIST)
 	_send_resource_request("monsters", APIConfig.MONSTERS_LIST)
 	_send_resource_request("maps", APIConfig.MAPS_LIST)
 	_send_resource_request("events", APIConfig.EVENTS_LIST)
+
+
+## 加载所有默认资源
+func _load_all_default_resources() -> void:
+	_load_default_weapons()
+	_load_default_monsters()
+	_load_default_maps()
+	_load_default_events()
+	_resources_ready = true
+	print("[ResourceService] Default resources loaded")
+	_resources_ready = true
+	print("[ResourceService] All default resources loaded")
+
+
+## 检查资源是否就绪
+func is_resources_ready() -> bool:
+	return _resources_ready
 
 
 ## 发送单个资源请求(独立HTTPRequest节点)
@@ -239,7 +266,9 @@ func _check_all_loaded() -> void:
 	print("[ResourceService] Loaded ", _loaded_count, "/", _TOTAL_RESOURCES)
 	if _loaded_count >= _TOTAL_RESOURCES:
 		_is_loading = false
-		print("[ResourceService] All resources loaded!")
+		_is_background_loading = false
+		_resources_ready = true
+		print("[ResourceService] All API resources loaded!")
 		all_resources_loaded.emit()
 
 

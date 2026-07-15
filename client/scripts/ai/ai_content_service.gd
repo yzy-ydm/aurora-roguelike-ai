@@ -31,6 +31,10 @@ var _ai_token: String = ""
 var _token_loading: bool = false
 var _token_failed: bool = false  # Token获取失败标记
 
+## Phase 21.4: 初始化状态
+var _initializing: bool = false
+var _initialized: bool = false
+
 ## 降级策略：是否使用本地随机生成
 var _use_fallback: bool = true
 
@@ -48,8 +52,29 @@ signal content_cached(data_type: String)
 signal content_quality_checked(data_type: String, score: float)
 
 
-## 初始化
+## 初始化 (Phase 21.4.1: 不在_ready中初始化，等待GameScene调用)
 func _ready() -> void:
+	# Phase 21.4.1: 不自动初始化，等待GameScene调用start_initialization()
+	print("[AIContentService] Ready, waiting for initialization call")
+
+
+## Phase 21.4.1: 由GameScene调用启动初始化
+func start_initialization() -> void:
+	if _initializing or _initialized:
+		return
+	# 使用call_deferred避免阻塞GameScene
+	call_deferred("_initialize_async")
+
+
+## 异步初始化
+func _initialize_async() -> void:
+	# Phase 21.4: 防止重复初始化
+	if _initializing or _initialized:
+		return
+
+	_initializing = true
+	print("[AIContentService] Starting async initialization...")
+
 	# 创建解析器
 	_response_parser = Node.new()
 	_response_parser.name = "AIResponseParser"
@@ -89,7 +114,15 @@ func _ready() -> void:
 	if _use_cache:
 		_cache_manager.load_cache()
 
-	print("[AIContentService] Initialized with full quality control pipeline")
+	_initializing = false
+	_initialized = true
+	print("[AIContentService] Async initialization completed")
+
+
+## Phase 21.4.1: 检查AI服务是否已初始化
+## 不触发初始化，只检查状态
+func is_initialized() -> bool:
+	return _initialized
 
 
 ## 设置服务类型
@@ -113,6 +146,11 @@ func set_quality_threshold(threshold: float) -> void:
 ## 生成楼层内容
 func generate_floor_content(floor_level: int, player_level: int = 1) -> Array[RoomNodeData]:
 	print("[AIContentService] Generating floor content for level ", floor_level)
+
+	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
+	if not is_initialized():
+		print("[AIContentService] Not initialized, using fallback for floor")
+		return _generate_fallback_floor(floor_level)
 
 	# 1. 检查缓存
 	if _use_cache and _cache_manager.has_floor_cache(floor_level):
@@ -162,6 +200,11 @@ func generate_floor_content(floor_level: int, player_level: int = 1) -> Array[Ro
 ## 生成房间内容
 func generate_room_content(room_node: RoomNodeData, floor_level: int, player_level: int = 1) -> RoomContentData:
 	print("[AIContentService] Generating content for room ", room_node.id)
+
+	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
+	if not is_initialized():
+		print("[AIContentService] Not initialized, using fallback for room ", room_node.id)
+		return _generate_fallback_room_content(room_node, floor_level)
 
 	# 1. 检查缓存
 	if _use_cache and _cache_manager.has_room_cache(room_node.id):

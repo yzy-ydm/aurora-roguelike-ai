@@ -42,6 +42,10 @@ var _is_boss_fight: bool = false
 ## Boss数据
 var _boss_data: BossData = null
 
+## Phase 17.4: 调试定时器
+var _debug_timer: float = 0.0
+const DEBUG_INTERVAL: float = 1.0
+
 ## ==================== 引用 ====================
 
 ## RoomSpawner引用
@@ -91,6 +95,17 @@ func set_floor_manager(fm: Node) -> void:
 	_floor_manager = fm
 
 
+## Phase 17.4: 每帧更新（调试用）
+func _process(delta: float) -> void:
+	# 只在战斗状态下打印调试信息
+	if _state == CombatState.COMBAT or _state == CombatState.BOSS:
+		_debug_timer += delta
+		if _debug_timer >= DEBUG_INTERVAL:
+			_debug_timer = 0.0
+			var alive = _total_monsters - _dead_monsters
+			print("[Combat Debug] alive_monsters=", alive, "/", _total_monsters)
+
+
 ## ==================== 战斗流程 ====================
 
 ## 开始战斗
@@ -105,7 +120,7 @@ func start_combat(content: RoomContentData) -> void:
 	_current_content = content
 
 	_set_state(CombatState.ENTERING)
-	print("[CombatManager] Starting combat with ", _total_monsters, " monsters")
+	print("[Combat Start] monster_count=", _total_monsters)
 
 	# 延迟切换到战斗状态
 	await get_tree().create_timer(0.1).timeout
@@ -118,7 +133,7 @@ func start_combat(content: RoomContentData) -> void:
 ## 怪物死亡回调(由RoomSpawner调用)
 func on_monster_died(entity: MonsterEntity) -> void:
 	_dead_monsters += 1
-	print("[CombatManager] Monster died: ", _dead_monsters, "/", _total_monsters)
+	print("[Monster Dead] name=", entity.get_monster_name() if entity else "unknown", " alive=", _total_monsters - _dead_monsters, "/", _total_monsters)
 	monster_killed.emit(_dead_monsters, _total_monsters)
 	combat_progress_changed.emit(_dead_monsters, _total_monsters)
 

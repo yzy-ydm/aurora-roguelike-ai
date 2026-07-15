@@ -38,6 +38,9 @@ func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 2
 
+	# Phase 17.7.2: 设置z_index确保可见
+	z_index = 50
+
 	# 设置碰撞检测
 	body_entered.connect(_on_body_entered)
 
@@ -103,6 +106,9 @@ func _apply_reward_visual() -> void:
 		# Fallback: 使用颜色方块
 		_setup_color_fallback()
 		print("[RewardVisual] type=", type_name, " visual_created=color_fallback")
+
+	# Phase 17.7.2: 输出调试信息
+	print("[Reward Debug] global_position=", global_position, " z_index=", z_index, " visible=", visible, " sprite_texture=", sprite.texture if sprite else "null", " parent=", get_parent().name if get_parent() else "none")
 
 
 ## 设置默认外观 (白色方块)

@@ -127,21 +127,29 @@ func _do_idle(_delta: float) -> void:
 	pass
 
 
-## 追击行为
+## 追击行为 (Phase 17.2: 横版追踪)
 func _do_chase(_delta: float) -> void:
 	if not _player_node or not _monster_node:
 		return
 
-	# 计算朝向玩家的方向
-	var direction = (_player_node.position - _monster_node.position).normalized()
-
-	# 移动
+	# Phase 17.2: 横版移动 - 只在水平方向追踪
 	var speed = _monster_entity.get_speed()
-	_monster_node.velocity = direction * speed
-	_monster_node.move_and_slide()
+	var dx = _player_node.position.x - _monster_node.position.x
+
+	# 设置水平速度
+	if abs(dx) > 10:  # 避免抖动
+		_monster_node.velocity.x = sign(dx) * speed
+	else:
+		_monster_node.velocity.x = 0
+
+	# 翻转Sprite朝向
+	if _monster_node.has_node("Sprite"):
+		var sprite = _monster_node.get_node("Sprite")
+		if sprite:
+			sprite.flip_h = (dx < 0)
 
 
-## 攻击行为
+## 攻击行为 (Phase 17.2: 横版攻击)
 func _do_attack(_delta: float, distance: float) -> void:
 	if not _player_node or not _monster_node:
 		return
@@ -152,10 +160,13 @@ func _do_attack(_delta: float, distance: float) -> void:
 		_attack_cooldown = ATTACK_COOLDOWN_TIME
 	else:
 		# 如果不在攻击范围，继续接近
-		var direction = (_player_node.position - _monster_node.position).normalized()
 		var speed = _monster_entity.get_speed()
-		_monster_node.velocity = direction * speed
-		_monster_node.move_and_slide()
+		var dx = _player_node.position.x - _monster_node.position.x
+
+		if abs(dx) > 10:
+			_monster_node.velocity.x = sign(dx) * speed
+		else:
+			_monster_node.velocity.x = 0
 
 
 ## 执行攻击

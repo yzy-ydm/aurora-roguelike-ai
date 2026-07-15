@@ -13,6 +13,7 @@
 - 使用依赖注入获取数据库会话
 """
 
+import inspect
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -154,6 +155,8 @@ async def login(
     - 422: 请求数据格式错误
     """
     # 创建认证服务实例
+    print("[LOGIN TRACE] router entered")
+    print("[LOGIN TRACE] AuthService file:", inspect.getfile(AuthService))
     service = AuthService(db)
 
     # 验证用户身份

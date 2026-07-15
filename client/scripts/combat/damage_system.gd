@@ -184,24 +184,33 @@ func apply_damage_to_monster(target: Node2D, damage: int, is_critical: bool = fa
 		return
 
 	if target.has_method("take_damage"):
+		# Phase 17.5: 记录伤害前HP
+		var hp_before = 0
+		var target_name = "Unknown"
+		if target.has_method("get_monster_entity"):
+			var entity = target.get_monster_entity()
+			if entity:
+				hp_before = entity.get_health()
+				target_name = entity.get_monster_name()
+		elif target.name:
+			target_name = target.name
+
+		# 应用伤害
 		target.take_damage(damage)
+
+		# Phase 17.5: 记录伤害后HP
+		var hp_after = 0
+		if target.has_method("get_monster_entity"):
+			var entity = target.get_monster_entity()
+			if entity:
+				hp_after = entity.get_health()
 
 		_spawn_damage_number(target, damage, is_critical)
 		_spawn_hit_effect(target)
 		damage_dealt.emit(target, damage, is_critical)
 
-		var target_name = "Unknown"
-		if target.has_method("get_monster_entity"):
-			var entity = target.get_monster_entity()
-			if entity:
-				target_name = entity.get_monster_name()
-		elif target.name:
-			target_name = target.name
-
-		if is_critical:
-			print("[DamageSystem] CRITICAL! Dealt ", damage, " damage to ", target_name)
-		else:
-			print("[DamageSystem] Dealt ", damage, " damage to ", target_name)
+		# Phase 17.5: 输出详细伤害日志
+		print("[Damage] monster ", target_name, " hp ", hp_before, "->", hp_after)
 
 
 ## 应用伤害到玩家
@@ -220,38 +229,69 @@ func apply_damage_to_player(target: Node2D, damage: int, attacker_position: Vect
 
 ## 生成伤害数字
 func _spawn_damage_number(target: Node2D, damage: int, is_critical: bool, is_heal: bool = false, is_player_damage: bool = false) -> void:
-	var parent = target.get_parent()
+	print("[DamageNumber] Spawn Start damage=", damage, " target=", target.name)
+
+	# Phase 17.7.2: 使用EffectContainer而不是MonsterContainer
+	var parent = _get_effect_container()
 	if not parent:
-		parent = get_parent()
+		print("[DamageNumber] ERROR: No EffectContainer found, aborting")
+		return
 
-	var spawn_pos = target.position + Vector2(randf_range(-10, 10), -20)
+	# 使用global_position确保位置正确
+	var spawn_pos = target.global_position + Vector2(randf_range(-10, 10), -20)
+	print("[DamageNumber] Position: global=", spawn_pos, " target_global=", target.global_position)
 
-	# 直接加载场景实例化（避免GDScript静态方法调用问题）
+	# 直接加载场景实例化
 	var scene = load("res://scenes/combat/damage_number.tscn")
 	if not scene:
+		print("[DamageNumber] ERROR: Failed to load scene")
 		return
+	print("[DamageNumber] Scene Loaded: ", scene.resource_path)
 
 	var number = scene.instantiate()
 	if not number:
+		print("[DamageNumber] ERROR: Failed to instantiate")
 		return
+	print("[DamageNumber] Instance Created: ", number.name)
 
-	number.position = spawn_pos
-	number.setup(damage, is_critical, is_heal, is_player_damage)
+	# Phase 17.7.2: 设置global_position
+	number.global_position = spawn_pos
+	number.setup(damage)
 	parent.add_child(number)
+	print("[DamageNumber] Added To Tree: parent=", parent.name, " global_pos=", number.global_position, " visible=", number.visible, " z_index=", number.z_index, " modulate=", number.modulate)
+
+
+## 获取EffectContainer
+func _get_effect_container() -> Node:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			var game_world = game_scene.get_node_or_null("GameWorld")
+			if game_world:
+				# 查找或创建EffectContainer
+				var effect_container = game_world.get_node_or_null("EffectContainer")
+				if not effect_container:
+					effect_container = Node2D.new()
+					effect_container.name = "EffectContainer"
+					game_world.add_child(effect_container)
+					print("[DamageSystem] Created EffectContainer")
+				return effect_container
+	return null
 
 
 ## 生成命中特效
 func _spawn_hit_effect(target: Node2D) -> void:
-	var parent = target.get_parent()
+	var parent = _get_effect_container()
 	if not parent:
-		parent = get_parent()
+		return
 
-	# 直接实例化Node2D并挂载脚本（与hit_effect.gd静态方法逻辑一致）
+	# 直接实例化Node2D并挂载脚本
 	var hit_effect_script = load("res://scripts/combat/hit_effect.gd")
 	if not hit_effect_script:
 		return
 
 	var effect = Node2D.new()
 	effect.set_script(hit_effect_script)
-	effect.position = target.position
+	effect.global_position = target.global_position
 	parent.add_child(effect)

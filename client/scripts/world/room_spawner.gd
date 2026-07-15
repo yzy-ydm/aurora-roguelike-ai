@@ -82,10 +82,11 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 
 	print("[RoomSpawner] Spawning ", content.monster_count, " monsters")
 
+	# Phase 17.5: 传递index和total参数，避免怪物重叠
 	for i in range(content.monster_count):
 		var monster_data = _get_monster_by_config(monsters, content.monster_types, content.monster_level)
 		if monster_data:
-			var spawn_pos = WorldCoordinate.monster_spawn_pos(room_center)
+			var spawn_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count)
 			var entity = _spawn_single_monster(monster_data, spawn_pos)
 			if entity:
 				# 应用等级修正
@@ -125,6 +126,9 @@ func _spawn_single_monster(monster_data: MonsterData, pos: Vector2) -> MonsterEn
 	# 添加到场景
 	_monster_container.add_child(monster_node)
 	monster_node.position = pos
+
+	# Phase 17.4: 调试日志 - 确认怪物生成
+	print("[MonsterSpawn] name=", monster_data.name, " position=", pos, " global_position=", monster_node.global_position, " parent=", monster_node.get_parent().name if monster_node.get_parent() else "none", " z_index=", monster_node.z_index)
 
 	# 设置节点的实体引用
 	if monster_node.has_method("set_monster_entity"):
@@ -393,10 +397,14 @@ func _spawn_single_reward(reward_data: RewardData, pos: Vector2) -> void:
 	if reward_node.has_method("set_reward_data"):
 		reward_node.set_reward_data(reward_data)
 
+	# Phase 17.7: 使用global_position确保位置正确
 	reward_node.position = pos
 
 	if _reward_container:
 		_reward_container.add_child(reward_node)
+
+	# Phase 17.7: 输出调试信息
+	print("[Reward Spawn Debug] type=", reward_data.get_type_string() if reward_data else "unknown", " local_position=", pos, " global_position=", reward_node.global_position, " parent=", reward_node.get_parent().name if reward_node.get_parent() else "none")
 
 	_current_rewards.append(reward_node)
 
