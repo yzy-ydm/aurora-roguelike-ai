@@ -1,7 +1,9 @@
-## 房间清空反馈系统 (Phase 16.1)
+## 房间清空反馈系统 (Phase 16.1, Phase 16.1.5 修复)
 ##
 ## 房间清空时显示视觉反馈
 ## 提升游戏体验
+##
+## Phase 16.1.5 修复: 节点加入SceneTree后再创建Tween
 
 extends Node
 
@@ -46,12 +48,16 @@ func show_clear_feedback(room_center: Vector2) -> void:
 	_feedback_container.add_child(feedback)
 	_current_feedback = feedback
 
+	# Phase 16.1.5 修复: 节点已加入SceneTree，延迟一帧后启动动画
+	await get_tree().process_frame
+	_animate_feedback(feedback)
+
 	# 自动清除
-	await _feedback_container.get_tree().create_timer(TEXT_DURATION).timeout
+	await get_tree().create_timer(TEXT_DURATION).timeout
 	clear_feedback()
 
 
-## 创建反馈节点
+## 创建反馈节点 (不启动动画，等加入SceneTree后再启动)
 func _create_feedback_node(room_center: Vector2) -> Node2D:
 	var feedback_node = Node2D.new()
 	feedback_node.name = "RoomClearFeedback"
@@ -76,25 +82,20 @@ func _create_feedback_node(room_center: Vector2) -> Node2D:
 
 	feedback_node.add_child(label)
 
-	# 添加淡出动画
-	_animate_feedback(feedback_node)
+	# 初始状态 (不用Tween，直接设置)
+	feedback_node.modulate.a = 1.0
+	feedback_node.scale = Vector2(0.5, 0.5)
 
 	return feedback_node
 
 
-## 动画反馈
+## 动画反馈 (Phase 16.1.5: 节点必须已在SceneTree中)
 func _animate_feedback(feedback_node: Node2D) -> void:
-	# 获取场景树
-	var scene_tree = feedback_node.get_tree()
-	if not scene_tree:
+	if not feedback_node or not feedback_node.is_inside_tree():
 		return
 
 	# 创建Tween动画
-	var tween = scene_tree.create_tween()
-
-	# 初始状态
-	feedback_node.modulate.a = 1.0
-	feedback_node.scale = Vector2(0.5, 0.5)
+	var tween = feedback_node.create_tween()
 
 	# 弹出动画
 	tween.tween_property(feedback_node, "scale", Vector2(1.2, 1.2), 0.3)
@@ -129,7 +130,11 @@ func show_custom_feedback(text: String, color: Color, room_center: Vector2) -> v
 	_feedback_container.add_child(feedback)
 	_current_feedback = feedback
 
-	await _feedback_container.get_tree().create_timer(TEXT_DURATION).timeout
+	# 延迟一帧后启动动画
+	await get_tree().process_frame
+	_animate_feedback(feedback)
+
+	await get_tree().create_timer(TEXT_DURATION).timeout
 	clear_feedback()
 
 
@@ -154,6 +159,9 @@ func _create_custom_feedback_node(text: String, color: Color, room_center: Vecto
 	label.size = Vector2(200, 40)
 
 	feedback_node.add_child(label)
-	_animate_feedback(feedback_node)
+
+	# 初始状态
+	feedback_node.modulate.a = 1.0
+	feedback_node.scale = Vector2(0.5, 0.5)
 
 	return feedback_node

@@ -141,18 +141,129 @@ func _get_input_direction() -> Vector2:
 	return direction
 
 
-## 设置玩家显示
+## 设置玩家显示 (Phase 16.2.1: 优先加载外部Sprite，fallback为程序生成)
 func _setup_player_display() -> void:
-	# 创建占位矩形纹理
-	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color(0.2, 0.6, 1.0, 1.0))
-	var texture = ImageTexture.create_from_image(image)
-	sprite.texture = texture
+	# 尝试加载外部Sprite资源
+	var sprite_texture = _load_player_sprite()
+	sprite.texture = sprite_texture
 
-	# 创建碰撞形状
+	# 创建碰撞形状 (保持不变)
 	var shape = RectangleShape2D.new()
 	shape.size = Vector2(32, 32)
 	collision_shape.shape = shape
+
+
+## 加载玩家Sprite (Phase 16.2.1)
+func _load_player_sprite() -> Texture2D:
+	# 资源路径列表 (按优先级)
+	var sprite_paths = [
+		"res://resources/player/player_idle.png",
+		"res://assets/sprites/player_idle.png",
+		"res://assets/sprites/player.png"
+	]
+
+	# 尝试加载外部资源
+	for path in sprite_paths:
+		if ResourceLoader.exists(path):
+			var texture = load(path)
+			if texture:
+				print("[Player] Loaded sprite: ", path)
+				return texture
+
+	# Fallback: 程序生成像素艺术玩家
+	print("[Player] No sprite found, generating pixel art")
+	return _generate_player_sprite()
+
+
+## 程序生成像素艺术玩家Sprite (Phase 16.2.1 Fallback)
+func _generate_player_sprite() -> Texture2D:
+	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
+
+	# 颜色定义
+	var skin = Color(0.96, 0.80, 0.69)      # 肤色
+	var hair = Color(0.30, 0.20, 0.10)       # 深棕发色
+	var shirt = Color(0.20, 0.50, 0.90)      # 蓝色上衣
+	var shirt_dark = Color(0.15, 0.40, 0.75) # 深蓝上衣
+	var pants = Color(0.35, 0.25, 0.15)      # 棕色裤子
+	var boots = Color(0.20, 0.15, 0.10)      # 深棕靴子
+	var eye = Color(0.10, 0.10, 0.10)        # 黑色眼睛
+	var outline = Color(0.15, 0.10, 0.08)    # 轮廓线
+
+	# === 头部 (行 2-9) ===
+	# 发型 (行 2-4)
+	_fill_pixels(image, 11, 2, 10, hair)     # 头发
+	_fill_pixels(image, 12, 2, 8, hair)
+	_fill_pixels(image, 13, 3, 6, hair)
+	# 脸部 (行 4-7)
+	_fill_pixels(image, 13, 4, 6, skin)
+	_fill_pixels(image, 12, 5, 8, skin)
+	_fill_pixels(image, 12, 6, 8, skin)
+	_fill_pixels(image, 12, 7, 8, skin)
+	_fill_pixels(image, 13, 8, 6, skin)
+	# 眼睛
+	_set_pixel(image, 14, 6, eye)
+	_set_pixel(image, 17, 6, eye)
+
+	# === 身体 (行 9-18) ===
+	# 领口
+	_fill_pixels(image, 13, 9, 6, shirt)
+	# 上衣
+	_fill_pixels(image, 11, 10, 10, shirt)
+	_fill_pixels(image, 10, 11, 12, shirt)
+	_fill_pixels(image, 10, 12, 12, shirt)
+	_fill_pixels(image, 10, 13, 12, shirt)
+	_fill_pixels(image, 11, 14, 10, shirt)
+	# 上衣阴影
+	_fill_pixels(image, 10, 11, 2, shirt_dark)
+	_fill_pixels(image, 20, 11, 2, shirt_dark)
+
+	# === 腰带 (行 15) ===
+	_fill_pixels(image, 11, 15, 10, pants)
+
+	# === 腿部 (行 16-22) ===
+	_fill_pixels(image, 11, 16, 4, pants)   # 左腿
+	_fill_pixels(image, 17, 16, 4, pants)   # 右腿
+	_fill_pixels(image, 11, 17, 4, pants)
+	_fill_pixels(image, 17, 17, 4, pants)
+	_fill_pixels(image, 11, 18, 4, pants)
+	_fill_pixels(image, 17, 18, 4, pants)
+	_fill_pixels(image, 11, 19, 4, pants)
+	_fill_pixels(image, 17, 19, 4, pants)
+	_fill_pixels(image, 11, 20, 4, pants)
+	_fill_pixels(image, 17, 20, 4, pants)
+
+	# === 靴子 (行 21-23) ===
+	_fill_pixels(image, 10, 21, 5, boots)   # 左靴
+	_fill_pixels(image, 17, 21, 5, boots)   # 右靴
+	_fill_pixels(image, 10, 22, 5, boots)
+	_fill_pixels(image, 17, 22, 5, boots)
+
+	# === 手臂 (行 10-15) ===
+	_fill_pixels(image, 8, 10, 2, skin)     # 左臂
+	_fill_pixels(image, 8, 11, 2, skin)
+	_fill_pixels(image, 8, 12, 2, skin)
+	_fill_pixels(image, 22, 10, 2, skin)    # 右臂
+	_fill_pixels(image, 22, 11, 2, skin)
+	_fill_pixels(image, 22, 12, 2, skin)
+
+	# === 手 (行 13-14) ===
+	_fill_pixels(image, 8, 13, 2, skin)
+	_fill_pixels(image, 22, 13, 2, skin)
+
+	var texture = ImageTexture.create_from_image(image)
+	return texture
+
+
+## 辅助: 填充水平像素行
+func _fill_pixels(image: Image, x: int, y: int, width: int, color: Color) -> void:
+	for i in range(width):
+		_set_pixel(image, x + i, y, color)
+
+
+## 辅助: 设置单个像素 (带边界检查)
+func _set_pixel(image: Image, x: int, y: int, color: Color) -> void:
+	if x >= 0 and x < 32 and y >= 0 and y < 32:
+		image.set_pixel(x, y, color)
 
 
 ## 设置武器系统
