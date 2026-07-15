@@ -819,17 +819,106 @@ func _create_next_floor_portal() -> void:
 	_room_renderer.create_next_floor_portal()
 
 
-## 下一层传送门触发
+## 下一层传送门触发（Phase 10.1.8: 添加转场效果）
 func _on_next_floor_portal_entered() -> void:
-	print("[GameScene] Next floor portal entered!")
+	print("[FLOOR TRANSITION] Next floor portal entered!")
+
+	# 记录旧楼层信息
+	var old_level = _floor_manager.get_floor_level() if _floor_manager else 0
+	print("[FLOOR TRANSITION] Old floor: ", old_level)
+
+	# 淡出效果
+	await _fade_out(0.5)
 
 	# 生成下一层
 	if _floor_manager:
 		_floor_manager.generate_next_floor()
 
+	# 记录新楼层信息
+	var new_level = _floor_manager.get_floor_level() if _floor_manager else 0
+	var room_count = _floor_manager.get_current_floor().get_room_count() if _floor_manager and _floor_manager.get_current_floor() else 0
+	print("[FLOOR TRANSITION] New floor: ", new_level)
+	print("[FLOOR TRANSITION] Room count: ", room_count)
+
 	# 更新显示
 	_player_data = player.get_player_data() if player else {}
 	_update_game_display()
+
+	# 显示楼层切换提示
+	_show_floor_transition(new_level)
+
+	# 淡入效果
+	await _fade_in(0.5)
+
+	print("[FLOOR TRANSITION] Transition complete!")
+
+
+## 淡出效果（Phase 10.1.8）
+func _fade_out(duration: float) -> void:
+	# 创建全屏黑色遮罩
+	var overlay = _get_or_create_transition_overlay()
+	overlay.modulate.a = 0.0
+	overlay.visible = true
+
+	# 淡出动画
+	var tween = create_tween()
+	tween.tween_property(overlay, "modulate:a", 1.0, duration)
+	await tween.finished
+
+
+## 淡入效果（Phase 10.1.8）
+func _fade_in(duration: float) -> void:
+	var overlay = _get_or_create_transition_overlay()
+	if not overlay.visible:
+		return
+
+	# 淡入动画
+	var tween = create_tween()
+	tween.tween_property(overlay, "modulate:a", 0.0, duration)
+	await tween.finished
+
+	overlay.visible = false
+
+
+## 获取或创建转场遮罩（Phase 10.1.8）
+func _get_or_create_transition_overlay() -> ColorRect:
+	var overlay = get_node_or_null("TransitionOverlay")
+	if not overlay:
+		overlay = ColorRect.new()
+		overlay.name = "TransitionOverlay"
+		overlay.color = Color(0, 0, 0, 1)
+		overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.z_index = 1000  # 确保在最上层
+		overlay.visible = false
+		add_child(overlay)
+	return overlay
+
+
+## 显示楼层切换提示（Phase 10.1.8）
+func _show_floor_transition(floor_level: int) -> void:
+	# 创建楼层提示
+	var label = Label.new()
+	label.text = "第" + str(floor_level) + "层"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	# 设置字体大小
+	label.add_theme_font_size_override("font_size", 48)
+
+	# 设置字体颜色（白色）
+	label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+
+	# 添加到场景
+	var overlay = _get_or_create_transition_overlay()
+	overlay.add_child(label)
+
+	# 等待1.5秒
+	await get_tree().create_timer(1.5).timeout
+
+	# 移除标签
+	label.queue_free()
 
 
 ## ==================== UI交互 ====================
