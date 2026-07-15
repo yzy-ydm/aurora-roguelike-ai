@@ -3,6 +3,9 @@
 ## 负责根据地图资源显示基础地图
 ## 管理地图节点
 ## 提供地图加载入口
+##
+## @deprecated: Replaced by RoomRenderer
+## 保留用于fallback，新代码请使用RoomRenderer
 
 extends Node2D
 
@@ -108,6 +111,8 @@ func _create_room_border(room: RoomData) -> Node2D:
 	# 创建四面墙的碰撞形状
 	var walls = StaticBody2D.new()
 	walls.name = "Walls"
+	# 墙壁在第1层，玩家会检测第1层碰撞
+	walls.collision_layer = 1
 
 	# 上墙
 	var top_wall = _create_wall_segment(Vector2(0, -half_h), Vector2(w, 10))

@@ -4,6 +4,9 @@
 ## 初始化游戏世界
 ## 加载当前地图资源
 ## 管理Room生命周期
+##
+## @deprecated: Replaced by FloorManager
+## 保留用于fallback，新代码请使用FloorManager
 
 extends Node
 

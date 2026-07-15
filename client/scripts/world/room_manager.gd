@@ -3,6 +3,12 @@
 ## 负责管理当前房间状态
 ## 处理房间进入、退出、切换
 ## 支持房间战斗流程和房间图系统
+##
+## 注意：所有房间访问统一使用 RoomNodeData.id
+## 禁止使用 Array index 代表 Room ID
+##
+## @deprecated: Combat responsibility moved to CombatManager
+## 保留用于fallback，新代码请使用CombatManager
 
 extends Node
 
@@ -18,11 +24,11 @@ enum RoomState {
 ## 当前房间数据
 var _current_room: RoomData = null
 
-## 房间列表
-var _rooms: Array[RoomData] = []
+## 房间字典 (room_id -> RoomData)
+var _rooms: Dictionary = {}
 
-## 当前房间索引
-var _current_room_index: int = -1
+## 当前房间ID
+var _current_room_id: int = -1
 
 ## 当前房间状态
 var _current_state: RoomState = RoomState.EMPTY
@@ -51,9 +57,19 @@ signal monster_count_changed(count: int)
 
 
 ## 初始化房间管理器
-func initialize(rooms: Array[RoomData]) -> void:
-	_rooms = rooms
-	_current_room_index = -1
+## 支持Dictionary或Array输入（兼容旧代码）
+func initialize(rooms = null) -> void:
+	if rooms is Dictionary:
+		_rooms = rooms
+	elif rooms is Array:
+		# 将Array转换为Dictionary
+		_rooms.clear()
+		for room in rooms:
+			if room is RoomData:
+				_rooms[room.room_id] = room
+	else:
+		_rooms = {}
+	_current_room_id = -1
 	_current_room = null
 	_current_state = RoomState.EMPTY
 	_current_monster_count = 0
@@ -62,11 +78,7 @@ func initialize(rooms: Array[RoomData]) -> void:
 ## 设置RoomGraph引用
 func set_room_graph(room_graph: Node) -> void:
 	_room_graph = room_graph
-
-	# 连接信号
-	if _room_graph:
-		_room_graph.current_room_changed.connect(_on_room_graph_changed)
-		print("[RoomManager] Connected to RoomGraph")
+	print("[RoomManager] Connected to RoomGraph")
 
 
 ## 设置RoomContentManager引用
@@ -75,106 +87,73 @@ func set_room_content_manager(content_manager: Node) -> void:
 	print("[RoomManager] Connected to RoomContentManager")
 
 
-## RoomGraph房间变化回调
-func _on_room_graph_changed(old_id: int, new_id: int) -> void:
-	print("[RoomManager] Room graph changed: ", old_id, " -> ", new_id)
-
-	# 获取新的房间节点
-	if _room_graph:
-		var room_node = _room_graph.get_room(new_id)
-		if room_node:
-			# 根据房间节点类型创建或获取RoomData
-			var room_data = _get_or_create_room_data(room_node)
-			if room_data:
-				# 生成房间内容
-				if _room_content_manager:
-					_current_content = _room_content_manager.generate_content_for_room(room_node)
-					print("[RoomManager] Room content generated for room ", new_id)
-
-				# 进入房间
-				var old_room = _current_room
-				_current_room = room_data
-				_current_room_index = new_id
-				_current_monster_count = 0
-
-				# 设置房间状态
-				_set_room_state(RoomState.EMPTY)
-
-				# 进入房间
-				_enter_room(room_data)
-
-				# 发送信号
-				if old_room:
-					room_changed.emit(old_room, room_data)
-				room_entered.emit(room_data)
-
-
-## 获取或创建RoomData
-func _get_or_create_room_data(room_node: RoomNodeData) -> RoomData:
-	# 检查是否已有对应的RoomData
-	for room in _rooms:
-		if room.room_name == "Room " + str(room_node.id):
-			return room
-
-	# 创建新的RoomData
-	var room_data = RoomData.new()
-	room_data.room_id = room_node.id
-	room_data.room_name = "Room " + str(room_node.id)
-	room_data.room_type = room_node.get_type_string()
-	room_data.width = 20
-	room_data.height = 15
-	room_data.position = room_node.position
-
-	# 添加到列表
-	_rooms.append(room_data)
-
-	return room_data
-
-
-## 进入第一个房间
-func enter_first_room() -> void:
-	if _rooms.size() > 0:
-		enter_room(0)
-
-
-## 进入指定索引的房间
-func enter_room(index: int) -> void:
-	if index < 0 or index >= _rooms.size():
-		push_warning("房间索引超出范围: " + str(index))
-		return
-
-	var old_room = _current_room
-	var new_room = _rooms[index]
-
-	# 退出当前房间
-	if old_room:
-		_exit_room(old_room)
-
-	# 进入新房间
-	_current_room = new_room
-	_current_room_index = index
-	_current_monster_count = 0
-
-	# 设置房间状态
-	_set_room_state(RoomState.EMPTY)
-
-	# 进入房间
-	_enter_room(new_room)
-
-	# 发送信号
-	if old_room:
-		room_changed.emit(old_room, new_room)
-	room_entered.emit(new_room)
-
-
-## 进入指定ID的房间（通过RoomGraph）
+## 进入指定ID的房间
 func enter_room_by_id(room_id: int) -> bool:
 	if not _room_graph:
 		print("[RoomManager] RoomGraph not set")
 		return false
 
-	# 移动到指定房间
-	return _room_graph.move_to_room(room_id)
+	# 检查房间是否存在
+	var room_node = _room_graph.get_room(room_id)
+	if not room_node:
+		print("[RoomManager] Room not found: ", room_id)
+		return false
+
+	print("[RoomManager] Entering room id:", room_id, " (", room_node.get_type_string(), ")")
+
+	# 退出当前房间
+	if _current_room:
+		_exit_room(_current_room)
+
+	# 获取或创建RoomData
+	var room_data = _get_or_create_room_data(room_node)
+
+	# 进入新房间
+	var old_room = _current_room
+	_current_room = room_data
+	_current_room_id = room_id
+	_current_monster_count = 0
+
+	# 设置房间状态
+	_set_room_state(RoomState.EMPTY)
+
+	# 生成房间内容
+	if _room_content_manager:
+		_current_content = await _room_content_manager.generate_content_for_room(room_node)
+		print("[RoomManager] Content generated for room ", room_id)
+		if _current_content:
+			print("[RoomContent] Monsters: ", _current_content.monster_count, " Rewards: ", _current_content.reward_count)
+
+	# 标记RoomGraph中的房间为已访问
+	_room_graph.visit_room(room_id)
+
+	# 发送信号
+	if old_room:
+		room_changed.emit(old_room, room_data)
+	room_entered.emit(room_data)
+
+	return true
+
+
+## 获取或创建RoomData
+func _get_or_create_room_data(room_node: RoomNodeData) -> RoomData:
+	# 检查是否已有对应的RoomData
+	if _rooms.has(room_node.id):
+		return _rooms[room_node.id]
+
+	# 创建新的RoomData
+	var room_data = RoomData.new()
+	room_data.room_id = room_node.id
+	room_data.room_name = "Room " + str(room_node.id) + " (" + room_node.get_type_string() + ")"
+	room_data.room_type = room_node.get_type_string()
+	room_data.width = 20
+	room_data.height = 15
+	room_data.position = room_node.position
+
+	# 添加到字典
+	_rooms[room_node.id] = room_data
+
+	return room_data
 
 
 ## 退出当前房间
@@ -183,36 +162,10 @@ func exit_current_room() -> void:
 		_exit_room(_current_room)
 		room_exited.emit(_current_room)
 		_current_room = null
-		_current_room_index = -1
+		_current_room_id = -1
 		_current_monster_count = 0
+		_current_content = null
 		_set_room_state(RoomState.EMPTY)
-
-
-## 进入下一个房间
-func enter_next_room() -> void:
-	# 如果有RoomGraph，使用房间图系统
-	if _room_graph:
-		var available = _room_graph.get_available_room_ids()
-		if available.size() > 0:
-			# 进入第一个可用房间
-			enter_room_by_id(available[0])
-			return
-
-	# 否则使用线性系统
-	var next_index = _current_room_index + 1
-	if next_index < _rooms.size():
-		enter_room(next_index)
-	else:
-		print("[RoomManager] 已经是最后一个房间")
-
-
-## 进入上一个房间
-func enter_prev_room() -> void:
-	var prev_index = _current_room_index - 1
-	if prev_index >= 0:
-		enter_room(prev_index)
-	else:
-		print("[RoomManager] 已经是第一个房间")
 
 
 ## 内部方法：进入房间
@@ -303,9 +256,9 @@ func get_current_content() -> RoomContentData:
 	return _current_content
 
 
-## 获取当前房间索引
-func get_current_room_index() -> int:
-	return _current_room_index
+## 获取当前房间ID
+func get_current_room_id() -> int:
+	return _current_room_id
 
 
 ## 获取房间总数
@@ -314,15 +267,13 @@ func get_room_count() -> int:
 
 
 ## 获取所有房间
-func get_all_rooms() -> Array[RoomData]:
+func get_all_rooms() -> Dictionary:
 	return _rooms
 
 
-## 根据索引获取房间
-func get_room_by_index(index: int) -> RoomData:
-	if index >= 0 and index < _rooms.size():
-		return _rooms[index]
-	return null
+## 根据ID获取房间
+func get_room_by_id(room_id: int) -> RoomData:
+	return _rooms.get(room_id)
 
 
 ## 检查是否有房间

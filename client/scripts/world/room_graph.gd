@@ -3,6 +3,9 @@
 ## 管理房间节点和连接关系
 ## 追踪当前房间和可访问房间
 ## 支持AI楼层生成（带本地降级）
+##
+## @deprecated: Replaced by FloorManager
+## 保留用于fallback，新代码请使用FloorManager
 
 extends Node
 
@@ -54,7 +57,7 @@ func set_player_level(level: int) -> void:
 	_player_level = level
 
 
-## 生成新的楼层
+## 生成新的楼层（非阻塞：先用本地生成，AI结果后台更新）
 func generate_new_floor(floor_level: int = 1) -> void:
 	print("[RoomGraph] Generating new floor: ", floor_level)
 
@@ -63,24 +66,9 @@ func generate_new_floor(floor_level: int = 1) -> void:
 	_current_room_id = -1
 	_current_floor = floor_level
 
-	# 尝试使用AI生成楼层
-	var rooms: Array[RoomNodeData] = []
-	var used_ai = false
-
-	if _ai_content_service:
-		print("[RoomGraph] Calling AI for floor generation...")
-		rooms = await _ai_content_service.generate_floor_content(floor_level, _player_level)
-
-		if rooms.size() > 0:
-			used_ai = true
-			print("[RoomGraph] AI generated ", rooms.size(), " rooms")
-		else:
-			print("[RoomGraph] AI returned empty, falling back to local generation")
-
-	# 如果AI失败，使用本地FloorGenerator
-	if rooms.size() == 0:
-		print("[RoomGraph] Using local FloorGenerator")
-		rooms = _floor_generator.generate_floor(floor_level)
+	# 第一步：立即使用本地FloorGenerator（同步，不阻塞）
+	print("[RoomGraph] Using local FloorGenerator for immediate start")
+	var rooms: Array[RoomNodeData] = _floor_generator.generate_floor(floor_level)
 
 	# 添加到字典
 	for room in rooms:
@@ -94,12 +82,33 @@ func generate_new_floor(floor_level: int = 1) -> void:
 	# 打印房间图
 	_floor_generator.print_floor_graph(rooms)
 
+	# 立即发射信号，让游戏可以开始
 	room_graph_generated.emit()
+	print("[RoomGraph] Floor generated locally: ", rooms.size(), " rooms")
 
-	if used_ai:
-		print("[RoomGraph] Floor generated with AI: ", rooms.size(), " rooms")
+	# 第二步：后台请求AI生成楼层结构（不阻塞游戏）
+	if _ai_content_service:
+		print("[RoomGraph] Requesting AI floor in background...")
+		_request_ai_floor_async(floor_level)
+
+
+## 后台请求AI楼层（不阻塞游戏流程）
+func _request_ai_floor_async(floor_level: int) -> void:
+	var ai_rooms: Array[RoomNodeData] = await _ai_content_service.generate_floor_content(floor_level, _player_level)
+
+	if ai_rooms.size() > 0:
+		print("[RoomGraph] AI floor received: ", ai_rooms.size(), " rooms, updating...")
+		# 更新房间数据（保留当前房间状态）
+		for room in ai_rooms:
+			if _rooms.has(room.id):
+				# 保留已访问/已完成状态
+				var old_room = _rooms[room.id]
+				room.visited = old_room.visited
+				room.completed = old_room.completed
+			_rooms[room.id] = room
+		print("[RoomGraph] AI floor data updated")
 	else:
-		print("[RoomGraph] Floor generated locally: ", rooms.size(), " rooms")
+		print("[RoomGraph] AI floor generation failed, keeping local data")
 
 
 ## 获取当前房间
@@ -181,6 +190,13 @@ func move_to_room(room_id: int) -> bool:
 	room_visited.emit(room_id)
 
 	return true
+
+
+## 标记房间为已访问
+func visit_room(room_id: int) -> void:
+	if _rooms.has(room_id):
+		_rooms[room_id].mark_visited()
+		room_visited.emit(room_id)
 
 
 ## 完成当前房间

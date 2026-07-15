@@ -76,13 +76,23 @@ func load_monster_types_from_resource() -> void:
 func generate_content_for_room(room_node: RoomNodeData) -> RoomContentData:
 	# 检查缓存
 	if _room_contents.has(room_node.id):
-		return _room_contents[room_node.id]
+		var cached = _room_contents[room_node.id]
+		# Phase 9.4: 已锁定的内容不允许被AI异步结果覆盖
+		if cached.is_finalized:
+			print("[RoomContentManager] Room ", room_node.id, " is finalized, returning cached content")
+			return cached
+		return cached
 
 	var content: RoomContentData = null
 
 	# 尝试使用AI生成
 	if _use_ai and _ai_content_service:
 		content = await _ai_content_service.generate_room_content(room_node, _current_floor, _player_level)
+
+	# Phase 9.4: AI返回后再次检查锁定状态（AI是异步的，期间房间可能已finalize）
+	if _room_contents.has(room_node.id) and _room_contents[room_node.id].is_finalized:
+		print("[RoomContentManager] Room ", room_node.id, " was finalized during AI generation, discarding AI result")
+		return _room_contents[room_node.id]
 
 	# 如果AI失败或返回null，使用本地生成
 	if content == null:
