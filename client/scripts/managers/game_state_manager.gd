@@ -189,6 +189,8 @@ func set_player_data(data: Dictionary) -> void:
 		_player_data["level"] = 1
 	if not _player_data.has("gold"):
 		_player_data["gold"] = 0
+	if not _player_data.has("nickname"):
+		_player_data["nickname"] = "冒险者"
 
 	player_data_updated.emit(data)
 

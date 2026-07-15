@@ -374,6 +374,9 @@ func _init_gameplay_systems() -> void:
 	# 连接RoomRenderer出口信号
 	_room_renderer.exit_portal_entered.connect(_on_exit_portal_entered)
 
+	# 连接下一层传送门信号（Phase 10.1.6）
+	_room_renderer.next_floor_portal_entered.connect(_on_next_floor_portal_entered)
+
 	print("[GameScene] Core gameplay systems initialized")
 
 	# 生成楼层并进入第一个房间
@@ -660,6 +663,9 @@ func _on_floor_completed() -> void:
 	print("[GameScene] Floor completed!")
 	hud.set_status("恭喜通关！楼层已清除！")
 
+	# Phase 10.1.6: 创建下一层传送门
+	_create_next_floor_portal()
+
 
 ## ==================== CombatManager回调 ====================
 
@@ -797,6 +803,33 @@ func _create_room_exits() -> void:
 	if target_room:
 		print("[Portal] Current Room:", current_room_id, " | Target Room:", target_id, " | Type:", target_room.get_type_string())
 		_room_renderer.create_exit_portal(target_id, target_room.get_type_string())
+
+
+## ==================== 下一层传送门（Phase 10.1.6） ====================
+
+## 创建下一层传送门
+func _create_next_floor_portal() -> void:
+	if not _room_renderer:
+		return
+
+	print("[GameScene] Creating next floor portal")
+	hud.set_status("Boss已被击败！进入传送门前往下一层！")
+
+	# 创建下一层传送门
+	_room_renderer.create_next_floor_portal()
+
+
+## 下一层传送门触发
+func _on_next_floor_portal_entered() -> void:
+	print("[GameScene] Next floor portal entered!")
+
+	# 生成下一层
+	if _floor_manager:
+		_floor_manager.generate_next_floor()
+
+	# 更新显示
+	_player_data = player.get_player_data() if player else {}
+	_update_game_display()
 
 
 ## ==================== UI交互 ====================
@@ -1035,6 +1068,9 @@ func _on_boss_defeated() -> void:
 	# 标记房间完成
 	if _floor_manager and _floor_manager._current_floor:
 		_floor_manager._current_floor.complete_current_room()
+
+	# Phase 10.1.6: 等待2秒后检查楼层完成状态
+	await get_tree().create_timer(2.0).timeout
 
 	# 检查楼层是否完成
 	if _floor_manager and _floor_manager.is_floor_complete():

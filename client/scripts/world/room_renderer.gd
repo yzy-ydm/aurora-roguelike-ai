@@ -33,6 +33,9 @@ var _current_room_position: Vector2 = Vector2.ZERO
 ## 出口传送门被触发
 signal exit_portal_entered(target_room_id: int)
 
+## 下一层传送门被触发（Phase 10.1.6）
+signal next_floor_portal_entered()
+
 
 ## ==================== 初始化 ====================
 
@@ -259,3 +262,71 @@ func _on_portal_body_entered(body: Node2D, target_room_id: int) -> void:
 
 func _emit_exit_portal_signal(target_room_id: int) -> void:
 	exit_portal_entered.emit(target_room_id)
+
+
+## ==================== 下一层传送门（Phase 10.1.6） ====================
+
+## 创建下一层传送门
+func create_next_floor_portal() -> void:
+	if not _room_container:
+		return
+
+	# 使用call_deferred避免物理回调问题
+	call_deferred("_create_next_floor_portal_deferred")
+
+
+## deferred回调：实际创建下一层传送门
+func _create_next_floor_portal_deferred() -> void:
+	if not _room_container:
+		return
+
+	var pos = WorldCoordinate.exit_portal_pos(_current_room_position)
+
+	var portal = Area2D.new()
+	portal.name = "NextFloorPortal"
+	portal.position = pos
+	portal.collision_layer = 0
+	portal.collision_mask = 2  # 检测Player(Layer 2)
+
+	# 碰撞形状
+	var collision = CollisionShape2D.new()
+	var shape = RectangleShape2D.new()
+	shape.size = Vector2(50, 50)  # 比普通传送门大一点
+	collision.shape = shape
+	portal.add_child(collision)
+
+	# 视觉效果 - 金色传送门
+	var sprite = Sprite2D.new()
+	var image = Image.create(48, 48, false, Image.FORMAT_RGBA8)
+	image.fill(Color(1.0, 0.84, 0.0, 0.9))  # 金色
+	var texture = ImageTexture.create_from_image(image)
+	sprite.texture = texture
+	portal.add_child(sprite)
+
+	# 标签
+	var label = Label.new()
+	label.text = "⬇ 下一层"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = Vector2(-40, -40)
+	label.add_theme_color_override("font_color", Color(1, 1, 0))
+	portal.add_child(label)
+
+	# 连接信号
+	portal.body_entered.connect(_on_next_floor_portal_body_entered)
+
+	_room_container.add_child(portal)
+	_exit_portals.append(portal)
+
+	print("[RoomRenderer] Created next floor portal")
+
+
+## 下一层传送门碰撞检测
+func _on_next_floor_portal_body_entered(body: Node2D) -> void:
+	if body.name == "Player":
+		# 延迟发射信号
+		call_deferred("_emit_next_floor_portal_signal")
+
+
+## 发射下一层传送门信号
+func _emit_next_floor_portal_signal() -> void:
+	next_floor_portal_entered.emit()

@@ -388,3 +388,38 @@ func get_floor_level() -> int:
 	if _current_floor:
 		return _current_floor.floor_level
 	return 1
+
+
+## ==================== 下一层生成 ====================
+
+## 生成下一层（Phase 10.1.6）
+## 保留玩家状态，清理旧房间，生成新楼层
+func generate_next_floor() -> void:
+	var current_level = get_floor_level()
+	var next_level = current_level + 1
+	print("[FloorManager] Generating next floor: ", current_level, " -> ", next_level)
+
+	# 清理旧房间
+	_cleanup_current_floor()
+
+	# 生成新楼层
+	generate_floor(next_level)
+
+	print("[FloorManager] Next floor generated: ", next_level)
+
+
+## 清理当前楼层
+func _cleanup_current_floor() -> void:
+	# 清理房间渲染
+	if _room_renderer:
+		_room_renderer.clear_room()
+
+	# 清理怪物和奖励
+	if _room_spawner:
+		_room_spawner.clear_monsters()
+		_room_spawner.clear_rewards()
+
+	# 清理楼层数据
+	_current_floor = null
+
+	print("[FloorManager] Current floor cleaned up")

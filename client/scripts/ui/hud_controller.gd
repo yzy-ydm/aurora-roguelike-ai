@@ -2,10 +2,19 @@
 ##
 ## 负责显示游戏内HUD信息
 ## 包括：玩家昵称、等级、生命值、经验值、金币、楼层、房间、战斗状态
+##
+## Phase 10.1.6: 添加DEBUG_UI开关控制调试信息显示
 
 extends CanvasLayer
 
-## 节点引用
+## ==================== 调试开关 ====================
+
+## DEBUG_UI开关 - 控制调试信息显示
+## 设为false时隐藏：资源面板、调试状态、开发信息
+const DEBUG_UI: bool = false
+
+## ==================== 节点引用 ====================
+
 @onready var nickname_label: Label = $TopBar/PlayerInfo/NicknameLabel
 @onready var level_label: Label = $TopBar/PlayerInfo/LevelLabel
 @onready var health_label: Label = $TopBar/StatsContainer/HealthBar/HealthLabel
@@ -23,6 +32,7 @@ extends CanvasLayer
 @onready var combat_label: Label = $CombatPanel/CombatInfo/MonsterCount
 @onready var boss_health_bar: ProgressBar = $BossPanel/BossHealthBar
 @onready var boss_name_label: Label = $BossPanel/BossName
+@onready var resource_panel: PanelContainer = $ResourcePanel
 
 ## 玩家数据缓存
 var _player_data: Dictionary = {}
@@ -35,6 +45,10 @@ var _combat_total: int = 0
 func _ready() -> void:
 	# 初始显示
 	_clear_display()
+
+	# Phase 10.1.6: 非DEBUG模式下隐藏调试面板
+	if not DEBUG_UI:
+		_hide_debug_panels()
 
 
 ## 更新HUD显示
@@ -117,6 +131,18 @@ func _clear_display() -> void:
 		map_count.text = "地图: 加载中..."
 	if event_count:
 		event_count.text = "事件: 加载中..."
+
+
+## Phase 10.1.6: 隐藏调试面板
+func _hide_debug_panels() -> void:
+	# 隐藏资源面板
+	if resource_panel:
+		resource_panel.visible = false
+
+	# 隐藏战斗面板（可选，根据需要调整）
+	# 战斗面板在游戏中会自动显示，所以这里不隐藏
+
+	print("[HUD] Debug panels hidden (DEBUG_UI=false)")
 
 
 ## 设置状态文本
