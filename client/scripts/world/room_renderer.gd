@@ -1,9 +1,11 @@
-## 房间渲染器 (Phase 10.1.5)
+## 房间渲染器 (Phase 10.1.5, Phase 16.1 增强)
 ##
 ## 负责当前房间的视觉生成
 ## - 背景/地板
 ## - 墙壁碰撞
 ## - 出口传送门
+## - 房间装饰（Phase 16.1）
+## - 房间清空反馈（Phase 16.1）
 ## - 房间清理
 ##
 ## 从FloorManager中提取的渲染职责
@@ -28,6 +30,12 @@ var _exit_portals: Array[Area2D] = []
 ## 当前房间的世界坐标位置(用于计算出口传送门位置)
 var _current_room_position: Vector2 = Vector2.ZERO
 
+## Phase 16.1: 装饰管理器
+var _decoration_manager: Node = null
+
+## Phase 16.1: 清空反馈系统
+var _clear_feedback: Node = null
+
 ## ==================== 信号 ====================
 
 ## 出口传送门被触发
@@ -39,8 +47,30 @@ signal next_floor_portal_entered()
 
 ## ==================== 初始化 ====================
 
+func _ready() -> void:
+	# Phase 16.1: 初始化装饰管理器
+	_decoration_manager = Node.new()
+	_decoration_manager.name = "RoomDecorationManager"
+	_decoration_manager.set_script(load("res://scripts/world/room_decoration_manager.gd"))
+	add_child(_decoration_manager)
+
+	# Phase 16.1: 初始化清空反馈系统
+	_clear_feedback = Node.new()
+	_clear_feedback.name = "RoomClearFeedback"
+	_clear_feedback.set_script(load("res://scripts/world/room_clear_feedback.gd"))
+	add_child(_clear_feedback)
+
+	print("[RoomRenderer] Phase 16.1 systems initialized")
+
+
 func set_room_container(container: Node2D) -> void:
 	_room_container = container
+
+	# Phase 16.1: 设置装饰和反馈容器
+	if _decoration_manager:
+		_decoration_manager.set_decoration_container(container)
+	if _clear_feedback:
+		_clear_feedback.set_feedback_container(container)
 
 
 ## ==================== 房间渲染 ====================
@@ -76,6 +106,10 @@ func render_room(room: NewRoomData) -> void:
 	_current_room_node = room_node
 	_current_room_position = room.position  # 记录房间世界坐标，供出口传送门使用
 
+	# Phase 16.1: 生成房间装饰
+	if _decoration_manager:
+		_decoration_manager.spawn_decorations(room.room_type, room.position)
+
 	print("[RoomRenderer] Rendered room ", room.id, " (", room.get_type_string(), ")")
 
 
@@ -84,10 +118,24 @@ func clear_room() -> void:
 	# 清除出口传送门
 	clear_exit_portals()
 
+	# Phase 16.1: 清除装饰
+	if _decoration_manager:
+		_decoration_manager.clear_decorations()
+
+	# Phase 16.1: 清除反馈
+	if _clear_feedback:
+		_clear_feedback.clear_feedback()
+
 	# 清除房间节点
 	if _current_room_node and _current_room_node.is_inside_tree():
 		_current_room_node.queue_free()
 		_current_room_node = null
+
+
+## Phase 16.1: 显示房间清空反馈
+func show_room_clear_feedback() -> void:
+	if _clear_feedback:
+		_clear_feedback.show_clear_feedback(_current_room_position)
 
 
 ## ==================== 背景 ====================

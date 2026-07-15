@@ -693,6 +693,10 @@ func _on_combat_cleared() -> void:
 	print("[GameScene] Combat cleared!")
 	hud.set_status("房间已清除！拾取奖励后通过传送门进入下一房间")
 
+	# Phase 16.1: 显示房间清空反馈
+	if _room_renderer:
+		_room_renderer.show_room_clear_feedback()
+
 	# 生成奖励
 	if _room_spawner:
 		var content = _combat_manager.get_current_content()
