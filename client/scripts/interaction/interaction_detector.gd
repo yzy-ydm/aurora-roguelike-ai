@@ -16,6 +16,13 @@ var _detected_objects: Dictionary = {}
 
 
 func _ready() -> void:
+	# 碰撞层设计:
+	# collision_layer = 0: 不被任何子弹检测到（子弹不会命中此Area2D）
+	# collision_mask = 1: 检测Layer 1上的InteractiveObject（用于交互检测）
+	# 这样PlayerBullet(mask=5)不会检测到InteractionDetector，避免误伤玩家
+	collision_layer = 0
+	collision_mask = 1
+
 	# 连接信号
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)

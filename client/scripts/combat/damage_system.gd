@@ -1,8 +1,14 @@
-## 伤害系统
+## 伤害系统 (Phase 20.1)
 ##
-## 负责处理所有伤害计算和应用
-## 作为中间层，解耦子弹和怪物
-## 统一管理伤害逻辑
+## 唯一伤害计算入口
+## 所有伤害必须经过此系统计算后才能应用
+##
+## 职责:
+## - 基础伤害计算
+## - 防御减伤
+## - 暴击判定
+## - 最低伤害保护
+## - 生成伤害数字和命中特效
 
 extends Node
 
@@ -10,7 +16,13 @@ extends Node
 signal damage_dealt(target: Node2D, damage: int, is_critical: bool)
 
 
-## 计算伤害
+## ==================== 伤害计算 ====================
+
+## 计算最终伤害(核心公式)
+## attacker_attack: 攻击者基础攻击力
+## weapon_damage: 武器伤害(可为0)
+## target_defense: 目标防御力
+## crit_rate: 暴击率(0.0~1.0)
 func calculate_damage(attacker_attack: int, weapon_damage: int, target_defense: int, crit_rate: float = 0.0) -> Dictionary:
 	# 基础伤害 = 攻击力 + 武器伤害
 	var base_damage = attacker_attack + weapon_damage
@@ -35,19 +47,149 @@ func calculate_damage(attacker_attack: int, weapon_damage: int, target_defense: 
 	}
 
 
-## 应用伤害到目标
-func apply_damage(target: Node2D, damage: int, is_critical: bool = false, source: Node2D = null) -> void:
+## ==================== 玩家→怪物/Boss 伤害 ====================
+
+## 处理子弹命中怪物或Boss(玩家攻击)
+## bullet: 子弹节点(携带武器伤害和暴击信息)
+## target: 怪物节点(MonsterNode) 或 Boss节点(BossController宿主)
+func on_bullet_hit(bullet: Node2D, target: Node2D) -> void:
+	if not bullet or not target:
+		return
+
+	# 从子弹获取攻击信息（使用getter方法避免.get()返回默认值的问题）
+	var weapon_damage = bullet.get_damage() if bullet.has_method("get_damage") else 10
+	var is_critical = bullet.get_is_critical() if bullet.has_method("get_is_critical") else false
+	var source = bullet.get_source() if bullet.has_method("get_source") else null
+
+	# 获取玩家攻击力
+	var attacker_attack = 10
+	if source and source.has_method("get_attack"):
+		attacker_attack = source.get_attack()
+
+	# 获取目标防御力(统一接口)
+	var target_defense = _get_target_defense(target)
+
+	# 计算最终伤害(使用暴击状态,因为暴击已在子弹创建时判定)
+	var result = calculate_damage(attacker_attack, weapon_damage, target_defense, 0.0)
+	var final_damage = result["damage"]
+
+	# 如果子弹标记为暴击,则应用暴击倍率
+	if is_critical:
+		final_damage = int(final_damage * 1.5)
+		final_damage = max(1, final_damage)
+
+	# 应用伤害到目标
+	apply_damage_to_monster(target, final_damage, is_critical, source)
+
+	# 销毁子弹
+	if bullet.has_method("destroy"):
+		bullet.destroy()
+	elif bullet.is_inside_tree():
+		bullet.queue_free()
+
+
+## 获取目标防御力(统一接口,支持Monster和Boss)
+func _get_target_defense(target: Node2D) -> int:
+	# 优先直接调用get_defense()(Boss和MonsterNode都可以实现)
+	if target.has_method("get_defense"):
+		return target.get_defense()
+
+	# 回退: 通过MonsterEntity获取(MonsterNode)
+	if target.has_method("get_monster_entity"):
+		var entity = target.get_monster_entity()
+		if entity:
+			return entity.defense
+
+	return 0
+
+
+## ==================== 怪物→玩家 伤害 ====================
+
+## 处理怪物攻击玩家
+## attacker: 怪物节点(MonsterNode)
+## target: 玩家节点(Player)
+func on_monster_attack_player(attacker: Node2D, target: Node2D) -> void:
+	if not attacker or not target:
+		return
+
+	# 获取怪物攻击力
+	var attacker_attack = 10
+	if attacker.has_method("get_monster_entity"):
+		var entity = attacker.get_monster_entity()
+		if entity:
+			attacker_attack = entity.get_attack()
+
+	# 获取玩家防御力
+	var target_defense = 0
+	if target.has_method("get_player_data"):
+		var data = target.get_player_data()
+		target_defense = data.get("defense", 0)
+
+	# 计算最终伤害
+	var result = calculate_damage(attacker_attack, 0, target_defense, 0.0)
+	var final_damage = result["damage"]
+
+	# 应用伤害到玩家
+	apply_damage_to_player(target, final_damage, attacker.position)
+
+
+## ==================== Boss→玩家 伤害 ====================
+
+## 处理Boss攻击玩家
+## boss_node: Boss节点(宿主节点,不是BossController)
+## target: 玩家节点(Player)
+## skill_damage_multiplier: 技能伤害倍率
+func on_boss_attack_player(boss_node: Node2D, target: Node2D, skill_damage_multiplier: float = 1.0) -> void:
+	if not boss_node or not target:
+		return
+
+	# 获取Boss攻击力(统一接口)
+	var attacker_attack = _get_boss_attack(boss_node)
+
+	# 应用技能倍率
+	attacker_attack = int(attacker_attack * skill_damage_multiplier)
+
+	# 获取玩家防御力
+	var target_defense = 0
+	if target.has_method("get_player_data"):
+		var data = target.get_player_data()
+		target_defense = data.get("defense", 0)
+
+	# 计算最终伤害
+	var result = calculate_damage(attacker_attack, 0, target_defense, 0.0)
+	var final_damage = result["damage"]
+
+	# 应用伤害到玩家
+	apply_damage_to_player(target, final_damage, boss_node.position)
+
+
+## 获取Boss攻击力(统一接口)
+func _get_boss_attack(boss_node: Node2D) -> int:
+	# 优先直接调用get_attack()(BossController宿主节点)
+	if boss_node.has_method("get_attack"):
+		return boss_node.get_attack()
+
+	# 回退: 通过BossController的_boss_entity获取
+	if boss_node.has_method("get") and boss_node.get("_boss_entity"):
+		return boss_node._boss_entity.get_attack()
+
+	return 25
+
+
+## ==================== 伤害应用 ====================
+
+## 应用伤害到怪物
+func apply_damage_to_monster(target: Node2D, damage: int, is_critical: bool = false, source: Node2D = null) -> void:
 	if not target:
 		return
 
-	# 检查目标是否有take_damage方法
 	if target.has_method("take_damage"):
 		target.take_damage(damage)
 
-		# 发送伤害信号
+		_spawn_damage_number(target, damage, is_critical)
+		_spawn_hit_effect(target)
 		damage_dealt.emit(target, damage, is_critical)
 
-		# 打印伤害信息
 		var target_name = "Unknown"
 		if target.has_method("get_monster_entity"):
 			var entity = target.get_monster_entity()
@@ -60,25 +202,56 @@ func apply_damage(target: Node2D, damage: int, is_critical: bool = false, source
 			print("[DamageSystem] CRITICAL! Dealt ", damage, " damage to ", target_name)
 		else:
 			print("[DamageSystem] Dealt ", damage, " damage to ", target_name)
-	else:
-		print("[DamageSystem] Target has no take_damage method")
 
 
-## 处理子弹命中
-func on_bullet_hit(bullet: Node2D, target: Node2D) -> void:
-	if not bullet or not target:
+## 应用伤害到玩家
+func apply_damage_to_player(target: Node2D, damage: int, attacker_position: Vector2 = Vector2.ZERO) -> void:
+	if not target:
 		return
 
-	# 从子弹获取伤害信息
-	var damage = bullet.get("damage") if bullet.has_method("get") else 10
-	var is_critical = bullet.get("is_critical") if bullet.has_method("get") else false
-	var source = bullet.get("source") if bullet.has_method("get") else null
+	if target.has_method("take_damage"):
+		target.take_damage(damage, attacker_position)
+		_spawn_damage_number(target, damage, false, false, true)
+		damage_dealt.emit(target, damage, false)
+		print("[DamageSystem] Monster dealt ", damage, " damage to player")
 
-	# 应用伤害
-	apply_damage(target, damage, is_critical, source)
 
-	# 销毁子弹
-	if bullet.has_method("destroy"):
-		bullet.destroy()
-	elif bullet.is_inside_tree():
-		bullet.queue_free()
+## ==================== 特效生成 ====================
+
+## 生成伤害数字
+func _spawn_damage_number(target: Node2D, damage: int, is_critical: bool, is_heal: bool = false, is_player_damage: bool = false) -> void:
+	var parent = target.get_parent()
+	if not parent:
+		parent = get_parent()
+
+	var spawn_pos = target.position + Vector2(randf_range(-10, 10), -20)
+
+	# 直接加载场景实例化（避免GDScript静态方法调用问题）
+	var scene = load("res://scenes/combat/damage_number.tscn")
+	if not scene:
+		return
+
+	var number = scene.instantiate()
+	if not number:
+		return
+
+	number.position = spawn_pos
+	number.setup(damage, is_critical, is_heal, is_player_damage)
+	parent.add_child(number)
+
+
+## 生成命中特效
+func _spawn_hit_effect(target: Node2D) -> void:
+	var parent = target.get_parent()
+	if not parent:
+		parent = get_parent()
+
+	# 直接实例化Node2D并挂载脚本（与hit_effect.gd静态方法逻辑一致）
+	var hit_effect_script = load("res://scripts/combat/hit_effect.gd")
+	if not hit_effect_script:
+		return
+
+	var effect = Node2D.new()
+	effect.set_script(hit_effect_script)
+	effect.position = target.position
+	parent.add_child(effect)

@@ -12,6 +12,20 @@ var _monster_entity: MonsterEntity = null
 ## 怪物AI
 var _monster_ai: Node = null
 
+## ==================== 受击反馈 ====================
+
+## 是否正在受击反馈
+var _is_hit_stunned: bool = false
+
+## 受击硬直时间
+const HIT_STUN_DURATION: float = 0.1
+
+## 闪白持续时间
+const FLASH_DURATION: float = 0.1
+
+## 原始颜色
+var _original_color: Color = Color(0.9, 0.2, 0.2, 1.0)
+
 ## 节点引用
 @onready var sprite: Sprite2D = $Sprite
 @onready var collision_shape: CollisionShape2D = $CollisionShape
@@ -20,10 +34,15 @@ var _monster_ai: Node = null
 
 ## 初始化
 func _ready() -> void:
-	# 设置碰撞层
-	# 怪物在第3层，检测第1层（玩家）和第2层（子弹）
-	collision_layer = 4  # 怪物在第3层
-	collision_mask = 1   # 检测第1层（玩家）
+	# 碰撞层设计:
+	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
+	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
+	# Enemy在Layer 3，只检测Player(2)
+	collision_layer = 4  # Enemy在第3层
+	collision_mask = 2   # 检测第2层(Player)
+
+	# 渲染层级: 与玩家同级，始终在背景之上
+	z_index = 10
 
 	_setup_display()
 	_setup_ai()
@@ -73,9 +92,19 @@ func _physics_process(delta: float) -> void:
 	if not _monster_entity or not _monster_entity.is_alive():
 		return
 
+	# 受击硬直时不移动
+	if _is_hit_stunned:
+		velocity = Vector2.ZERO
+		return
+
 	# 更新AI
 	if _monster_ai and _monster_ai.has_method("update"):
 		_monster_ai.update(delta)
+
+	# 确保物理碰撞生效（move_and_slide在AI的chase/attack中调用）
+	# 如果AI未调用move_and_slide，这里兜底
+	if velocity.length() > 0:
+		move_and_slide()
 
 	# 同步位置到实体
 	_monster_entity.sync_position_from_node()
@@ -84,6 +113,11 @@ func _physics_process(delta: float) -> void:
 ## 更新显示
 func _update_display() -> void:
 	if not _monster_entity:
+		return
+
+	# 安全检查：确保节点已加载
+	if not sprite:
+		push_warning("[MonsterNode] Missing display node: Sprite")
 		return
 
 	# 更新血条
@@ -115,28 +149,148 @@ func take_damage(damage: int) -> void:
 	if health_bar:
 		health_bar.max_value = _monster_entity.get_max_health()
 		health_bar.value = _monster_entity.get_health()
-		print("[Monster] Health: ", _monster_entity.get_health(), "/", _monster_entity.get_max_health())
+
+	# 受击反馈
+	_play_hit_feedback()
 
 	# 更新显示
 	_update_display()
 
+	# Boss受伤通知(让BossController处理阶段转换和信号)
+	_notify_boss_controller_damaged(damage)
+
 	# 检查是否死亡
 	if not _monster_entity.is_alive():
-		on_death()
+		# Boss死亡由BossController处理
+		if _is_boss() and _find_boss_controller():
+			_notify_boss_controller_death()
+		else:
+			on_death()
+
+
+## 检查是否是Boss
+func _is_boss() -> bool:
+	if _monster_entity:
+		return _monster_entity.get_monster_type() == "boss"
+	return false
+
+
+## 查找BossController(在兄弟节点中查找)
+func _find_boss_controller() -> Node:
+	var parent = get_parent()
+	if not parent:
+		return null
+	for child in parent.get_children():
+		if child.has_method("get") and child.get("_boss_entity"):
+			return child
+	return null
+
+
+## 通知BossController受伤
+func _notify_boss_controller_damaged(damage: int) -> void:
+	var boss_ctrl = _find_boss_controller()
+	if boss_ctrl:
+		# boss_damaged是BossController的信号,直接emit
+		if "boss_damaged" in boss_ctrl:
+			boss_ctrl.boss_damaged.emit(damage, _monster_entity.get_health())
+
+
+## 通知BossController死亡
+func _notify_boss_controller_death() -> void:
+	var boss_ctrl = _find_boss_controller()
+	if boss_ctrl:
+		# 调用BossController的内部死亡处理
+		if boss_ctrl.has_method("_on_boss_death"):
+			boss_ctrl._on_boss_death()
+	# 同时执行MonsterNode的死亡动画
+	on_death()
+
+
+## 攻击玩家(通过DamageSystem计算伤害)
+func attack_player(player_node: Node2D) -> void:
+	if not _monster_entity or not player_node:
+		return
+
+	# 查找DamageSystem
+	var damage_system = _find_damage_system()
+	if damage_system and damage_system.has_method("on_monster_attack_player"):
+		damage_system.on_monster_attack_player(self, player_node)
+	else:
+		# Fallback: 直接调用take_damage(无防御计算)
+		print("[MonsterNode] DamageSystem not found, using fallback")
+		if player_node.has_method("take_damage"):
+			player_node.take_damage(_monster_entity.get_attack(), position)
+
+
+## 查找DamageSystem
+func _find_damage_system() -> Node:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			return game_scene.get_node_or_null("DamageSystem")
+	return null
+
+
+## 播放受击反馈
+func _play_hit_feedback() -> void:
+	# 闪白效果
+	_flash_white()
+
+	# 短暂硬直
+	_apply_hit_stun()
+
+
+## 闪白效果
+func _flash_white() -> void:
+	if not sprite:
+		return
+	# 记住原始颜色
+	_original_color = sprite.modulate
+	# 设置为白色
+	sprite.modulate = Color(1, 1, 1, 1)
+	# 延迟恢复
+	await get_tree().create_timer(FLASH_DURATION).timeout
+	if sprite and is_instance_valid(sprite):
+		sprite.modulate = _original_color
+
+
+## 受击硬直
+func _apply_hit_stun() -> void:
+	_is_hit_stunned = true
+	# 停止移动(通过设置速度为0)
+	velocity = Vector2.ZERO
+	await get_tree().create_timer(HIT_STUN_DURATION).timeout
+	_is_hit_stunned = false
 
 
 ## 死亡处理
 func on_death() -> void:
 	print("[Monster] ", _monster_entity.get_monster_name(), " died!")
 
-	# 禁用碰撞
+	# 禁用碰撞（使用set_deferred避免在物理回调期间修改状态）
 	if collision_shape:
-		collision_shape.disabled = true
+		collision_shape.set_deferred("disabled", true)
 
-	# 通知Spawner
-	var spawner = get_parent()
-	if spawner and spawner.has_method("on_monster_died"):
-		spawner.on_monster_died(_monster_entity)
+	# 通知死亡系统(优先RoomSpawner, 兼容旧系统)
+	var notified = false
+
+	# 方式1: 父节点有on_monster_died方法(旧MonsterSpawner)
+	var parent = get_parent()
+	if parent and parent.has_method("on_monster_died"):
+		parent.on_monster_died(_monster_entity)
+		notified = true
+
+	# 方式2: 通过场景树查找RoomSpawner(新系统)
+	if not notified:
+		var root = get_tree().current_scene
+		if root:
+			var floor_manager = root.get_node_or_null("FloorManager")
+			if floor_manager:
+				var room_spawner = floor_manager.get_node_or_null("RoomSpawner")
+				if room_spawner and room_spawner.has_method("on_monster_died"):
+					room_spawner.on_monster_died(_monster_entity)
+					notified = true
 
 	# 延迟销毁
 	await get_tree().create_timer(0.5).timeout
@@ -146,6 +300,20 @@ func on_death() -> void:
 ## 获取怪物实体
 func get_monster_entity() -> MonsterEntity:
 	return _monster_entity
+
+
+## 获取攻击力(统一接口, 委托MonsterEntity)
+func get_attack() -> int:
+	if _monster_entity:
+		return _monster_entity.get_attack()
+	return 10
+
+
+## 获取防御力(统一接口, 委托MonsterEntity)
+func get_defense() -> int:
+	if _monster_entity:
+		return _monster_entity.get_defense()
+	return 0
 
 
 ## 获取AI状态

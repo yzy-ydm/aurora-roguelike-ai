@@ -58,7 +58,6 @@ func put_request(endpoint: String, data: Dictionary, use_auth: bool = false) -> 
 
 ## 将请求加入队列
 func _queue_request(url: String, headers: PackedStringArray, method: int, body: String) -> void:
-	print("[ApiClient] Queuing request: ", url)
 	var request_data = {
 		"url": url,
 		"headers": headers,
@@ -86,8 +85,6 @@ func _process_next_request() -> void:
 	http_request.request_completed.connect(_on_request_completed.bind(http_request))
 
 	# 发送请求
-	print("[ApiClient] Sending HTTP request to: ", request_data["url"])
-	print("[ApiClient] Headers: ", request_data["headers"])
 	var error = http_request.request(
 		request_data["url"],
 		request_data["headers"],
@@ -110,6 +107,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 	# 检查请求结果
 	if result != HTTPRequest.RESULT_SUCCESS:
+		print("[API ERROR] Network connection failed")
 		request_failed.emit("网络连接失败", 0)
 		_process_next_request()
 		return
@@ -119,19 +117,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 	var parse_result = json.parse(body.get_string_from_utf8())
 
 	if parse_result != OK:
+		print("[API ERROR] JSON parse failed for response code: ", response_code)
 		request_failed.emit("JSON解析失败", response_code)
 		_process_next_request()
 		return
 
 	var response_data = json.data
 
-	# [DEBUG] 打印响应信息
-	print("[ApiClient] Response Code: ", response_code)
-	print("[ApiClient] Response Data: ", response_data)
-
 	# 检查HTTP状态码
 	if response_code >= 200 and response_code < 300:
-		print("[ApiClient] Emitting request_completed signal")
 		request_completed.emit(response_data)
 	else:
 		# 提取错误信息
@@ -141,6 +135,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				error_message = response_data["detail"]
 			elif response_data.has("message"):
 				error_message = response_data["message"]
+		print("[API WARNING] Request failed with code ", response_code, ": ", error_message)
 		request_failed.emit(error_message, response_code)
 
 	# 处理下一个请求

@@ -76,14 +76,14 @@ func spawn_monster(monster_data: MonsterData, position: Vector2) -> MonsterEntit
 	# 绑定节点
 	monster_entity.bind_monster_node(monster_node)
 
-	# 设置节点的实体引用
-	if monster_node.has_method("set_monster_entity"):
-		monster_node.set_monster_entity(monster_entity)
-
-	# 添加到容器
+	# 先添加到场景树（确保@onready节点已解析）
 	if _monster_container:
 		_monster_container.add_child(monster_node)
 		monster_node.position = position
+
+	# 设置节点的实体引用（必须在add_child之后，否则@onready为null）
+	if monster_node.has_method("set_monster_entity"):
+		monster_node.set_monster_entity(monster_entity)
 
 	# 添加到列表
 	_current_room_monsters.append(monster_entity)

@@ -21,9 +21,14 @@ var price: int = 0
 
 ## 战斗属性（用于Weapon系统）
 var fire_rate: float = 0.3       # 攻击间隔（秒）
-var bullet_speed: float = 400.0  # 子弹速度
+var bullet_speed: float = 500.0  # 子弹速度
 var bullet_count: int = 1        # 每次发射子弹数
 var range: float = 500.0         # 射程
+
+## 武器成长属性（Phase 9.3.1）
+var base_damage: int = 0         # 基础伤害（为0时使用damage字段）
+var damage_growth: int = 5       # 每级伤害增长
+var max_level: int = 10          # 最大等级
 
 
 ## 从Dictionary创建WeaponData
@@ -57,6 +62,11 @@ static func from_dict(data: Dictionary) -> WeaponData:
 	weapon.bullet_count = data.get("bullet_count", 1)
 	weapon.range = data.get("range", 500.0)
 
+	# 成长属性
+	weapon.base_damage = data.get("base_damage", 0)
+	weapon.damage_growth = data.get("damage_growth", 5)
+	weapon.max_level = data.get("max_level", 10)
+
 	return weapon
 
 
@@ -86,5 +96,8 @@ func to_dict() -> Dictionary:
 		"fire_rate": fire_rate,
 		"bullet_speed": bullet_speed,
 		"bullet_count": bullet_count,
-		"range": range
+		"range": range,
+		"base_damage": base_damage,
+		"damage_growth": damage_growth,
+		"max_level": max_level
 	}

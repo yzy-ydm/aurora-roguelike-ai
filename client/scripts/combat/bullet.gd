@@ -8,7 +8,7 @@ extends Area2D
 ## 子弹属性
 var damage: int = 10
 var is_critical: bool = false
-var speed: float = 400.0
+var speed: float = 500.0
 var direction: Vector2 = Vector2.RIGHT
 var source: Node2D = null  # 发射者
 
@@ -24,12 +24,30 @@ var _age: float = 0.0
 var _damage_system: Node = null
 
 
+## 子弹阵营（false=玩家子弹, true=敌人子弹）
+var is_enemy_bullet: bool = false
+
+
 ## 初始化
 func _ready() -> void:
-	# 设置碰撞层
-	# 子弹在第2层，检测第3层的怪物
-	collision_layer = 2  # 子弹在第2层
-	collision_mask = 4   # 检测第3层（怪物）
+	# 碰撞层设计:
+	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
+	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
+	if is_enemy_bullet:
+		# 敌人子弹: 检测Wall(1) + Player(2)
+		collision_layer = 0   # 敌人子弹不需要被检测
+		collision_mask = 3    # 检测第1层(Wall) + 第2层(Player)
+	else:
+		# 玩家子弹: 检测Wall(1) + Enemy(4)
+		collision_layer = 16  # PlayerBullet在第4层
+		collision_mask = 5    # 检测第1层(Wall) + 第3层(Enemy)
+
+	# 渲染层级: 子弹在玩家和敌人之上
+	z_index = 20
+
+	# 出生保护: 短暂禁用碰撞，防止与发射者重叠时立即销毁
+	if collision_shape:
+		collision_shape.disabled = true
 
 	# 设置碰撞检测
 	body_entered.connect(_on_body_entered)
@@ -41,14 +59,23 @@ func _ready() -> void:
 	# 查找DamageSystem
 	_find_damage_system()
 
+	print("[Bullet] Created pos:", global_position, " dir:", direction, " speed:", speed)
+
+	# 出生保护: 等待2个物理帧后恢复碰撞
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if collision_shape and is_inside_tree():
+		collision_shape.disabled = false
+
 
 ## 设置子弹属性
-func setup(bullet_damage: int, bullet_speed: float, bullet_direction: Vector2, critical: bool = false, bullet_source: Node2D = null) -> void:
+func setup(bullet_damage: int, bullet_speed: float, bullet_direction: Vector2, critical: bool = false, bullet_source: Node2D = null, enemy_bullet: bool = false) -> void:
 	damage = bullet_damage
-	speed = bullet_speed
+	speed = bullet_speed if bullet_speed > 0 else 500.0
 	direction = bullet_direction.normalized()
 	is_critical = critical
 	source = bullet_source
+	is_enemy_bullet = enemy_bullet
 
 
 ## 设置外观
@@ -83,6 +110,10 @@ func _process(delta: float) -> void:
 	# 移动子弹
 	position += direction * speed * delta
 
+	# 调试: 首帧输出移动日志
+	if _age == 0.0:
+		print("[Bullet] Moving pos:", global_position, " vel:", direction * speed)
+
 	# 更新生命周期
 	_age += delta
 	if _age >= lifetime:
@@ -91,12 +122,21 @@ func _process(delta: float) -> void:
 
 ## 碰撞检测 - 检测CharacterBody2D
 func _on_body_entered(body: Node2D) -> void:
-	# 忽略发射者
+	# 忽略发射者（防止极端情况下的自伤）
 	if body == source:
 		return
 
-	# 检查是否是怪物
+	# 墙壁碰撞 → 销毁子弹
+	if body is StaticBody2D:
+		destroy()
+		return
+
+	# 怪物碰撞 → 造成伤害
+	# 检查是否是MonsterNode（有take_damage和get_monster_entity）
 	if body.has_method("take_damage") and body.has_method("get_monster_entity"):
+		_hit_target(body)
+	elif body.has_method("take_damage") and not body.has_method("get_player_data"):
+		# 兼容：有take_damage但不是玩家的节点
 		_hit_target(body)
 
 
@@ -106,8 +146,12 @@ func _on_area_entered(area: Area2D) -> void:
 	if area == source:
 		return
 
-	# 检查父节点是否是怪物
+	# 检查父节点是否是发射者（防止通过子Area2D误伤发射者）
 	var parent = area.get_parent()
+	if parent == source:
+		return
+
+	# 检查父节点是否是可伤害目标（怪物的子Area2D等）
 	if parent and parent.has_method("take_damage"):
 		_hit_target(parent)
 
@@ -125,11 +169,11 @@ func _hit_target(target: Node2D) -> void:
 
 ## 销毁子弹
 func destroy() -> void:
-	# 禁用碰撞
+	# 禁用碰撞（使用set_deferred避免在物理回调期间修改状态）
 	if collision_shape:
-		collision_shape.disabled = true
+		collision_shape.set_deferred("disabled", true)
 
-	# 从场景树移除
+	# 从场景树移除（queue_free本身就是延迟的，但配合set_deferred使用更安全）
 	if is_inside_tree():
 		queue_free()
 

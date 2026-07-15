@@ -2,6 +2,7 @@
 ##
 ## 定义房间内部的具体内容
 ## 与RoomNodeData解耦，支持数据驱动
+## Phase 9.4: 增加finalize机制，防止AI异步结果覆盖已开始战斗的房间内容
 
 class_name RoomContentData
 extends RefCounted
@@ -10,6 +11,10 @@ extends RefCounted
 var room_id: int = 0
 var room_type: String = "combat"
 var difficulty: int = 1
+
+## Phase 9.4: 内容锁定标志
+## finalize后禁止任何AI结果或外部修改覆盖
+var is_finalized: bool = false
 
 ## 怪物配置
 var monster_count: int = 3
@@ -34,6 +39,20 @@ var event_chance: float = 0.0
 ## 初始化
 func _init() -> void:
 	pass
+
+
+## Phase 9.4: 锁定房间内容
+## 调用后禁止任何外部修改（AI结果、随机事件等）
+## 只有 validate_for_room_type 在 finalize 之前允许修改
+func finalize() -> void:
+	is_finalized = true
+	print("[RoomContent] Finalized room ", room_id, " (", room_type, ") monsters=", monster_count, " rewards=", reward_count)
+
+
+## Phase 9.4: 检查是否允许修改
+## 返回 true 表示可以修改，false 表示已锁定
+func can_modify() -> bool:
+	return not is_finalized
 
 
 ## 根据房间类型设置默认值
@@ -173,3 +192,38 @@ func print_info() -> void:
 ## 检查是否有AI指定的奖励策略
 func has_reward_strategy() -> bool:
 	return reward_strategy != "" or reward_items.size() > 0
+
+
+## Phase 9.3: 房间规则校验器
+## 强制执行房间类型约束，防止AI或随机生成覆盖规则
+## 规则:
+##   start:    monsters=0
+##   combat:   monsters>=1
+##   reward:   monsters=0
+##   treasure: monsters=0
+##   boss:     monsters=1 (由Boss系统单独处理)
+##   shop:     monsters=0
+##   event:    monsters=0-2 (允许少量怪物)
+##   elite:    monsters>=1
+func validate_for_room_type() -> void:
+	match room_type:
+		"start":
+			monster_count = 0
+		"combat":
+			if monster_count < 1:
+				monster_count = randi_range(2, 4)
+		"reward":
+			monster_count = 0
+		"treasure":
+			monster_count = 0
+		"boss":
+			monster_count = 1
+			monster_level = max(monster_level, 3)
+		"shop":
+			monster_count = 0
+		"event":
+			monster_count = clampi(monster_count, 0, 2)
+		"elite":
+			if monster_count < 1:
+				monster_count = randi_range(1, 2)
+			monster_level = max(monster_level, 2)

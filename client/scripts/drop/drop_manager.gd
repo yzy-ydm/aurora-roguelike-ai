@@ -208,10 +208,21 @@ func _generate_reward_from_config(config: Dictionary, quality: float) -> RewardD
 			reward.type = RewardData.RewardType.HEAL
 			reward.value = int((value if value > 0 else randi_range(10, 30)) * quality)
 		"weapon":
-			# 武器奖励特殊处理
-			reward.type = RewardData.RewardType.ATTACK_UP  # 临时使用ATTACK_UP
-			reward.value = int(5 * quality)
-			reward.name = "武器奖励 (" + rarity + ")"
+			reward.type = RewardData.RewardType.WEAPON_UPGRADE
+			reward.value = 1
+			reward.name = "武器升级 (" + rarity + ")"
+		"attribute_boost":
+			reward.type = RewardData.RewardType.ATTRIBUTE_BOOST
+			reward.stat_key = config.get("stat_key", "attack")
+			reward.value = int((value if value > 0 else 5) * quality)
+		"new_weapon":
+			reward.type = RewardData.RewardType.NEW_WEAPON
+			reward.weapon_id = config.get("weapon_id", 0)
+		"passive_item":
+			reward.type = RewardData.RewardType.PASSIVE_ITEM
+			reward.passive_id = config.get("passive_id", "")
+			reward.name = config.get("name", "被动物品")
+			reward.description = config.get("description", "获得被动效果")
 		_:
 			reward.type = RewardData.RewardType.GOLD
 			reward.value = int(20 * quality)

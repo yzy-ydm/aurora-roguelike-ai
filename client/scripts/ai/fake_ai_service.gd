@@ -3,6 +3,9 @@
 ## 模拟云端AI返回数据
 ## 用于本地测试和开发
 ## 未来将被真实AI API替换
+##
+## @deprecated: Testing only
+## 生产环境请使用真实的AIContentService
 
 extends Node
 

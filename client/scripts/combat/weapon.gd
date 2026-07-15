@@ -9,10 +9,13 @@ extends Node
 ## 武器数据
 var _weapon_data: WeaponData = null
 
+## 武器实例（Phase 9.3.1: 支持等级成长）
+var _weapon_instance: WeaponInstance = null
+
 ## 武器属性（从WeaponData读取）
 var weapon_damage: int = 10
 var attack_speed: float = 0.3  # 攻击间隔（秒）
-var bullet_speed: float = 400.0
+var bullet_speed: float = 500.0
 var bullet_count: int = 1      # 每次发射子弹数
 var spread_angle: float = 0.0  # 散射角度
 
@@ -69,6 +72,22 @@ func set_weapon_data(data: WeaponData) -> void:
 	_apply_weapon_data()
 
 
+## 设置武器实例（Phase 9.3.1: 支持等级成长）
+func set_weapon_instance(instance: WeaponInstance) -> void:
+	_weapon_instance = instance
+	if instance:
+		_weapon_data = instance.get_weapon_data()
+		_apply_weapon_data()
+		# 使用实例的当前伤害
+		weapon_damage = instance.get_damage()
+		print("[Weapon] WeaponInstance set: ", instance.get_name(), " Lv", instance.get_level(), " damage:", weapon_damage)
+
+
+## 获取武器实例
+func get_weapon_instance() -> WeaponInstance:
+	return _weapon_instance
+
+
 ## 应用武器数据
 func _apply_weapon_data() -> void:
 	if not _weapon_data:
@@ -111,31 +130,35 @@ func try_attack(attack_direction: Vector2) -> bool:
 ## 发射子弹
 func _fire(direction: Vector2) -> void:
 	if not _bullet_container:
-		# 如果没有指定容器，添加到父节点
-		_bullet_container = get_parent()
+		print("[Weapon] Error: BulletContainer is null, cannot fire")
+		return
 
-	# 计算玩家攻击力
-	var player_attack = 10
-	if _owner and _owner.has_method("get_attack"):
-		player_attack = _owner.get_attack()
-
-	# 总伤害 = 武器伤害 + 玩家攻击力
-	var total_damage = weapon_damage + player_attack
-
-	# 计算暴击率
+	# 计算暴击率(暴击判定在子弹创建时完成)
 	var crit_rate = 0.1  # 10%暴击率
 	var is_critical = randf() < crit_rate
 
-	# 创建子弹
+	# 获取当前伤害（优先从WeaponInstance获取，支持等级成长）
+	var current_damage = weapon_damage
+	if _weapon_instance:
+		current_damage = _weapon_instance.get_damage()
+
+	# 创建子弹 - 只传递武器伤害，不计算总伤害
+	# 伤害计算由DamageSystem在命中时完成
 	var bullet = _bullet_scene.instantiate()
-	if bullet:
-		bullet.position = _owner.position if _owner else Vector2.ZERO
-		bullet.setup(total_damage, bullet_speed, direction, is_critical, _owner)
+	if not bullet:
+		print("[Weapon] Error: Failed to instantiate bullet")
+		return
 
-		_bullet_container.add_child(bullet)
+	# 子弹出生位置偏移，避免与玩家碰撞体重叠
+	var spawn_offset = direction * 20.0
+	var spawn_pos = (_owner.global_position if _owner else Vector2.ZERO) + spawn_offset
+	bullet.global_position = spawn_pos
+	bullet.setup(current_damage, bullet_speed, direction, is_critical, _owner)
 
-		weapon_fired.emit()
-		print("[Weapon] Fired bullet, damage: ", total_damage, " critical: ", is_critical)
+	_bullet_container.add_child(bullet)
+
+	weapon_fired.emit()
+	print("[Weapon] Fired bullet, damage:", current_damage, " crit:", is_critical, " pos:", spawn_pos, " dir:", direction)
 
 
 ## 是否可以攻击

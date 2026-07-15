@@ -497,6 +497,170 @@ func _generate_fallback_room_content(room_node: RoomNodeData, floor_level: int) 
 	return content
 
 
+## ==================== Phase 11: AI增强功能 ====================
+
+## 生成房间事件(异步，不阻塞)
+func generate_room_event(room_type: String, player_level: int, context: Dictionary = {}) -> AIEventData:
+	print("[AIContentService] Generating room event for ", room_type)
+
+	# 调用AI服务
+	var response = await _call_ai_service_event(room_type, player_level, context)
+
+	if response.is_empty():
+		print("[AIContentService] AI event generation failed, returning null")
+		return null
+
+	# 解析响应
+	var event_data = AIEventData.from_dict(response)
+	if event_data.is_valid():
+		content_generated.emit("event", response)
+		return event_data
+
+	return null
+
+
+## 调用AI服务生成事件
+func _call_ai_service_event(room_type: String, player_level: int, context: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return _generate_mock_event(room_type, player_level)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_event(room_type, player_level, context)
+		_:
+			return {}
+
+
+## 生成模拟事件
+func _generate_mock_event(room_type: String, player_level: int) -> Dictionary:
+	var events = [
+		{
+			"title": "神秘宝箱",
+			"description": "你发现了一个发光的宝箱，但周围似乎有陷阱。",
+			"choices": [
+				{"text": "打开宝箱", "reward": {"gold": 50, "attack": 2}, "risk": {"damage": 20}},
+				{"text": "小心绕过", "reward": {"health": 10}, "risk": {}},
+				{"text": "设置陷阱", "reward": {"attack": 5}, "risk": {"damage": 10}}
+			]
+		},
+		{
+			"title": "流浪商人",
+			"description": "一个神秘的商人出现在你面前，他有一件稀有物品。",
+			"choices": [
+				{"text": "购买物品 (50金币)", "reward": {"attack": 5}, "risk": {"lose_gold": 50}},
+				{"text": "拒绝交易", "reward": {}, "risk": {}},
+				{"text": "抢劫商人", "reward": {"gold": 100, "attack": 3}, "risk": {"damage": 30}}
+			]
+		},
+		{
+			"title": "古老石碑",
+			"description": "你发现了一块刻满符文的石碑，似乎蕴含着力量。",
+			"choices": [
+				{"text": "触摸石碑", "reward": {"max_health": 20}, "risk": {"damage": 15}},
+				{"text": "研究符文", "reward": {"attack": 3}, "risk": {}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		}
+	]
+
+	# 随机选择一个事件
+	var event = events[randi() % events.size()]
+	return event
+
+
+## 调用云端AI生成事件
+func _call_cloud_ai_event(room_type: String, player_level: int, context: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for event generation...")
+
+	# 确保有Token
+	await _ensure_ai_token()
+
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
+
+	# 构建请求数据
+	var request_data = {
+		"room_type": room_type,
+		"player_level": player_level,
+		"context": context
+	}
+
+	# 发送HTTP请求
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_EVENT, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for event")
+		return {}
+
+	print("[AIContentService] Cloud response received for event")
+	return response
+
+
+## 生成NPC对话(异步，不阻塞)
+func generate_npc_dialogue(npc_type: String, room_environment: String, player_state: Dictionary = {}) -> Array[String]:
+	print("[AIContentService] Generating NPC dialogue for ", npc_type)
+
+	# 调用AI服务
+	var response = await _call_ai_service_dialogue(npc_type, room_environment, player_state)
+
+	if response.is_empty():
+		print("[AIContentService] AI dialogue generation failed, using fallback")
+		return _generate_mock_dialogue(npc_type)
+
+	# 解析响应
+	var dialogue = response.get("dialogue", [])
+	if dialogue.size() > 0:
+		content_generated.emit("dialogue", response)
+		return dialogue
+
+	return _generate_mock_dialogue(npc_type)
+
+
+## 调用AI服务生成对话
+func _call_ai_service_dialogue(npc_type: String, room_environment: String, player_state: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return {"dialogue": _generate_mock_dialogue(npc_type)}
+		AIServiceType.REAL:
+			return await _call_cloud_ai_dialogue(npc_type, room_environment, player_state)
+		_:
+			return {}
+
+
+## 生成模拟对话
+func _generate_mock_dialogue(npc_type: String) -> Array[String]:
+	match npc_type:
+		"merchant":
+			return ["欢迎，旅行者！", "我这里有些好东西，看看吧。"]
+		"sage":
+			return ["前方的道路充满危险...", "小心那些暗影生物。"]
+		"guard":
+			return ["站住！你是谁？", "这里不安全，快离开。"]
+		_:
+			return ["...", "你好。"]
+
+
+## 调用云端AI生成对话
+func _call_cloud_ai_dialogue(npc_type: String, room_environment: String, player_state: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for dialogue...")
+
+	await _ensure_ai_token()
+
+	if _token_failed:
+		return {}
+
+	var request_data = {
+		"npc_type": npc_type,
+		"room_environment": room_environment,
+		"player_state": player_state
+	}
+
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_DIALOGUE, request_data)
+	return response
+
+
+## ==================== 原有方法 ====================
+
 ## 获取当前服务类型
 func get_service_type() -> AIServiceType:
 	return _service_type
@@ -536,3 +700,525 @@ func print_status() -> void:
 
 	if _cache_manager:
 		_cache_manager.print_cache_status()
+
+
+## ==================== Phase 12: 升级强化生成 ====================
+
+## 生成升级强化选项(异步，不阻塞)
+func generate_upgrade_options(player_level: int, player_stats: Dictionary = {}) -> Array[Dictionary]:
+	print("[AIContentService] Generating upgrade options for level ", player_level)
+
+	# 调用AI服务
+	var response = await _call_ai_service_upgrade(player_level, player_stats)
+
+	if response.is_empty():
+		print("[AIContentService] AI upgrade generation failed, using fallback")
+		return _generate_mock_upgrades(player_level)
+
+	# 解析响应
+	var upgrades = response.get("upgrades", [])
+	if upgrades.size() > 0:
+		content_generated.emit("upgrade", response)
+		return upgrades
+
+	return _generate_mock_upgrades(player_level)
+
+
+## 调用AI服务生成强化
+func _call_ai_service_upgrade(player_level: int, player_stats: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return {"upgrades": _generate_mock_upgrades(player_level)}
+		AIServiceType.REAL:
+			return await _call_cloud_ai_upgrade(player_level, player_stats)
+		_:
+			return {}
+
+
+## 生成模拟强化选项
+func _generate_mock_upgrades(player_level: int) -> Array[Dictionary]:
+	var upgrades: Array[Dictionary] = []
+
+	# 根据玩家等级调整强化强度
+	var power_multiplier = 1.0 + (player_level - 1) * 0.1
+
+	# 攻击类强化
+	upgrades.append({
+		"id": "ai_attack_boost",
+		"name": "暗影力量",
+		"description": "攻击力 +" + str(int(10 * power_multiplier)),
+		"type": "stat_boost",
+		"rarity": "uncommon",
+		"modifiers": {"attack": int(10 * power_multiplier)},
+		"percent_modifiers": {}
+	})
+
+	# 生命类强化
+	upgrades.append({
+		"id": "ai_health_boost",
+		"name": "生命源泉",
+		"description": "最大生命 +" + str(int(30 * power_multiplier)),
+		"type": "stat_boost",
+		"rarity": "uncommon",
+		"modifiers": {"max_health": int(30 * power_multiplier)},
+		"percent_modifiers": {}
+	})
+
+	# 速度类强化
+	upgrades.append({
+		"id": "ai_speed_boost",
+		"name": "疾风步",
+		"description": "移动速度 +15%",
+		"type": "stat_boost",
+		"rarity": "rare",
+		"modifiers": {},
+		"percent_modifiers": {"move_speed": 0.15}
+	})
+
+	# 暴击类强化
+	upgrades.append({
+		"id": "ai_crit_boost",
+		"name": "致命一击",
+		"description": "暴击率 +8%",
+		"type": "stat_boost",
+		"rarity": "rare",
+		"modifiers": {},
+		"percent_modifiers": {"crit_rate": 0.08}
+	})
+
+	# 防御类强化
+	upgrades.append({
+		"id": "ai_defense_boost",
+		"name": "钢铁意志",
+		"description": "防御力 +" + str(int(8 * power_multiplier)),
+		"type": "stat_boost",
+		"rarity": "uncommon",
+		"modifiers": {"defense": int(8 * power_multiplier)},
+		"percent_modifiers": {}
+	})
+
+	# 特殊强化
+	upgrades.append({
+		"id": "ai_heal_on_kill",
+		"name": "嗜血本能",
+		"description": "击杀回复 8 生命",
+		"type": "ability",
+		"rarity": "rare",
+		"modifiers": {"heal_on_kill": 8},
+		"percent_modifiers": {}
+	})
+
+	# 随机选择3个
+	upgrades.shuffle()
+	return upgrades.slice(0, 3)
+
+
+## 调用云端AI生成强化
+func _call_cloud_ai_upgrade(player_level: int, player_stats: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for upgrade generation...")
+
+	# 确保有Token
+	await _ensure_ai_token()
+
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
+
+	# 构建请求数据
+	var request_data = {
+		"player_level": player_level,
+		"player_stats": player_stats
+	}
+
+	# 发送HTTP请求
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_UPGRADE, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for upgrade")
+		return {}
+
+	print("[AIContentService] Cloud response received for upgrade")
+	return response
+
+
+## ==================== Phase 13: AI自适应智能系统 ====================
+
+## 生成难度调整建议(异步，不阻塞)
+func generate_difficulty_adjustment(context: Dictionary = {}) -> Dictionary:
+	print("[AIContentService] Generating difficulty adjustment")
+
+	# 调用AI服务
+	var response = await _call_ai_service_difficulty(context)
+
+	if response.is_empty():
+		print("[AIContentService] AI difficulty adjustment failed, using default")
+		return _get_default_difficulty()
+
+	# 解析响应
+	var difficulty = _parse_difficulty_response(response)
+	content_generated.emit("difficulty", response)
+	return difficulty
+
+
+## 调用AI服务生成难度调整
+func _call_ai_service_difficulty(context: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return _generate_mock_difficulty(context)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_difficulty(context)
+		_:
+			return {}
+
+
+## 生成模拟难度调整
+func _generate_mock_difficulty(context: Dictionary) -> Dictionary:
+	var combat_style = context.get("combat_style", "balanced")
+	var death_rate = context.get("death_rate", 0.0)
+	var damage_rate = context.get("damage_rate", 0.0)
+	var no_hit_rate = context.get("no_hit_rate", 0.0)
+
+	var difficulty = {
+		"enemy_hp_multiplier": 1.0,
+		"enemy_damage_multiplier": 1.0,
+		"elite_spawn_rate": 0.1,
+		"reward_multiplier": 1.0
+	}
+
+	# 根据玩家表现调整
+	if combat_style == "expert" or no_hit_rate > 0.5:
+		# 专家玩家: 增加难度
+		difficulty["enemy_hp_multiplier"] = 1.2
+		difficulty["enemy_damage_multiplier"] = 1.15
+		difficulty["elite_spawn_rate"] = 0.2
+		difficulty["reward_multiplier"] = 1.2
+	elif combat_style == "struggling" or death_rate > 3.0:
+		# 困难玩家: 降低难度
+		difficulty["enemy_hp_multiplier"] = 0.8
+		difficulty["enemy_damage_multiplier"] = 0.85
+		difficulty["elite_spawn_rate"] = 0.05
+		difficulty["reward_multiplier"] = 1.3
+	elif combat_style == "aggressive" or damage_rate > 5.0:
+		# 激进玩家: 稍微增加难度
+		difficulty["enemy_hp_multiplier"] = 1.1
+		difficulty["enemy_damage_multiplier"] = 1.05
+		difficulty["elite_spawn_rate"] = 0.15
+		difficulty["reward_multiplier"] = 1.1
+
+	return difficulty
+
+
+## 获取默认难度
+func _get_default_difficulty() -> Dictionary:
+	return {
+		"enemy_hp_multiplier": 1.0,
+		"enemy_damage_multiplier": 1.0,
+		"elite_spawn_rate": 0.1,
+		"reward_multiplier": 1.0
+	}
+
+
+## 解析难度响应
+func _parse_difficulty_response(response: Dictionary) -> Dictionary:
+	var default = _get_default_difficulty()
+	return {
+		"enemy_hp_multiplier": response.get("enemy_hp_multiplier", default["enemy_hp_multiplier"]),
+		"enemy_damage_multiplier": response.get("enemy_damage_multiplier", default["enemy_damage_multiplier"]),
+		"elite_spawn_rate": response.get("elite_spawn_rate", default["elite_spawn_rate"]),
+		"reward_multiplier": response.get("reward_multiplier", default["reward_multiplier"])
+	}
+
+
+## 调用云端AI生成难度调整
+func _call_cloud_ai_difficulty(context: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for difficulty adjustment...")
+
+	await _ensure_ai_token()
+
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
+
+	var request_data = {
+		"context": context
+	}
+
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_DIFFICULTY, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for difficulty")
+		return {}
+
+	print("[AIContentService] Cloud response received for difficulty")
+	return response
+
+
+## 生成房间策略建议(异步，不阻塞)
+func generate_room_strategy(context: Dictionary = {}) -> Dictionary:
+	print("[AIContentService] Generating room strategy")
+
+	var response = await _call_ai_service_room_strategy(context)
+
+	if response.is_empty():
+		print("[AIContentService] AI room strategy failed, using default")
+		return _get_default_room_strategy()
+
+	content_generated.emit("room_strategy", response)
+	return response
+
+
+## 调用AI服务生成房间策略
+func _call_ai_service_room_strategy(context: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return _generate_mock_room_strategy(context)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_room_strategy(context)
+		_:
+			return {}
+
+
+## 生成模拟房间策略
+func _generate_mock_room_strategy(context: Dictionary) -> Dictionary:
+	var combat_style = context.get("combat_style", "balanced")
+	var upgrade_preference = context.get("upgrade_preference", "balanced")
+	var health_percent = context.get("current_health_percent", 1.0)
+
+	var strategy = {
+		"preferred_room_types": ["combat", "reward", "event"],
+		"avoid_room_types": [],
+		"recommended_difficulty": "normal"
+	}
+
+	# 根据玩家风格调整
+	if combat_style == "expert":
+		strategy["preferred_room_types"] = ["combat", "elite", "boss"]
+		strategy["recommended_difficulty"] = "hard"
+	elif combat_style == "struggling":
+		strategy["preferred_room_types"] = ["reward", "treasure", "shop"]
+		strategy["avoid_room_types"] = ["elite"]
+		strategy["recommended_difficulty"] = "easy"
+	elif upgrade_preference == "attack":
+		strategy["preferred_room_types"] = ["combat", "elite"]
+	elif health_percent < 0.3:
+		strategy["preferred_room_types"] = ["reward", "shop"]
+		strategy["avoid_room_types"] = ["combat", "elite"]
+
+	return strategy
+
+
+## 获取默认房间策略
+func _get_default_room_strategy() -> Dictionary:
+	return {
+		"preferred_room_types": ["combat", "reward", "event"],
+		"avoid_room_types": [],
+		"recommended_difficulty": "normal"
+	}
+
+
+## 调用云端AI生成房间策略
+func _call_cloud_ai_room_strategy(context: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for room strategy...")
+
+	await _ensure_ai_token()
+
+	if _token_failed:
+		return {}
+
+	var request_data = {
+		"context": context
+	}
+
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_ROOM_STRATEGY, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for room strategy")
+		return {}
+
+	print("[AIContentService] Cloud response received for room strategy")
+	return response
+
+
+## 生成NPC记忆响应(异步，不阻塞)
+func generate_npc_memory_response(npc_id: String, context: Dictionary = {}) -> Dictionary:
+	print("[AIContentService] Generating NPC memory response for: ", npc_id)
+
+	var response = await _call_ai_service_npc_memory(npc_id, context)
+
+	if response.is_empty():
+		print("[AIContentService] AI NPC memory response failed, using default")
+		return {}
+
+	content_generated.emit("npc_memory", response)
+	return response
+
+
+## 调用AI服务生成NPC记忆响应
+func _call_ai_service_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return _generate_mock_npc_memory(npc_id, context)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_npc_memory(npc_id, context)
+		_:
+			return {}
+
+
+## 生成模拟NPC记忆响应
+func _generate_mock_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
+	var interaction_count = context.get("interaction_count", 0)
+	var relationship = context.get("relationship", 0.0)
+
+	var dialogue = []
+
+	if interaction_count == 0:
+		dialogue = ["陌生人，你需要帮助吗？"]
+	elif interaction_count < 3:
+		if relationship > 0:
+			dialogue = ["又见面了，很高兴再见到你。"]
+		else:
+			dialogue = ["又是你...有什么事吗？"]
+	else:
+		if relationship > 0.5:
+			dialogue = ["老朋友！我一直期待你的到来。"]
+		elif relationship < -0.3:
+			dialogue = ["你又来了...我希望你不是来找麻烦的。"]
+		else:
+			dialogue = ["欢迎回来，旅行者。"]
+
+	return {
+		"dialogue": dialogue,
+		"interaction_count": interaction_count,
+		"relationship": relationship
+	}
+
+
+## 调用云端AI生成NPC记忆响应
+func _call_cloud_ai_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for NPC memory response...")
+
+	await _ensure_ai_token()
+
+	if _token_failed:
+		return {}
+
+	var request_data = {
+		"npc_id": npc_id,
+		"context": context
+	}
+
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_NPC_MEMORY, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for NPC memory")
+		return {}
+
+	print("[AIContentService] Cloud response received for NPC memory")
+	return response
+
+
+## 生成上下文事件(增强版)
+func generate_context_event(context: Dictionary = {}) -> AIEventData:
+	print("[AIContentService] Generating context event")
+
+	var response = await _call_ai_service_context_event(context)
+
+	if response.is_empty():
+		print("[AIContentService] AI context event generation failed, using fallback")
+		return null
+
+	var event_data = AIEventData.from_dict(response)
+	if event_data.is_valid():
+		content_generated.emit("context_event", response)
+		return event_data
+
+	return null
+
+
+## 调用AI服务生成上下文事件
+func _call_ai_service_context_event(context: Dictionary) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return _generate_mock_context_event(context)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_context_event(context)
+		_:
+			return {}
+
+
+## 生成模拟上下文事件
+func _generate_mock_context_event(context: Dictionary) -> Dictionary:
+	var player_level = context.get("player_level", 1)
+	var combat_style = context.get("combat_style", "balanced")
+	var upgrade_preference = context.get("upgrade_preference", "balanced")
+	var health_percent = context.get("current_health_percent", 1.0)
+
+	var events = []
+
+	# 根据玩家状态生成不同事件
+	if health_percent < 0.3:
+		events.append({
+			"title": "紧急治疗站",
+			"description": "你发现了一个废弃的治疗站，但似乎有危险。",
+			"choices": [
+				{"text": "冒险治疗", "reward": {"health": 50}, "risk": {"damage": 20}},
+				{"text": "小心使用", "reward": {"health": 25}, "risk": {}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		})
+	elif combat_style == "expert":
+		events.append({
+			"title": "挑战之门",
+			"description": "一扇神秘的门出现在你面前，上面刻着挑战的符文。",
+			"choices": [
+				{"text": "接受挑战", "reward": {"attack": 10, "gold": 100}, "risk": {"damage": 50}},
+				{"text": "研究符文", "reward": {"attack": 3}, "risk": {}},
+				{"text": "忽略", "reward": {}, "risk": {}}
+			]
+		})
+	elif upgrade_preference == "attack":
+		events.append({
+			"title": "武器大师",
+			"description": "一位年迈的武器大师愿意传授你技巧。",
+			"choices": [
+				{"text": "学习攻击技巧", "reward": {"attack": 8}, "risk": {}},
+				{"text": "学习防御技巧", "reward": {"defense": 5}, "risk": {}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		})
+	else:
+		# 默认事件
+		events.append({
+			"title": "神秘宝箱",
+			"description": "你发现了一个发光的宝箱。",
+			"choices": [
+				{"text": "打开", "reward": {"gold": 50}, "risk": {"damage": 15}},
+				{"text": "检查陷阱", "reward": {"gold": 20}, "risk": {}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		})
+
+	return events[0]
+
+
+## 调用云端AI生成上下文事件
+func _call_cloud_ai_context_event(context: Dictionary) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for context event...")
+
+	await _ensure_ai_token()
+
+	if _token_failed:
+		return {}
+
+	var request_data = {
+		"context": context
+	}
+
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_CONTEXT_EVENT, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty for context event")
+		return {}
+
+	print("[AIContentService] Cloud response received for context event")
+	return response

@@ -1,10 +1,8 @@
 ## 怪物AI脚本
 ##
 ## 负责怪物的行为逻辑
-## 第一版：简单AI
-## - 检测玩家
-## - 朝玩家移动
-## - 接触玩家造成伤害
+## 支持IDLE/CHASE/ATTACK状态
+## 支持受击硬直
 
 extends Node
 
@@ -29,7 +27,11 @@ var _current_state: AIState = AIState.IDLE
 
 ## 攻击冷却
 var _attack_cooldown: float = 0.0
-const ATTACK_COOLDOWN_TIME: float = 1.0
+const ATTACK_COOLDOWN_TIME: float = 1.5
+
+## 距离阈值
+const IDLE_DISTANCE: float = 300.0
+const CHASE_DISTANCE: float = 100.0
 
 
 ## 初始化AI
@@ -66,6 +68,17 @@ func update(delta: float) -> void:
 		_find_player()
 		return
 
+	# 玩家已死亡，停止所有AI行为
+	if _player_node.has_method("is_dead") and _player_node.is_dead():
+		_current_state = AIState.IDLE
+		_monster_node.velocity = Vector2.ZERO
+		return
+
+	# 检查受击硬直
+	if _monster_node.has_method("get") and _monster_node.get("_is_hit_stunned"):
+		if _monster_node._is_hit_stunned:
+			return  # 硬直中不执行AI
+
 	# 更新攻击冷却
 	if _attack_cooldown > 0:
 		_attack_cooldown -= delta
@@ -86,12 +99,10 @@ func _decide_state(distance: float) -> void:
 		_current_state = AIState.DEAD
 		return
 
-	var detection_range = _monster_entity.detection_range
-	var attack_range = _monster_entity.attack_range
-
-	if distance <= attack_range:
+	# 使用统一的距离阈值
+	if distance <= CHASE_DISTANCE:
 		_current_state = AIState.ATTACK
-	elif distance <= detection_range:
+	elif distance <= IDLE_DISTANCE:
 		_current_state = AIState.CHASE
 	else:
 		_current_state = AIState.IDLE
@@ -152,15 +163,20 @@ func _perform_attack() -> void:
 	if not _player_node or not _monster_entity:
 		return
 
+	# 玩家已死亡，不执行攻击
+	if _player_node.has_method("is_dead") and _player_node.is_dead():
+		return
+
 	print("[MonsterAI] ", _monster_entity.get_monster_name(), " attacks player!")
 
-	# 获取怪物攻击力
-	var damage = _monster_entity.get_attack()
-
-	# 对玩家造成伤害（通过玩家的受伤方法）
-	if _player_node.has_method("take_damage"):
-		_player_node.take_damage(damage)
-		print("[MonsterAI] Dealt ", damage, " damage to player")
+	# 通过MonsterNode攻击玩家(DamageSystem计算伤害)
+	if _monster_node.has_method("attack_player"):
+		_monster_node.attack_player(_player_node)
+	else:
+		# Fallback: 直接调用
+		var damage = _monster_entity.get_attack()
+		if _player_node.has_method("take_damage"):
+			_player_node.take_damage(damage, _monster_node.position)
 
 
 ## 获取当前AI状态
