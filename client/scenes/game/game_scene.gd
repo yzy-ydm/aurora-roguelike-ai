@@ -690,6 +690,15 @@ func _on_combat_cleared() -> void:
 		print("[GameScene] Combat cleared (Boss fight) - skipping normal reward flow")
 		return
 
+	# Phase 16.1.6: 额外检查当前房间是否是 Boss房间
+	# 原因: CombatManager.on_boss_defeated() 先设置 _is_boss_fight=false 再发射 combat_cleared
+	# 导致 is_boss_fight() 返回 false，需要通过房间类型二次判断
+	if _floor_manager:
+		var current_room = _floor_manager.get_current_room()
+		if current_room and current_room.room_type == NewRoomData.RoomType.BOSS:
+			print("[GameScene] Combat cleared (Boss room) - skipping normal reward flow")
+			return
+
 	print("[GameScene] Combat cleared!")
 	hud.set_status("房间已清除！拾取奖励后通过传送门进入下一房间")
 
