@@ -1,468 +1,806 @@
-## 游戏主场景脚本
+## 游戏主场景脚本 (Phase 13)
 ##
-## 负责游戏场景的初始化和管理
-## 集成世界系统、对象系统、交互系统、武器拾取系统、暂停菜单、设置、存档选择功能
+## 职责:
+## - 初始化FloorManager和CombatManager
+## - 初始化升级系统和Boss系统
+## - 初始化AI自适应系统
+## - 连接信号
+## - 管理UI更新
+##
+## 不再负责:
+## - 房间生成(委托FloorManager)
+## - 怪物生成(委托RoomSpawner)
+## - 奖励生成(委托RoomSpawner)
+## - 战斗状态(委托CombatManager)
 
 extends Node2D
 
-## 节点引用
+## ==================== 节点引用 ====================
+
 @onready var player: CharacterBody2D = $GameWorld/Player
-@onready var world: Node2D = $GameWorld/World
-@onready var interaction_detector: Area2D = $GameWorld/Player/InteractionDetector
-@onready var interaction_manager: Node = $InteractionManager
 @onready var hud: CanvasLayer = $UI/HUD
 @onready var interaction_hint: CanvasLayer = $UI/InteractionHint
+@onready var interaction_manager: Node = $InteractionManager
+@onready var interaction_detector: Area2D = $GameWorld/Player/InteractionDetector
 @onready var resource_button: Button = $UI/MenuPanel/MenuButtons/ResourceButton
 @onready var logout_button: Button = $UI/MenuPanel/MenuButtons/LogoutButton
 @onready var pause_menu: CanvasLayer = $PauseMenu
 @onready var settings_menu: CanvasLayer = $SettingsMenu
 @onready var save_selection: CanvasLayer = $SaveSelection
 
-## 世界管理器
-var _world_manager: Node = null
+## ==================== 核心系统 ====================
 
-## 房间管理器
-var _room_manager: Node = null
+## 楼层管理器
+var _floor_manager: Node = null
 
-## 对象管理器
-var _object_manager: Node = null
+## 战斗管理器
+var _combat_manager: Node = null
 
-## 背包管理器
-var _inventory_manager: Node = null
+## 房间渲染器(FloorManager子模块)
+var _room_renderer: Node = null
 
-## 装备管理器
-var _equipment_manager: Node = null
-
-## 怪物生成器
-var _monster_spawner: Node = null
-
-## 伤害系统
-var _damage_system: Node = null
-
-## 掉落管理器
-var _drop_manager: Node = null
-
-## 房间图管理器
-var _room_graph: Node = null
-
-## 房间内容管理器
-var _room_content_manager: Node = null
+## 房间生成器(FloorManager子模块)
+var _room_spawner: Node = null
 
 ## AI内容服务
 var _ai_content_service: Node = null
 
-## 玩家数据
-var _player_data: Dictionary = {}
+## ==================== Phase 12 新增系统 ====================
 
-## 暂停状态
+## 升级管理器
+var _upgrade_manager: Node = null
+
+## Boss控制器
+var _boss_controller: Node = null
+
+## 存档系统
+var _save_system: Node = null
+
+## ==================== Phase 13 新增系统 ====================
+
+## 行为分析器
+var _behavior_analyzer: Node = null
+
+## AI上下文管理器
+var _ai_context_manager: Node = null
+
+## NPC记忆管理器
+var _npc_memory_manager: Node = null
+
+## 数据统计管理器
+var _analytics_manager: Node = null
+
+## ==================== UI系统 ====================
+
+var _inventory_manager: Node = null
+var _equipment_manager: Node = null
+var _object_manager: Node = null
+var _damage_system: Node = null
+
+## UI面板
+var _level_up_panel: Node = null
+var _boss_health_bar: Node = null
+
+## ==================== 状态 ====================
+
+var _player_data: Dictionary = {}
 var _is_paused: bool = false
 
+## GameOver面板
+var _game_over_panel: CanvasLayer = null
+
+
+## ==================== 初始化 ====================
 
 func _ready() -> void:
-	# 连接按钮信号
-	resource_button.pressed.connect(_on_resource_pressed)
-	logout_button.pressed.connect(_on_logout_pressed)
+	# 连接UI信号
+	_connect_ui_signals()
 
-	# 连接暂停菜单信号
-	pause_menu.resume_game.connect(_on_resume_game)
-	pause_menu.open_settings.connect(_on_open_settings)
-	pause_menu.exit_to_menu.connect(_on_exit_to_menu)
-
-	# 连接设置菜单信号
-	settings_menu.settings_closed.connect(_on_settings_closed)
-
-	# 连接存档选择信号
-	save_selection.save_selected.connect(_on_save_selected)
-	save_selection.save_selection_closed.connect(_on_save_selection_closed)
-
-	# 连接交互管理器信号
-	interaction_manager.nearest_object_changed.connect(_on_nearest_object_changed)
-	interaction_manager.interaction_triggered.connect(_on_interaction_triggered)
-
-	# 设置交互检测器
-	interaction_detector.set_interaction_manager(interaction_manager)
-
-	# 从GameStateManager获取玩家数据
+	# 获取玩家数据
 	_player_data = GameStateManager.get_player_data()
 
 	# 初始化系统
-	_init_inventory_system()
-	_init_object_system()
-	_init_damage_system()
-	_init_monster_system()
-	_init_drop_system()
-	_init_world_system()
+	_init_ui_systems()
+	_init_gameplay_systems()
+	_init_progression_systems()
+	_init_boss_system()
+	_init_save_system()
+	_init_ai_adaptive_systems()
 
 	# 更新显示
 	_update_game_display()
-
-	# 更新资源显示
-	_update_resource_display()
-
-	# 更新游戏运行时间
 	set_process(true)
 
+	# Phase 20.4: 在所有初始化完成后同步重置Camera
+	_sync_camera_to_player()
 
-## 初始化背包系统
-func _init_inventory_system() -> void:
-	# 创建背包管理器
+
+## 同步Camera到Player位置
+func _sync_camera_to_player() -> void:
+	if not player:
+		return
+
+	# 获取Camera并强制同步（不覆盖玩家位置，位置由_on_fm_room_entered设置）
+	var cam = player.get_node_or_null("Camera2D")
+	if cam:
+		cam.reset_smoothing()
+		cam.force_update_scroll()
+
+
+## 连接UI信号
+func _connect_ui_signals() -> void:
+	resource_button.pressed.connect(_on_resource_pressed)
+	logout_button.pressed.connect(_on_logout_pressed)
+	pause_menu.resume_game.connect(_on_resume_game)
+	pause_menu.open_settings.connect(_on_open_settings)
+	pause_menu.exit_to_menu.connect(_on_exit_to_menu)
+	settings_menu.settings_closed.connect(_on_settings_closed)
+	save_selection.save_selected.connect(_on_save_selected)
+	save_selection.save_selection_closed.connect(_on_save_selection_closed)
+	interaction_manager.nearest_object_changed.connect(_on_nearest_object_changed)
+	interaction_manager.interaction_triggered.connect(_on_interaction_triggered)
+	interaction_detector.set_interaction_manager(interaction_manager)
+
+	# Phase 15: 连接玩家死亡信号
+	if player.has_signal("player_dead"):
+		player.player_dead.connect(_on_player_dead)
+
+	# 连接玩家受伤信号，实时更新HUD
+	if player.has_signal("player_damaged"):
+		player.player_damaged.connect(_on_player_damaged)
+
+
+## 初始化UI系统
+func _init_ui_systems() -> void:
+	# 背包系统
 	_inventory_manager = Node.new()
 	_inventory_manager.name = "InventoryManager"
 	_inventory_manager.set_script(load("res://scripts/inventory/inventory_manager.gd"))
 	add_child(_inventory_manager)
 
-	# 创建装备管理器
 	_equipment_manager = Node.new()
 	_equipment_manager.name = "EquipmentManager"
 	_equipment_manager.set_script(load("res://scripts/inventory/equipment_manager.gd"))
 	add_child(_equipment_manager)
-
-	# 初始化装备管理器
 	_equipment_manager.initialize(_inventory_manager)
 
-
-## 初始化对象系统
-func _init_object_system() -> void:
-	# 创建对象管理器
+	# 对象系统
 	_object_manager = Node.new()
 	_object_manager.name = "ObjectManager"
 	_object_manager.set_script(load("res://scripts/object/object_manager.gd"))
 	add_child(_object_manager)
 
+	# 创建GameOver面板
+	_create_game_over_panel()
 
-## 初始化伤害系统
-func _init_damage_system() -> void:
+
+## 创建GameOver面板（代码动态创建，不依赖tscn）
+func _create_game_over_panel() -> void:
+	_game_over_panel = CanvasLayer.new()
+	_game_over_panel.name = "GameOverPanel"
+	_game_over_panel.layer = 100  # 确保在最上层
+	_game_over_panel.visible = false
+	_game_over_panel.process_mode = Node.PROCESS_MODE_ALWAYS  # 暂停时仍可交互
+	add_child(_game_over_panel)
+
+	# 背景遮罩
+	var overlay = ColorRect.new()
+	overlay.name = "Overlay"
+	overlay.color = Color(0, 0, 0, 0.7)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_game_over_panel.add_child(overlay)
+
+	# 居中容器
+	var center = CenterContainer.new()
+	center.name = "Center"
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_game_over_panel.add_child(center)
+
+	# 面板
+	var panel = PanelContainer.new()
+	panel.name = "Panel"
+	panel.custom_minimum_size = Vector2(400, 300)
+	center.add_child(panel)
+
+	# 垂直布局
+	var vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 20)
+	panel.add_child(vbox)
+
+	# 标题
+	var title = Label.new()
+	title.name = "Title"
+	title.text = "你已阵亡"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 32)
+	vbox.add_child(title)
+
+	# 信息
+	var info = Label.new()
+	info.name = "Info"
+	info.text = "战斗失败..."
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(info)
+
+	# 按钮容器
+	var buttons = HBoxContainer.new()
+	buttons.name = "Buttons"
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 20)
+	vbox.add_child(buttons)
+
+	# 重新开始按钮
+	var restart_btn = Button.new()
+	restart_btn.name = "RestartButton"
+	restart_btn.text = "重新开始"
+	restart_btn.custom_minimum_size = Vector2(150, 50)
+	restart_btn.pressed.connect(_on_restart_pressed)
+	buttons.add_child(restart_btn)
+
+	# 返回主菜单按钮
+	var menu_btn = Button.new()
+	menu_btn.name = "MenuButton"
+	menu_btn.text = "返回主菜单"
+	menu_btn.custom_minimum_size = Vector2(150, 50)
+	menu_btn.pressed.connect(_on_exit_to_menu)
+	buttons.add_child(menu_btn)
+
+	print("[GameScene] GameOverPanel created")
+
+
+## 重新开始运行（不回主菜单）
+func restart_run() -> void:
+	print("[GameScene] Restarting run...")
+
+	# 隐藏GameOver面板
+	if _game_over_panel:
+		_game_over_panel.visible = false
+
+	# 解除暂停
+	_is_paused = false
+	get_tree().paused = false
+
+	# 复活玩家
+	if player:
+		player.revive()
+
+	# 重新初始化战斗管理器
+	if _combat_manager:
+		_combat_manager.reset()
+
+	# 清除当前房间的怪物和奖励
+	if _room_spawner:
+		_room_spawner.clear_monsters()
+		_room_spawner.clear_rewards()
+
+	# 重新生成楼层并进入第一个房间
+	if _floor_manager:
+		_floor_manager.generate_floor(1)
+
+	# 更新显示
+	_player_data = player.get_player_data() if player else {}
+	_update_game_display()
+
+	# 设置游戏状态
+	GameStateManager.set_state(GameStateManager.GameState.EXPLORATION)
+
+	print("[GameScene] Run restarted successfully")
+
+
+## 重新开始按钮回调
+func _on_restart_pressed() -> void:
+	restart_run()
+
+
+## 初始化游戏系统
+func _init_gameplay_systems() -> void:
+	# 伤害系统
 	_damage_system = Node.new()
 	_damage_system.name = "DamageSystem"
 	_damage_system.set_script(load("res://scripts/combat/damage_system.gd"))
 	add_child(_damage_system)
-	print("[GameScene] Damage system initialized")
 
-
-## 初始化掉落系统
-func _init_drop_system() -> void:
-	_drop_manager = Node.new()
-	_drop_manager.name = "DropManager"
-	_drop_manager.set_script(load("res://scripts/drop/drop_manager.gd"))
-	add_child(_drop_manager)
-
-	# 设置奖励容器
-	_drop_manager.setup_container($GameWorld)
-
-	# 设置玩家引用
-	_drop_manager.set_player(player)
-
-	# 连接信号
-	_drop_manager.reward_collected.connect(_on_reward_collected)
-	_drop_manager.all_rewards_collected.connect(_on_all_rewards_collected)
-
-	print("[GameScene] Drop system initialized")
-
-
-## 初始化怪物系统
-func _init_monster_system() -> void:
-	# 创建怪物生成器
-	_monster_spawner = Node.new()
-	_monster_spawner.name = "MonsterSpawner"
-	_monster_spawner.set_script(load("res://scripts/enemy/monster_spawner.gd"))
-	add_child(_monster_spawner)
-
-	# 设置怪物容器
-	_monster_spawner.setup_container($GameWorld)
-
-	# 连接信号
-	_monster_spawner.monster_spawned.connect(_on_monster_spawned)
-	_monster_spawner.all_monsters_dead.connect(_on_all_monsters_dead)
-	_monster_spawner.monster_died_signal.connect(_on_monster_died)
-
-	print("[GameScene] Monster system initialized")
-
-
-## 初始化世界系统
-func _init_world_system() -> void:
-	# 创建房间管理器
-	_room_manager = Node.new()
-	_room_manager.name = "RoomManager"
-	_room_manager.set_script(load("res://scripts/world/room_manager.gd"))
-	add_child(_room_manager)
-
-	# 创建房间图管理器
-	_room_graph = Node.new()
-	_room_graph.name = "RoomGraph"
-	_room_graph.set_script(load("res://scripts/world/room_graph.gd"))
-	add_child(_room_graph)
-
-	# 创建AI内容服务
+	# AI内容服务
 	_ai_content_service = Node.new()
 	_ai_content_service.name = "AIContentService"
 	_ai_content_service.set_script(load("res://scripts/ai/ai_content_service.gd"))
 	add_child(_ai_content_service)
-
-	# 设置AI服务类型为REAL（使用云端AI服务）
-	# AIServiceType.REAL = 1
 	_ai_content_service.set_service_type(_ai_content_service.AIServiceType.REAL)
 
-	# 设置RoomGraph的AIContentService引用
-	_room_graph.set_ai_content_service(_ai_content_service)
+	# 容器节点
+	var monster_container = Node2D.new()
+	monster_container.name = "MonsterContainer"
+	$GameWorld.add_child(monster_container)
 
-	# 设置玩家等级（从GameStateManager获取）
-	var player_level = _player_data.get("level", 1)
-	_room_graph.set_player_level(player_level)
+	var reward_container = Node2D.new()
+	reward_container.name = "RewardContainer"
+	$GameWorld.add_child(reward_container)
 
-	# 创建房间内容管理器
-	_room_content_manager = Node.new()
-	_room_content_manager.name = "RoomContentManager"
-	_room_content_manager.set_script(load("res://scripts/world/room_content_manager.gd"))
-	add_child(_room_content_manager)
+	# 楼层管理器
+	_floor_manager = Node.new()
+	_floor_manager.name = "FloorManager"
+	_floor_manager.set_script(load("res://scripts/world/floor_manager.gd"))
+	add_child(_floor_manager)
 
-	# 连接房间图信号
-	_room_graph.room_graph_generated.connect(_on_room_graph_generated)
-	_room_graph.current_room_changed.connect(_on_current_room_changed)
+	# 获取子模块引用
+	_room_renderer = _floor_manager.get_room_renderer()
+	_room_spawner = _floor_manager.get_room_spawner()
 
-	# 设置RoomManager的RoomGraph引用
-	_room_manager.set_room_graph(_room_graph)
+	# 配置FloorManager
+	_floor_manager.set_room_container($GameWorld)
+	_floor_manager.set_monster_container(monster_container)
+	_floor_manager.set_reward_container(reward_container)
+	_floor_manager.set_player(player)
+	_floor_manager.set_ai_content_service(_ai_content_service)
 
-	# 设置RoomManager的RoomContentManager引用
-	_room_manager.set_room_content_manager(_room_content_manager)
+	# 连接FloorManager信号
+	_floor_manager.floor_generated.connect(_on_floor_generated)
+	_floor_manager.room_entered.connect(_on_fm_room_entered)
+	_floor_manager.room_exited.connect(_on_fm_room_exited)
+	_floor_manager.floor_completed.connect(_on_floor_completed)
+	_floor_manager.ai_event_received.connect(_on_ai_event_received)
+	_floor_manager.difficulty_adjusted.connect(_on_difficulty_adjusted)
 
-	# 设置RoomContentManager的AIContentService引用
-	_room_content_manager.set_ai_content_service(_ai_content_service)
-	_room_content_manager.set_use_ai(true)
+	# 连接RoomSpawner信号
+	_room_spawner.monster_spawned.connect(_on_monster_spawned)
+	_room_spawner.reward_collected.connect(_on_reward_collected)
+	_room_spawner.all_rewards_collected.connect(_on_all_rewards_collected)
 
-	# 创建世界管理器
-	_world_manager = Node.new()
-	_world_manager.name = "WorldManager"
-	_world_manager.set_script(load("res://scripts/world/world_manager.gd"))
-	add_child(_world_manager)
+	# 战斗管理器
+	_combat_manager = Node.new()
+	_combat_manager.name = "CombatManager"
+	_combat_manager.set_script(load("res://scripts/combat/combat_manager.gd"))
+	add_child(_combat_manager)
 
-	# 初始化世界管理器
-	_world_manager.initialize(world, _room_manager)
+	# 配置CombatManager
+	_combat_manager.set_room_spawner(_room_spawner)
+	_combat_manager.set_floor_manager(_floor_manager)
 
-	# 连接世界管理器信号
-	_world_manager.world_initialized.connect(_on_world_initialized)
-	_world_manager.world_load_error.connect(_on_world_load_error)
-	_world_manager.room_changed.connect(_on_room_changed)
+	# 连接CombatManager信号
+	_combat_manager.combat_state_changed.connect(_on_combat_state_changed)
+	_combat_manager.combat_started.connect(_on_combat_started)
+	_combat_manager.combat_cleared.connect(_on_combat_cleared)
+	_combat_manager.room_completed.connect(_on_combat_room_completed)
+	_combat_manager.monster_killed.connect(_on_monster_killed)
+	# Phase 9.3: 战斗进度信号同步HUD(初始0/N + 每次击杀)
+	_combat_manager.combat_progress_changed.connect(_on_combat_progress_changed)
 
-	# 连接房间管理器信号
-	_room_manager.room_entered.connect(_on_room_entered)
-	_room_manager.room_state_changed.connect(_on_room_state_changed)
-	_room_manager.room_cleared.connect(_on_room_cleared)
+	# 连接Boss信号
+	_combat_manager.boss_fight_started.connect(_on_boss_fight_started)
+	_combat_manager.boss_defeated.connect(_on_boss_defeated)
 
-	# 设置MonsterSpawner的RoomManager引用
-	_monster_spawner.set_room_manager(_room_manager)
+	# 连接RoomRenderer出口信号
+	_room_renderer.exit_portal_entered.connect(_on_exit_portal_entered)
 
-	# 生成房间图
-	_room_graph.generate_new_floor(1)
+	print("[GameScene] Core gameplay systems initialized")
 
-	# 加载世界
-	_world_manager.load_world()
-
-	# 进入第一个房间
-	_world_manager.enter_first_room()
-
-	# 创建测试对象
-	_create_test_objects()
-
-
-## 创建测试对象
-func _create_test_objects() -> void:
-	# 创建测试宝箱1
-	var chest1 = TestChest.new()
-	chest1.object_name = "木制宝箱"
-	chest1.set_position(Vector2(400, 300))
-
-	var interactive1 = chest1.create_interactive_object()
-	interactive1.set_linked_node(_create_placeholder_node("木制宝箱", Vector2(400, 300), Color(0.8, 0.6, 0.2, 1.0)))
-	_object_manager.register_object(chest1)
-	interaction_manager.register_object(interactive1)
-
-	# 创建测试宝箱2
-	var chest2 = TestChest.new()
-	chest2.object_name = "铁制宝箱"
-	chest2.set_position(Vector2(800, 500))
-
-	var interactive2 = chest2.create_interactive_object()
-	interactive2.set_linked_node(_create_placeholder_node("铁制宝箱", Vector2(800, 500), Color(0.6, 0.6, 0.7, 1.0)))
-	_object_manager.register_object(chest2)
-	interaction_manager.register_object(interactive2)
-
-	# 创建武器拾取对象（使用ResourceService中的武器数据）
-	var weapons = ResourceService.get_weapons()
-	if weapons.size() > 0:
-		var weapon1 = weapons[0]  # 第一把武器
-		var weapon_obj1 = WeaponObject.new()
-		weapon_obj1.set_weapon_data(weapon1)
-		weapon_obj1.set_position(Vector2(300, 600))
-
-		var interactive_weapon1 = weapon_obj1.create_interactive_object()
-		interactive_weapon1.set_linked_node(_create_weapon_node(weapon1, Vector2(300, 600)))
-		_object_manager.register_object(weapon_obj1)
-		interaction_manager.register_object(interactive_weapon1)
-
-	if weapons.size() > 1:
-		var weapon2 = weapons[1]  # 第二把武器
-		var weapon_obj2 = WeaponObject.new()
-		weapon_obj2.set_weapon_data(weapon2)
-		weapon_obj2.set_position(Vector2(700, 200))
-
-		var interactive_weapon2 = weapon_obj2.create_interactive_object()
-		interactive_weapon2.set_linked_node(_create_weapon_node(weapon2, Vector2(700, 200)))
-		_object_manager.register_object(weapon_obj2)
-		interaction_manager.register_object(interactive_weapon2)
-
-	# 注意：怪物现在由房间系统自动生成
-	print("[GameScene] Test objects created. Monsters will spawn when entering combat rooms.")
+	# 生成楼层并进入第一个房间
+	_floor_manager.generate_floor(1)
 
 
-## 创建占位节点
-func _create_placeholder_node(obj_name: String, pos: Vector2, color: Color) -> Node2D:
-	var node = Node2D.new()
-	node.name = obj_name
-	node.position = pos
+## 初始化升级系统
+func _init_progression_systems() -> void:
+	# 升级管理器
+	_upgrade_manager = Node.new()
+	_upgrade_manager.name = "UpgradeManager"
+	_upgrade_manager.set_script(load("res://scripts/progression/upgrade_manager.gd"))
+	add_child(_upgrade_manager)
 
-	# 创建可视化占位
-	var sprite = Sprite2D.new()
-	sprite.name = "Sprite"
-	var image = Image.create(24, 24, false, Image.FORMAT_RGBA8)
-	image.fill(color)
-	var texture = ImageTexture.create_from_image(image)
-	sprite.texture = texture
-	node.add_child(sprite)
+	# 配置升级管理器
+	_upgrade_manager.set_ai_content_service(_ai_content_service)
+	_upgrade_manager.set_player(player)
 
-	# 创建Area2D用于交互检测
-	var area = Area2D.new()
-	area.name = "InteractionArea"
-	var collision = CollisionShape2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = 40.0
-	collision.shape = shape
-	area.add_child(collision)
+	# 连接信号
+	# 注意: upgrade_selection_required 由 LevelUpPanel 内部连接，不要重复连接
+	_upgrade_manager.level_up.connect(_on_level_up)
+	_upgrade_manager.exp_gained.connect(_on_exp_gained)
 
-	# 设置meta数据用于交互检测
-	area.set_meta("interactive_object_id", _get_interactive_id_for_object(obj_name))
-	node.add_child(area)
+	# 升级面板
+	_level_up_panel = CanvasLayer.new()
+	_level_up_panel.name = "LevelUpPanel"
+	_level_up_panel.set_script(load("res://scripts/ui/level_up_panel.gd"))
+	add_child(_level_up_panel)
 
-	add_child(node)
-	return node
+	# 配置升级面板
+	_level_up_panel.set_upgrade_manager(_upgrade_manager)
+	_level_up_panel.upgrade_selected.connect(_on_upgrade_selected)
+	_level_up_panel.reward_selected.connect(_on_reward_selected)
 
+	# 连接怪物死亡信号到经验值
+	if _room_spawner:
+		_room_spawner.monster_died.connect(_on_monster_died_for_exp)
 
-## 创建武器节点
-func _create_weapon_node(weapon_data: WeaponData, pos: Vector2) -> Node2D:
-	var node = Node2D.new()
-	node.name = weapon_data.name
-	node.position = pos
-
-	# 创建可视化占位（不同稀有度不同颜色）
-	var sprite = Sprite2D.new()
-	sprite.name = "Sprite"
-	var image = Image.create(20, 20, false, Image.FORMAT_RGBA8)
-	var color = _get_rarity_color(weapon_data.rarity)
-	image.fill(color)
-	var texture = ImageTexture.create_from_image(image)
-	sprite.texture = texture
-	node.add_child(sprite)
-
-	# 创建Area2D用于交互检测
-	var area = Area2D.new()
-	area.name = "InteractionArea"
-	var collision = CollisionShape2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = 40.0
-	collision.shape = shape
-	area.add_child(collision)
-
-	# 设置meta数据用于交互检测
-	area.set_meta("interactive_object_id", _get_interactive_id_for_object(weapon_data.name))
-	node.add_child(area)
-
-	add_child(node)
-	return node
+	print("[GameScene] Progression systems initialized")
 
 
-## 获取稀有度颜色
-func _get_rarity_color(rarity: String) -> Color:
-	match rarity:
-		"common":
-			return Color(0.7, 0.7, 0.7, 1.0)  # 灰色
-		"uncommon":
-			return Color(0.2, 0.8, 0.2, 1.0)  # 绿色
-		"rare":
-			return Color(0.2, 0.4, 0.9, 1.0)  # 蓝色
-		"epic":
-			return Color(0.7, 0.2, 0.9, 1.0)  # 紫色
-		"legendary":
-			return Color(0.9, 0.6, 0.1, 1.0)  # 橙色
-		_:
-			return Color(0.7, 0.7, 0.7, 1.0)  # 默认灰色
+## 初始化Boss系统
+func _init_boss_system() -> void:
+	# Boss血条UI
+	_boss_health_bar = CanvasLayer.new()
+	_boss_health_bar.name = "BossHealthBar"
+	_boss_health_bar.set_script(load("res://scripts/ui/boss_health_bar.gd"))
+	add_child(_boss_health_bar)
+
+	print("[GameScene] Boss system initialized")
 
 
-## 获取对象对应的InteractiveObject ID
-func _get_interactive_id_for_object(obj_name: String) -> int:
-	for obj in interaction_manager.get_all_objects():
-		if obj.object_name == obj_name:
-			return obj.object_id
-	return -1
+## 初始化存档系统
+func _init_save_system() -> void:
+	_save_system = Node.new()
+	_save_system.name = "SaveSystem"
+	_save_system.set_script(load("res://scripts/managers/save_system.gd"))
+	add_child(_save_system)
+
+	# 连接信号
+	_save_system.save_completed.connect(_on_save_completed)
+	_save_system.load_completed.connect(_on_load_completed)
+
+	print("[GameScene] Save system initialized")
 
 
-## 输入处理
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		_toggle_pause()
-	elif event.is_action_pressed("interaction"):
-		_try_interact()
-	elif event.is_action_pressed("ui_accept"):  # N键或回车键
-		_try_enter_next_room()
-	elif event is InputEventKey and event.pressed:
-		_handle_number_key(event)
+## 初始化AI自适应系统 (Phase 13)
+func _init_ai_adaptive_systems() -> void:
+	# 行为分析器
+	_behavior_analyzer = Node.new()
+	_behavior_analyzer.name = "BehaviorAnalyzer"
+	_behavior_analyzer.set_script(load("res://scripts/ai/behavior_analyzer.gd"))
+	add_child(_behavior_analyzer)
+	_behavior_analyzer.set_player(player)
+
+	# AI上下文管理器
+	_ai_context_manager = Node.new()
+	_ai_context_manager.name = "AIContextManager"
+	_ai_context_manager.set_script(load("res://scripts/ai/ai_context_manager.gd"))
+	add_child(_ai_context_manager)
+
+	# 配置上下文管理器
+	_ai_context_manager.set_behavior_analyzer(_behavior_analyzer)
+	_ai_context_manager.set_player(player)
+	_ai_context_manager.set_floor_manager(_floor_manager)
+	_ai_context_manager.set_combat_manager(_combat_manager)
+	_ai_context_manager.set_upgrade_manager(_upgrade_manager)
+
+	# 配置FloorManager的AI上下文管理器
+	_floor_manager.set_ai_context_manager(_ai_context_manager)
+
+	# NPC记忆管理器
+	_npc_memory_manager = Node.new()
+	_npc_memory_manager.name = "NPCMemoryManager"
+	_npc_memory_manager.set_script(load("res://scripts/ai/npc_memory_manager.gd"))
+	add_child(_npc_memory_manager)
+
+	# 配置上下文管理器的NPC记忆引用
+	_ai_context_manager.set_npc_memory_manager(_npc_memory_manager)
+
+	# 数据统计管理器
+	_analytics_manager = Node.new()
+	_analytics_manager.name = "AnalyticsManager"
+	_analytics_manager.set_script(load("res://scripts/managers/analytics_manager.gd"))
+	add_child(_analytics_manager)
+
+	# 连接信号到行为分析器
+	_connect_behavior_signals()
+
+	# 开始新的运行统计
+	_analytics_manager.start_run()
+
+	print("[GameScene] AI adaptive systems initialized")
 
 
-## 处理数字键输入
-func _handle_number_key(event: InputEventKey) -> void:
-	# 数字键1-9选择房间
-	if event.keycode >= KEY_1 and event.keycode <= KEY_9:
-		var room_index = event.keycode - KEY_1
-		_try_enter_room_by_index(room_index)
+## 连接行为分析器信号
+func _connect_behavior_signals() -> void:
+	# 战斗信号
+	if _combat_manager:
+		_combat_manager.combat_started.connect(_behavior_analyzer.on_combat_started)
+		_combat_manager.combat_cleared.connect(_behavior_analyzer.on_combat_cleared)
+		_combat_manager.monster_killed.connect(_behavior_analyzer.on_monster_killed)
+
+	# 玩家信号
+	if player and player.has_signal("player_damaged"):
+		player.player_damaged.connect(_behavior_analyzer.on_player_damaged)
+
+	# 升级信号
+	if _upgrade_manager:
+		_upgrade_manager.level_up.connect(_behavior_analyzer.on_level_up)
+		_upgrade_manager.exp_gained.connect(_behavior_analyzer.on_exp_gained)
+		_upgrade_manager.upgrade_applied.connect(_behavior_analyzer.on_upgrade_applied)
+
+	# 楼层信号
+	if _floor_manager:
+		_floor_manager.floor_generated.connect(_behavior_analyzer.on_floor_generated)
+		_floor_manager.room_entered.connect(_behavior_analyzer.on_room_entered)
+
+	print("[GameScene] Behavior signals connected")
 
 
-## 尝试进入下一房间
-func _try_enter_next_room() -> void:
-	if not _room_manager:
-		return
+## ==================== 每帧处理 ====================
 
-	# 检查房间是否已清除
-	if _room_manager.is_room_cleared():
-		print("[GameScene] Entering next room...")
-		_room_manager.enter_next_room()
-	else:
-		print("[GameScene] Room not cleared yet")
-
-
-## 尝试进入指定索引的房间
-func _try_enter_room_by_index(index: int) -> void:
-	if not _room_graph:
-		return
-
-	# 获取可用房间
-	var available = _room_graph.get_available_room_ids()
-
-	# 检查索引是否有效
-	if index < available.size():
-		var room_id = available[index]
-		print("[GameScene] Entering room: ", room_id)
-		_room_manager.enter_room_by_id(room_id)
-	else:
-		print("[GameScene] Invalid room index: ", index)
-	else:
-		print("[GameScene] Room not cleared yet")
-
-
-## 每帧处理
 func _process(delta: float) -> void:
 	if not _is_paused:
 		GameStateManager.add_play_time(delta)
 
 
-## 切换暂停状态
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_toggle_pause()
+	elif event.is_action_pressed("interaction"):
+		_try_interact()
+
+
+## ==================== FloorManager回调 ====================
+
+func _on_floor_generated(floor_data: FloorData) -> void:
+	print("[GameScene] Floor generated: ", floor_data.get_room_count(), " rooms")
+	hud.set_status("第" + str(floor_data.floor_level) + "层已生成！")
+	# 更新HUD楼层信息
+	hud.update_floor_info(floor_data.floor_level, 1)
+
+
+func _on_fm_room_entered(room: NewRoomData) -> void:
+	print("[Room Enter] Room ID:", room.id, " | Display:", room.display_index, " | Type:", room.get_type_string(), " | Name:", room.room_name)
+	hud.set_status("进入: " + room.room_name)
+	# 更新HUD房间信息(使用display_index和房间类型)
+	if _floor_manager:
+		hud.update_floor_info_with_type(
+			_floor_manager.get_floor_level(),
+			room.display_index,
+			room.room_name
+		)
+
+	# Phase 20.4: 重置玩家位置到房间中心并同步Camera
+	if player:
+		player.global_position = room.position  # 房间中心坐标
+		var cam = player.get_node_or_null("Camera2D")
+		if cam:
+			cam.reset_smoothing()
+			cam.force_update_scroll()
+
+	# 设置状态为探索
+	GameStateManager.set_state(GameStateManager.GameState.EXPLORATION)
+
+	# 重置战斗管理器
+	_combat_manager.reset()
+
+	# 获取房间内容
+	var content = room.content
+	if not content:
+		print("[GameScene] No content for room, creating exits")
+		_create_room_exits()
+		return
+
+	print("[GameScene] Room content: monsters=", content.monster_count, " rewards=", content.reward_count)
+
+	# Phase 9.4: 锁定房间内容，防止AI异步结果覆盖已开始战斗的房间
+	content.finalize()
+
+	# 检查是否是Boss房间
+	if room.room_type == NewRoomData.RoomType.BOSS:
+		print("[GameScene] Boss room detected!")
+		_start_boss_fight(room)
+		return
+
+	# 普通战斗房间
+	if content.monster_count > 0:
+		var monster_count = _room_spawner.spawn_monsters(content, room.position)
+		if monster_count > 0:
+			_combat_manager.start_combat(content)
+		else:
+			_create_room_exits()
+	else:
+		_create_room_exits()
+
+
+func _on_fm_room_exited(room: NewRoomData) -> void:
+	print("[GameScene] Room exited: ", room.room_name)
+
+
+## 开始Boss战
+func _start_boss_fight(room: NewRoomData) -> void:
+	# 创建Boss数据
+	var boss_data = _create_boss_data_for_room(room)
+	if not boss_data:
+		print("[GameScene] Failed to create boss data")
+		_create_room_exits()
+		return
+
+	# 生成Boss
+	var boss_entity = _room_spawner.spawn_boss(boss_data, room.position)
+	if not boss_entity:
+		print("[GameScene] failed to spawn boss")
+		_create_room_exits()
+		return
+
+	# 开始Boss战
+	_combat_manager.start_boss_fight(boss_data)
+
+	print("[GameScene] Boss fight started: ", boss_data.name)
+
+
+## 根据房间创建Boss数据
+func _create_boss_data_for_room(room: NewRoomData) -> BossData:
+	# 根据楼层等级生成不同Boss
+	var floor_level = 1
+	if _floor_manager:
+		floor_level = _floor_manager.get_floor_level()
+
+	var boss_data = BossData.new()
+	boss_data.id = "boss_floor_" + str(floor_level)
+	boss_data.name = _get_boss_name(floor_level)
+	boss_data.description = "守护本层的强大Boss"
+	boss_data.max_health = 300 + floor_level * 200
+	boss_data.attack = 15 + floor_level * 10
+	boss_data.defense = 5 + floor_level * 5
+	# Phase 9.3: Boss移动速度降低至60%，避免贴脸持续伤害
+	boss_data.speed = (80.0 + floor_level * 10) * 0.6
+	boss_data.attack_cooldown = 1.5  # 攻击间隔1.5秒
+	boss_data.attack_prepare_time = 0.5  # 攻击前摇0.5秒
+	boss_data.reward_gold = 100 + floor_level * 50
+	boss_data.reward_exp = 80 + floor_level * 40
+
+	# 添加技能（显式构造Array[Dictionary]，避免类型推断为Array）
+	var skills: Array[Dictionary] = []
+	skills.append({"name": "重击", "damage_mult": 2.0, "cooldown": 3.0, "range": 80.0, "phase": 0})
+	skills.append({"name": "冲锋", "damage_mult": 1.5, "cooldown": 5.0, "range": 200.0, "phase": 1})
+	skills.append({"name": "怒吼", "damage_mult": 0.5, "cooldown": 8.0, "range": 150.0, "phase": 2})
+	boss_data.skills = skills
+
+	return boss_data
+
+
+## 获取Boss名称
+func _get_boss_name(floor_level: int) -> String:
+	var names = ["地牢守卫", "暗影骑士", "深渊领主", "混沌之王", "毁灭者"]
+	var index = (floor_level - 1) % names.size()
+	return names[index]
+
+
+func _on_floor_completed() -> void:
+	print("[GameScene] Floor completed!")
+	hud.set_status("恭喜通关！楼层已清除！")
+
+
+## ==================== CombatManager回调 ====================
+
+func _on_combat_state_changed(new_state: int) -> void:
+	match new_state:
+		0: hud.set_status("房间状态: 空")
+		1: hud.set_status("房间状态: 进入战斗...")
+		2: hud.set_status("房间状态: 战斗中！")
+		3: hud.set_status("房间状态: 已清除！")
+		4: hud.set_status("房间状态: 奖励阶段")
+		5: hud.set_status("房间状态: Boss战！")
+
+
+func _on_combat_started(monster_count: int) -> void:
+	print("[GameScene] Combat started: ", monster_count, " monsters")
+	hud.set_status("战斗开始！怪物数量: " + str(monster_count))
+
+
+func _on_combat_cleared() -> void:
+	# Phase 9.4: Boss战走独立结算流程，不走普通combat reward
+	if _combat_manager.is_boss_fight():
+		print("[GameScene] Combat cleared (Boss fight) - skipping normal reward flow")
+		return
+
+	print("[GameScene] Combat cleared!")
+	hud.set_status("房间已清除！拾取奖励后通过传送门进入下一房间")
+
+	# 生成奖励
+	if _room_spawner:
+		var content = _combat_manager.get_current_content()
+		var room_pos = Vector2.ZERO
+		if _floor_manager:
+			var current_room = _floor_manager.get_current_room()
+			if current_room:
+				if not content:
+					content = current_room.content
+				room_pos = current_room.position
+		_room_spawner.spawn_rewards(content, room_pos)
+
+	# 创建出口
+	_create_room_exits()
+
+
+func _on_combat_room_completed() -> void:
+	print("[GameScene] Room completed")
+
+
+func _on_monster_killed(dead_count: int, total_count: int) -> void:
+	hud.set_status("怪物: " + str(dead_count) + "/" + str(total_count) + " 已击杀")
+	hud.update_combat_status(dead_count, total_count)
+
+
+## Phase 9.3: 战斗进度变化回调(含初始0/N)
+func _on_combat_progress_changed(current_kills: int, total_monsters: int) -> void:
+	hud.update_combat_status(current_kills, total_monsters)
+
+
+## ==================== RoomSpawner回调 ====================
+
+func _on_monster_spawned(monster_entity: MonsterEntity) -> void:
+	print("[GameScene] Monster spawned: ", monster_entity.get_monster_name())
+
+
+func _on_reward_collected(reward_data: RewardData) -> void:
+	print("[GameScene] Reward collected: ", reward_data.name)
+	hud.set_status("获得: " + reward_data.description)
+	_player_data = player.get_player_data()
+	_update_game_display()
+
+
+func _on_all_rewards_collected() -> void:
+	print("[GameScene] All rewards collected!")
+	hud.set_status("所有奖励已收集！")
+	# 完成奖励阶段，推进战斗状态机
+	if _combat_manager:
+		_combat_manager.complete_reward_phase()
+
+
+## ==================== 出口传送门 ====================
+
+func _on_exit_portal_entered(target_room_id: int) -> void:
+	print("[GameScene] Exit portal entered: room ", target_room_id)
+	_floor_manager.enter_room(target_room_id)
+
+
+func _create_room_exits() -> void:
+	if not _floor_manager or not _room_renderer:
+		return
+
+	var available_ids = _floor_manager.get_available_exit_ids()
+	if available_ids.size() == 0:
+		print("[GameScene] No available exits (floor complete?)")
+		hud.set_status("恭喜通关！所有房间已清除！")
+		return
+
+	var current_floor = _floor_manager.get_current_floor()
+	var current_room = current_floor.get_current_room()
+	var current_room_id = current_room.id if current_room else -1
+
+	# Phase 9.3: 强制线性推进，禁止返回已访问房间
+	# 优先级: 未访问房间 > 已访问未完成房间 > 已完成房间(最后手段)
+	var target_id = -1
+
+	# 第一优先：未访问的房间
+	for id in available_ids:
+		if id == current_room_id:
+			continue
+		var room = current_floor.get_room(id)
+		if room and not room.visited:
+			target_id = id
+			break
+
+	# 第二优先：已访问但未完成的房间(允许回溯到未清怪的房间)
+	if target_id == -1:
+		for id in available_ids:
+			if id == current_room_id:
+				continue
+			var room = current_floor.get_room(id)
+			if room and room.visited and not room.completed:
+				target_id = id
+				break
+
+	# 第三优先：任意非当前房间(兜底)
+	if target_id == -1:
+		for id in available_ids:
+			if id != current_room_id:
+				target_id = id
+				break
+
+	# 最终兜底
+	if target_id == -1:
+		target_id = available_ids[0]
+
+	var target_room = current_floor.get_room(target_id)
+	if target_room:
+		print("[Portal] Current Room:", current_room_id, " | Target Room:", target_id, " | Type:", target_room.get_type_string())
+		_room_renderer.create_exit_portal(target_id, target_room.get_type_string())
+
+
+## ==================== UI交互 ====================
+
 func _toggle_pause() -> void:
 	if _is_paused:
 		_resume_game()
@@ -470,7 +808,6 @@ func _toggle_pause() -> void:
 		_pause_game()
 
 
-## 暂停游戏
 func _pause_game() -> void:
 	_is_paused = true
 	get_tree().paused = true
@@ -479,8 +816,12 @@ func _pause_game() -> void:
 	hud.set_status("游戏暂停")
 
 
-## 恢复游戏
 func _resume_game() -> void:
+	# 如果玩家已死亡，不允许恢复游戏，只能重新开始或退出
+	if player and player.is_dead():
+		print("[GameScene] Cannot resume - player is dead")
+		return
+
 	_is_paused = false
 	get_tree().paused = false
 	GameStateManager.set_state(GameStateManager.GameState.PLAYING)
@@ -488,36 +829,29 @@ func _resume_game() -> void:
 	hud.set_status("游戏进行中")
 
 
-## 尝试交互
 func _try_interact() -> void:
 	if _is_paused:
 		return
-
 	if interaction_manager.has_interactable():
 		interaction_manager.trigger_interaction()
 
 
-## 处理武器拾取
 func _handle_weapon_pickup(weapon_obj: WeaponObject) -> void:
 	var weapon_data = weapon_obj.get_weapon_data()
 	if weapon_data:
-		# 添加到背包
 		_inventory_manager.add_weapon(weapon_data)
-
-		# 同步到服务器
-		_sync_weapon_to_server(weapon_data.id)
-
-		# 更新HUD
+		ApiClient.post_request(APIConfig.PLAYER_WEAPONS, {"weapon_id": weapon_data.id}, true)
 		hud.set_status("获得武器: " + weapon_data.name + " (伤害: " + str(weapon_data.damage) + ")")
 
 
-## 同步武器到服务器
-func _sync_weapon_to_server(weapon_id: int) -> void:
-	var data = {"weapon_id": weapon_id}
-	ApiClient.post_request(APIConfig.PLAYER_WEAPONS, data, true)
+func _update_game_display() -> void:
+	# Phase 9.4: 先同步到PlayerStats，再从PlayerStats读取（确保HUD字段完整）
+	player.set_player_data(_player_data)
+	_player_data = player.get_player_data()
+	hud.update_hud(_player_data)
+	hud.set_status("游戏进行中 - 按ESC暂停")
 
 
-## 更新资源显示
 func _update_resource_display() -> void:
 	hud.update_resource_counts(
 		ResourceService.get_weapon_count(),
@@ -527,31 +861,8 @@ func _update_resource_display() -> void:
 	)
 
 
-## 更新游戏显示
-func _update_game_display() -> void:
-	hud.update_hud(_player_data)
-	player.set_player_data(_player_data)
-	hud.set_status("游戏进行中 - 按ESC暂停")
+## ==================== UI回调 ====================
 
-
-## 世界初始化完成
-func _on_world_initialized() -> void:
-	var map_data = _world_manager.get_current_map()
-	if map_data:
-		hud.set_status("世界加载完成: " + map_data.name)
-
-
-## 世界加载错误
-func _on_world_load_error(error: String) -> void:
-	hud.set_status("世界加载失败: " + error)
-
-
-## 房间切换
-func _on_room_changed(room_data: RoomData) -> void:
-	hud.set_status("当前房间: " + room_data.room_name + " (" + room_data.room_type + ")")
-
-
-## 最近交互对象变化
 func _on_nearest_object_changed(obj: Variant) -> void:
 	if obj and obj is InteractiveObject:
 		interaction_hint.show_hint(obj.interaction_hint)
@@ -559,22 +870,17 @@ func _on_nearest_object_changed(obj: Variant) -> void:
 		interaction_hint.hide_hint()
 
 
-## 交互触发
 func _on_interaction_triggered(object_id: int) -> void:
 	var obj = interaction_manager.get_object(object_id)
 	if obj:
-		# 检查是否是WeaponObject
 		var game_obj = _find_game_object_by_interactive_id(object_id)
 		if game_obj and game_obj is WeaponObject:
 			_handle_weapon_pickup(game_obj)
 		else:
 			hud.set_status("交互: " + obj.object_name)
-
-		# 完成交互
 		interaction_manager.complete_interaction(object_id)
 
 
-## 根据InteractiveObject ID查找GameObject
 func _find_game_object_by_interactive_id(interactive_id: int) -> GameObject:
 	for obj in _object_manager.get_all_objects():
 		if obj.has_interactive_object() and obj.get_interactive_object().object_id == interactive_id:
@@ -582,29 +888,24 @@ func _find_game_object_by_interactive_id(interactive_id: int) -> GameObject:
 	return null
 
 
-## 暂停菜单：继续游戏
 func _on_resume_game() -> void:
 	_resume_game()
 
 
-## 暂停菜单：打开设置
 func _on_open_settings() -> void:
 	pause_menu.hide_pause()
 	settings_menu.show_settings()
 
 
-## 暂停菜单：退出到主菜单
 func _on_exit_to_menu() -> void:
 	pause_menu.hide_pause()
 	save_selection.show_save_selection()
 
 
-## 设置菜单：关闭
 func _on_settings_closed() -> void:
 	pause_menu.show_pause()
 
 
-## 存档选择：选择存档槽位
 func _on_save_selected(slot: int) -> void:
 	var save_data = GameStateManager.get_save_data()
 	SaveService.save_game(slot, save_data)
@@ -612,12 +913,10 @@ func _on_save_selected(slot: int) -> void:
 	_exit_to_menu()
 
 
-## 存档选择：关闭
 func _on_save_selection_closed() -> void:
 	pause_menu.show_pause()
 
 
-## 退出到主菜单
 func _exit_to_menu() -> void:
 	_is_paused = false
 	get_tree().paused = false
@@ -625,128 +924,228 @@ func _exit_to_menu() -> void:
 	SceneManager.go_to_main()
 
 
-## 资源中心按钮
 func _on_resource_pressed() -> void:
 	SceneManager.go_to_resource_center()
 
 
-## 退出登录按钮（带保存）
 func _on_logout_pressed() -> void:
 	hud.set_status("正在保存游戏...")
 	GameFlowController.exit_game()
 
 
-## 怪物生成回调
-func _on_monster_spawned(monster_entity: MonsterEntity) -> void:
-	print("[GameScene] Monster spawned: ", monster_entity.get_monster_name())
-	hud.set_status("怪物出现了: " + monster_entity.get_monster_name())
+## ==================== Phase 12: 升级系统回调 ====================
+
+## 升级回调 (Phase 9.4.2: 同步更新HUD)
+func _on_level_up(new_level: int) -> void:
+	print("[GameScene] Level up! Now level ", new_level)
+	hud.set_status("升级！等级 " + str(new_level))
+	# 更新HUD等级和经验
+	if player:
+		_player_data = player.get_player_data()
+		hud.update_hud(_player_data)
+	GameStateManager.set_state(GameStateManager.GameState.LEVEL_UP)
 
 
-## 所有怪物死亡回调
-func _on_all_monsters_dead() -> void:
-	print("[GameScene] All monsters defeated!")
-	hud.set_status("所有怪物已被消灭！")
+## 升级选择需求回调
+func _on_upgrade_selection_required(options: Array) -> void:
+	print("[GameScene] Upgrade selection required: ", options.size(), " options")
+	if _level_up_panel:
+		_level_up_panel.show_upgrade_panel(options)
 
 
-## 怪物死亡回调
-func _on_monster_died(monster_entity: MonsterEntity) -> void:
-	print("[GameScene] Monster died: ", monster_entity.get_monster_name())
+## 经验获取回调 (Phase 9.4.2: 同步更新HUD)
+func _on_exp_gained(amount: int, current_exp: int, exp_to_next: int) -> void:
+	hud.set_status("获得 " + str(amount) + " 经验 (" + str(current_exp) + "/" + str(exp_to_next) + ")")
+	# 更新HUD经验条
+	if player:
+		_player_data = player.get_player_data()
+		hud.update_hud(_player_data)
 
 
-## 房间进入回调
-func _on_room_entered(room_data: RoomData) -> void:
-	print("[GameScene] Room entered: ", room_data.room_name)
+## 强化选择完成回调
+func _on_upgrade_selected(upgrade: UpgradeData) -> void:
+	print("[GameScene] Upgrade selected: ", upgrade.name)
+	hud.set_status("获得强化: " + upgrade.name)
+	# Phase 9.4: 升级后刷新HUD（属性可能已变化）
+	if player:
+		_player_data = player.get_player_data()
+		hud.update_hud(_player_data)
+	GameStateManager.set_state(GameStateManager.GameState.PLAYING)
 
-	# 获取房间内容数据
-	var content = _room_manager.get_current_content()
-	if not content:
-		print("[GameScene] No content data for room")
+
+## 奖励选择完成回调 (Phase 9.3.2)
+func _on_reward_selected(reward: RewardData) -> void:
+	print("[GameScene] Reward selected: ", reward.name)
+	hud.set_status("获得奖励: " + reward.name)
+
+	# 应用奖励到玩家
+	if player and reward:
+		reward.apply_to_player(player)
+
+	# 更新显示
+	_player_data = player.get_player_data()
+	_update_game_display()
+
+	GameStateManager.set_state(GameStateManager.GameState.PLAYING)
+
+
+## 怪物死亡时获取经验值
+func _on_monster_died_for_exp(entity: MonsterEntity) -> void:
+	if _upgrade_manager and entity:
+		var exp_reward = entity.get_experience_reward()
+		await _upgrade_manager.add_experience(exp_reward)
+
+
+## ==================== Phase 12: Boss系统回调 ====================
+
+## Boss战斗开始
+func _on_boss_fight_started(boss_data: BossData) -> void:
+	print("[GameScene] Boss fight started: ", boss_data.name)
+	GameStateManager.set_state(GameStateManager.GameState.BOSS)
+	hud.set_status("Boss战开始！")
+
+	if _boss_health_bar:
+		_boss_health_bar.show_boss(boss_data.name, boss_data.max_health)
+
+
+## Boss被击败 - 独立结算流程 (Phase 9.4)
+func _on_boss_defeated() -> void:
+	print("[GameScene] Boss defeated!")
+	hud.set_status("Boss被击败！")
+
+	if _boss_health_bar:
+		_boss_health_bar.hide_boss()
+
+	# Boss专属奖励（不走普通combat reward流程）
+	if _room_spawner:
+		var boss_data = _combat_manager.get_boss_data()
+		var room_pos = Vector2.ZERO
+		if _floor_manager:
+			var current_room = _floor_manager.get_current_room()
+			if current_room:
+				room_pos = current_room.position
+
+		# 创建Boss专属奖励内容
+		var boss_content = RoomContentData.new()
+		boss_content.room_type = "boss"
+		boss_content.reward_count = 5
+		boss_content.reward_quality = 2.0
+		_room_spawner.spawn_rewards(boss_content, room_pos)
+
+	# 标记房间完成
+	if _floor_manager and _floor_manager._current_floor:
+		_floor_manager._current_floor.complete_current_room()
+
+	# 检查楼层是否完成
+	if _floor_manager and _floor_manager.is_floor_complete():
+		_on_floor_completed()
+	else:
+		# Boss击败后也创建出口（进入下一层）
+		_create_room_exits()
+
+
+## ==================== Phase 12: 存档系统回调 ====================
+
+## 存档完成回调
+func _on_save_completed(slot: int, success: bool) -> void:
+	if success:
+		print("[GameScene] Game saved to slot ", slot)
+		hud.set_status("游戏已保存")
+	else:
+		print("[GameScene] Failed to save game")
+		hud.set_status("保存失败")
+
+
+## 加载完成回调
+func _on_load_completed(slot: int, success: bool) -> void:
+	if success:
+		print("[GameScene] Game loaded from slot ", slot)
+		hud.set_status("游戏已加载")
+	else:
+		print("[GameScene] Failed to load game")
+		hud.set_status("加载失败")
+
+
+## ==================== Phase 13: AI自适应系统回调 ====================
+
+## AI事件接收回调
+func _on_ai_event_received(event_data) -> void:
+	print("[GameScene] AI event received: ", event_data.title if event_data else "null")
+	if event_data:
+		hud.set_status("发现事件: " + event_data.title)
+		# Phase 15: 显示事件面板
+		_show_ai_event(event_data)
+
+
+## 显示AI事件面板
+func _show_ai_event(event_data) -> void:
+	if not event_data:
 		return
 
-	print("[GameScene] Room content: monsters=", content.monster_count, " rewards=", content.reward_count)
+	# 设置游戏状态为EVENT
+	GameStateManager.set_state(GameStateManager.GameState.EVENT)
 
-	# 根据房间内容生成怪物
-	if content.monster_count > 0:
-		var room_position = room_data.position
-		var room_size = Vector2(room_data.width, room_data.height)
-
-		# 使用MonsterSpawner生成怪物
-		var monster_count = _monster_spawner.spawn_monsters_from_content(content, room_position, room_size)
-
-		# 开始房间战斗
-		if monster_count > 0:
-			_room_manager.start_room_combat(monster_count)
-		else:
-			print("[GameScene] No monsters spawned")
+	# 查找或创建AI事件面板
+	var event_panel = get_node_or_null("UI/AIEventPanel")
+	if event_panel and event_panel.has_method("show_event"):
+		event_panel.show_event(event_data)
 	else:
-		print("[GameScene] No monsters in this room")
+		print("[GameScene] AIEventPanel not found, using HUD fallback")
+		hud.set_status("事件: " + event_data.title + " - " + event_data.description)
 
 
-## 房间状态变化回调
-func _on_room_state_changed(new_state: int) -> void:
-	match new_state:
-		0:  # EMPTY
-			hud.set_status("房间状态: 空")
-		1:  # SPAWNING
-			hud.set_status("房间状态: 生成怪物中...")
-		2:  # COMBAT
-			hud.set_status("房间状态: 战斗中！")
-		3:  # CLEARED
-			hud.set_status("房间状态: 已清除！可以进入下一房间")
-		4:  # REWARD
-			hud.set_status("房间状态: 奖励阶段")
+## 事件选择完成回调
+func _on_event_completed(rewards: Dictionary) -> void:
+	print("[GameScene] Event completed, rewards: ", rewards)
 
-
-## 房间清除回调
-func _on_room_cleared() -> void:
-	print("[GameScene] Room cleared!")
-	hud.set_status("房间已清除！拾取奖励后按N进入下一房间")
-
-	# 获取房间内容数据
-	var content = _room_manager.get_current_content()
-
-	# 生成奖励
-	if _drop_manager and _room_manager:
-		var current_room = _room_manager.get_current_room()
-		if current_room:
-			var room_position = current_room.position
-
-			# 使用RoomContentData生成奖励
-			if content and content.reward_count > 0:
-				_drop_manager.spawn_rewards_from_content(content, room_position)
-			else:
-				# 默认生成3个奖励
-				_drop_manager.spawn_rewards_for_room(room_position, 3)
-
-
-## 奖励收集回调
-func _on_reward_collected(reward_data: RewardData) -> void:
-	print("[GameScene] Reward collected: ", reward_data.name)
-	hud.set_status("获得: " + reward_data.description)
+	# 恢复游戏状态
+	GameStateManager.set_state(GameStateManager.GameState.EXPLORATION)
 
 	# 更新玩家显示
 	_player_data = player.get_player_data()
 	_update_game_display()
 
-
-## 所有奖励收集完成回调
-func _on_all_rewards_collected() -> void:
-	print("[GameScene] All rewards collected!")
-	hud.set_status("所有奖励已收集！按N进入下一房间")
+	hud.set_status("事件完成！")
 
 
-## 房间图生成回调
-func _on_room_graph_generated() -> void:
-	print("[GameScene] Room graph generated")
-	if _room_graph:
-		_room_graph.print_status()
-		hud.set_status("房间图已生成！当前房间: " + str(_room_graph.get_current_room_id()))
+## 难度调整回调
+func _on_difficulty_adjusted(adjustment: Dictionary) -> void:
+	print("[GameScene] Difficulty adjusted")
+	var hp_mult = adjustment.get("enemy_hp_multiplier", 1.0)
+	if hp_mult > 1.0:
+		hud.set_status("难度提升！怪物更强了")
+	elif hp_mult < 1.0:
+		hud.set_status("难度降低！怪物变弱了")
 
 
-## 当前房间变化回调
-func _on_current_room_changed(old_id: int, new_id: int) -> void:
-	print("[GameScene] Current room changed: ", old_id, " -> ", new_id)
-	if _room_graph:
-		var available = _room_graph.get_available_room_ids()
-		print("[GameScene] Available rooms: ", available)
-		hud.set_status("当前房间: " + str(new_id) + " | 可用房间: " + str(available))
+## 玩家受伤回调 - 实时更新HUD
+func _on_player_damaged(damage: int, current_health: int) -> void:
+	# 从玩家节点获取最新数据并更新HUD
+	if player:
+		_player_data = player.get_player_data()
+		hud.update_hud(_player_data)
+
+
+## Phase 15: 玩家死亡回调
+func _on_player_dead() -> void:
+	print("[GameScene] Player is dead!")
+	hud.set_status("你已阵亡...")
+
+	# 停止所有怪物AI
+	_stop_all_monsters()
+
+	# 显示GameOver面板
+	if _game_over_panel:
+		_game_over_panel.visible = true
+		get_tree().paused = true
+
+
+## 停止所有怪物的AI行为
+func _stop_all_monsters() -> void:
+	var monster_container = $GameWorld.get_node_or_null("MonsterContainer")
+	if monster_container:
+		for monster in monster_container.get_children():
+			if monster.has_method("set"):
+				monster.set("velocity", Vector2.ZERO)
+			if monster.has_method("set_physics_process"):
+				monster.set_physics_process(false)
