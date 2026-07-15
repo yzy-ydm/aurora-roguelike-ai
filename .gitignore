@@ -222,3 +222,8 @@ local_settings.py
 # ==================== 旧版本备份 ====================
 # 旧版本备份目录
 aurora-roguelike-ai-(4.2)/
+
+# ==================== AI服务端数据 ====================
+server/ai/data/*.db
+server/ai/data/*.sqlite
+server/ai/data/*.sqlite3
