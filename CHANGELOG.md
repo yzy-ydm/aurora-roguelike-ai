@@ -8,6 +8,90 @@
 
 ---
 
+## [0.9.2] - 2026-09-22
+
+### Refactored - Provider Factory 集成与 AIService 解耦 (Phase 0 Task 0.2)
+
+**Git Commit:** 待提交
+
+#### 新增文件
+- `server/ai/services/provider_factory.py`
+  - ProviderFactory类，统一Provider创建入口
+  - 支持通过AI_PROVIDER环境变量动态切换Provider
+  - 自动注册Agnes和MiMo Provider
+  - 支持动态注册自定义Provider
+
+#### 修改文件
+- `server/ai/services/ai_service.py`
+  - 移除MimoClient直接import依赖
+  - 使用ProviderFactory创建Provider实例
+  - ai_mode字段改为动态获取(provider.get_provider_name())
+  - fallback逻辑泛化（支持任何Provider失败降级）
+  - 环境变量优先级: AI_PROVIDER > LLM_PROVIDER > "mock"
+  - 新增_get_ai_mode()和_is_llm_mode()辅助方法
+
+#### 新增测试
+- `server/ai/tests/test_provider_factory.py` (10个测试)
+  - ProviderFactory注册/创建/查询功能
+  - 环境变量配置测试
+- `server/ai/tests/test_ai_service_provider_switch.py` (10个测试)
+  - AIService Mock模式初始化
+  - AIService MiMo模式初始化
+  - AIService Agnes模式初始化(有/无Key)
+  - 向后兼容LLM_PROVIDER
+  - AI_PROVIDER优先级
+  - Agnes Provider生成楼层/房间内容
+  - Provider不可用/异常时的Fallback
+
+#### 测试结果
+- 总测试数: 94 → 114 (+20)
+- 全部通过: 114 passed ✅
+
+#### 架构变化
+```
+修改前:
+AIService → (硬编码) → MimoClient
+
+修改后:
+AIService → ProviderFactory → AgnesProvider / MimoClient / Mock
+```
+
+---
+
+## [0.9.1] - 2026-09-22
+
+### Added - Agnes AI Provider 集成 (Phase 0 Task 0.1)
+
+**Git Commit:** 待提交
+
+- 新增 `server/ai/services/agnes_provider.py`
+  - AgnesProvider类，实现LLMProvider接口
+  - 支持OpenAI Chat Completions格式 (`/v1/chat/completions`)
+  - 认证方式: `Authorization: Bearer`
+  - 配置全部来自环境变量，禁止硬编码API Key
+  - JSON容错解析（支持markdown代码块包裹）
+  - 超时/连接错误处理
+- 更新 `server/.env.example`
+  - 新增Agnes AI配置段 (AGNES_API_KEY, AGNES_BASE_URL等)
+  - 新增AI_PROVIDER统一配置 (agnes/mimo/mock/auto)
+  - 保留MiMo配置作为降级方案
+- 新增 `server/ai/tests/test_agnes_provider.py`
+  - 21个单元测试，覆盖率100%
+  - 测试初始化、环境变量、JSON解析、异常处理、请求格式验证
+
+#### 架构变更
+- LLMProvider抽象层保持不变
+- MimoClient完整保留，向后兼容
+- AIService新增Agnes分支（待后续任务修改）
+- 总测试数: 73 → 94 (+21)
+
+#### 向后兼容
+- `LLM_PROVIDER=mimo` 仍然工作
+- `LLM_PROVIDER=mock` 仍然工作
+- 现有测试全部通过
+
+---
+
 ## [0.9.0-alpha] - 2026-07-16
 
 ### Project Freeze - 项目冻结版本

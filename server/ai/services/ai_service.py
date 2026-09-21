@@ -14,8 +14,8 @@ from typing import Dict, Any, List, Optional
 # 导入日志
 from logger.logger import logger, log_timing
 
-# 导入LLM Provider
-from .mimo_client import MimoClient
+# 导入LLM Provider工厂
+from .provider_factory import ProviderFactory
 from .prompt_builder import PromptBuilder
 from .ai_validator import AIValidator
 from .ai_quality_checker import AIQualityChecker
@@ -28,15 +28,16 @@ class AIService:
     """
     AI内容生成服务
 
-    支持两种模式：
-    - mock: 本地随机生成
-    - mimo: 调用小米MiMo API
+    支持多种AI Provider：
+    - mock: 本地随机生成（默认）
+    - agnes: 调用Agnes AI (OpenAI兼容)
+    - mimo: 调用小米MiMo API (Anthropic兼容)
 
     环境变量：
-    - LLM_PROVIDER: mock / mimo
-    - MIMO_API_KEY: MiMo API Key
-    - MIMO_MODEL: 模型名称
-    - MIMO_ENDPOINT: API端点
+    - AI_PROVIDER: mock / agnes / mimo / auto (优先级最高)
+    - LLM_PROVIDER: mock / mimo (向后兼容)
+    - AGNES_API_KEY: Agnes API密钥
+    - MIMO_API_KEY: MiMo API密钥
     """
 
     def __init__(self):
@@ -46,8 +47,11 @@ class AIService:
         self.weapon_types = ["sword", "axe", "bow", "staff", "dagger"]
         self.rarities = ["common", "uncommon", "rare", "epic", "legendary"]
 
-        # 读取配置
-        self.provider_type = os.getenv("LLM_PROVIDER", "mock").lower()
+        # 读取配置（AI_PROVIDER优先，兼容旧LLM_PROVIDER）
+        self.provider_type = os.getenv(
+            "AI_PROVIDER",
+            os.getenv("LLM_PROVIDER", "mock")
+        ).lower()
 
         # 初始化LLM Provider
         self.llm_provider = None
@@ -57,17 +61,40 @@ class AIService:
         self.validator = AIValidator()
         self.quality_checker = AIQualityChecker()
 
-        if self.provider_type == "mimo":
-            self.llm_provider = MimoClient()
-            self.prompt_builder = PromptBuilder()
-
-            if self.llm_provider.is_available():
-                logger.info(f"AIService initialized with MiMo provider")
-                logger.info(f"MiMo config: {self.llm_provider.get_config()}")
+        # 通过工厂创建Provider
+        if self.provider_type != "mock":
+            self.llm_provider = ProviderFactory.create(self.provider_type)
+            if self.llm_provider and self.llm_provider.is_available():
+                self.prompt_builder = PromptBuilder()
+                provider_name = self.llm_provider.get_provider_name()
+                logger.info(f"AIService initialized with {provider_name} provider")
+                logger.info(f"Provider config: {self.llm_provider.get_config()}")
             else:
-                logger.warning("AIService: MiMo provider not available, will fallback to mock")
+                logger.warning(
+                    f"AIService: {self.provider_type} not available, will fallback to mock"
+                )
         else:
             logger.info("AIService initialized with Mock mode")
+
+    def _get_ai_mode(self) -> str:
+        """
+        获取当前AI模式的标识字符串
+
+        Returns:
+            动态获取的Provider名称或"mock"
+        """
+        if self.llm_provider:
+            return self.llm_provider.get_provider_name()
+        return "mock"
+
+    def _is_llm_mode(self) -> bool:
+        """
+        检查当前是否使用LLM模式
+
+        Returns:
+            True表示使用真实AI Provider
+        """
+        return self.llm_provider is not None
 
     @log_timing
     async def generate_floor(
@@ -105,7 +132,7 @@ class AIService:
                 result = self.validator.validate_floor_data(result)
                 result = self.quality_checker.check_floor_quality(result, player_level)
 
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
 
                 # 缓存结果
                 floor_cache.set_floor(floor_level, player_level, result)
@@ -120,7 +147,7 @@ class AIService:
                     result = await self._generate_floor_with_llm(floor_level, player_level, player_stats)
                     result = self.validator.validate_floor_data(result)
                     result = self.quality_checker.check_floor_quality(result, player_level)
-                    result["ai_mode"] = "mimo"
+                    result["ai_mode"] = self._get_ai_mode()
 
                     # 缓存结果
                     floor_cache.set_floor(floor_level, player_level, result)
@@ -132,7 +159,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_floor(floor_level, player_level)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
 
         # 缓存Mock结果（较短TTL）
         floor_cache.set_floor(floor_level, player_level, result)
@@ -178,7 +205,7 @@ class AIService:
                 result = self.validator.validate_room_content(result)
                 result = self.quality_checker.check_room_content_quality(result, player_level)
 
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
 
                 # 缓存结果
                 room_cache.set_room_content(room_id, room_type, floor_level, player_level, result)
@@ -193,7 +220,7 @@ class AIService:
                     result = await self._generate_room_with_llm(room_id, room_type, floor_level, player_level)
                     result = self.validator.validate_room_content(result)
                     result = self.quality_checker.check_room_content_quality(result, player_level)
-                    result["ai_mode"] = "mimo"
+                    result["ai_mode"] = self._get_ai_mode()
 
                     # 缓存结果
                     room_cache.set_room_content(room_id, room_type, floor_level, player_level, result)
@@ -205,7 +232,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_room_content(room_id, room_type, floor_level, player_level)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
 
         # 缓存Mock结果
         room_cache.set_room_content(room_id, room_type, floor_level, player_level, result)
@@ -251,7 +278,7 @@ class AIService:
                 result = self.validator.validate_monster_data(result)
                 result = self.quality_checker.check_monster_quality(result, player_level)
 
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
 
                 # 缓存结果
                 monster_cache.set_monsters(room_type, floor_level, player_level, monster_count, result)
@@ -266,7 +293,7 @@ class AIService:
                     result = await self._generate_monsters_with_llm(room_type, floor_level, player_level, monster_count)
                     result = self.validator.validate_monster_data(result)
                     result = self.quality_checker.check_monster_quality(result, player_level)
-                    result["ai_mode"] = "mimo"
+                    result["ai_mode"] = self._get_ai_mode()
 
                     # 缓存结果
                     monster_cache.set_monsters(room_type, floor_level, player_level, monster_count, result)
@@ -278,7 +305,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_monsters(room_type, floor_level, player_level, monster_count)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
 
         # 缓存Mock结果
         monster_cache.set_monsters(room_type, floor_level, player_level, monster_count, result)
@@ -322,7 +349,7 @@ class AIService:
                 result = self.validator.validate_weapon_data(result)
                 result = self.quality_checker.check_weapon_quality(result, player_level)
 
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
 
                 # 缓存结果
                 weapon_cache.set_weapon(player_level, rarity, weapon_type, result)
@@ -337,7 +364,7 @@ class AIService:
                     result = await self._generate_weapon_with_llm(player_level, rarity, weapon_type)
                     result = self.validator.validate_weapon_data(result)
                     result = self.quality_checker.check_weapon_quality(result, player_level)
-                    result["ai_mode"] = "mimo"
+                    result["ai_mode"] = self._get_ai_mode()
 
                     # 缓存结果
                     weapon_cache.set_weapon(player_level, rarity, weapon_type, result)
@@ -349,7 +376,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_weapon(player_level, rarity, weapon_type)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
 
         # 缓存Mock结果
         weapon_cache.set_weapon(player_level, rarity, weapon_type, result)
@@ -362,7 +389,7 @@ class AIService:
     def _should_use_llm(self) -> bool:
         """判断是否应该使用LLM"""
         return (
-            self.provider_type == "mimo"
+            self.llm_provider is not None
             and self.llm_provider is not None
             and self.llm_provider.is_available()
             and self.prompt_builder is not None
@@ -825,7 +852,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_event_with_llm(room_type, player_level, context)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Event generated by MiMo: {result.get('title', 'unknown')}")
                 return result
             except Exception as e:
@@ -833,7 +860,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_event(room_type, player_level)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Event generated by Mock: {result.get('title', 'unknown')}")
         return result
 
@@ -861,7 +888,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_dialogue_with_llm(npc_type, room_environment, player_state)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Dialogue generated by MiMo")
                 return result
             except Exception as e:
@@ -869,7 +896,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_dialogue(npc_type)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Dialogue generated by Mock")
         return result
 
@@ -1000,7 +1027,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_upgrade_with_llm(player_level, player_stats)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Upgrade options generated by MiMo")
                 return result
             except Exception as e:
@@ -1008,7 +1035,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_upgrade(player_level)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Upgrade options generated by Mock")
         return result
 
@@ -1119,7 +1146,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_difficulty_with_llm(context)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Difficulty adjustment generated by MiMo")
                 return result
             except Exception as e:
@@ -1127,7 +1154,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_difficulty(context)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Difficulty adjustment generated by Mock")
         return result
 
@@ -1211,7 +1238,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_room_strategy_with_llm(context)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Room strategy generated by MiMo")
                 return result
             except Exception as e:
@@ -1219,7 +1246,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_room_strategy(context)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Room strategy generated by Mock")
         return result
 
@@ -1298,7 +1325,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_npc_memory_with_llm(npc_id, context)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"NPC memory response generated by MiMo")
                 return result
             except Exception as e:
@@ -1306,7 +1333,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_npc_memory(npc_id, context)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"NPC memory response generated by Mock")
         return result
 
@@ -1383,7 +1410,7 @@ class AIService:
         if self._should_use_llm():
             try:
                 result = await self._generate_context_event_with_llm(context)
-                result["ai_mode"] = "mimo"
+                result["ai_mode"] = self._get_ai_mode()
                 logger.info(f"Context event generated by MiMo")
                 return result
             except Exception as e:
@@ -1391,7 +1418,7 @@ class AIService:
 
         # Fallback到Mock
         result = self._mock_generate_context_event(context)
-        result["ai_mode"] = "mock_fallback" if self.provider_type == "mimo" else "mock"
+        result["ai_mode"] = "mock_fallback" if self._is_llm_mode() else "mock"
         logger.info(f"Context event generated by Mock")
         return result
 
