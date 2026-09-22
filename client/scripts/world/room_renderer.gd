@@ -263,17 +263,17 @@ func _create_combat_room_platforms(parent: Node2D) -> void:
 
 ## 精英房间: 复杂布局
 func _create_elite_room_platforms(parent: Node2D) -> void:
-	# 多层交错平台
-	var p1 = _create_platform(Vector2(-250, 20), 180)
+	# 多层交错平台 (max gap 45px)
+	var p1 = _create_platform(Vector2(-250, 15), 180)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(0, -15), 150)
+	var p2 = _create_platform(Vector2(0, -10), 150)
 	parent.add_child(p2)
 
-	var p3 = _create_platform(Vector2(250, 25), 180)
+	var p3 = _create_platform(Vector2(250, 15), 180)
 	parent.add_child(p3)
 
-	var p4 = _create_platform(Vector2(0, -35), 200)
+	var p4 = _create_platform(Vector2(0, -30), 200)
 	parent.add_child(p4)
 
 
