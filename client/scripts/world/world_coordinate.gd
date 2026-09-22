@@ -74,11 +74,12 @@ static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int =
 	return room_center + Vector2(x_offset, y_pos)
 
 
-## 获取奖励生成位置(横版: 地面上)
-## Phase 17.7.3: 返回世界坐标，奖励浮在平台上方
+## 获取奖励生成位置(横版: 地面上，玩家可达范围)
+## Phase 24: 奖励必须在玩家跳跃可达范围内生成
 const REWARD_FLOAT_OFFSET: int = 40
 static func reward_spawn_pos(room_center: Vector2) -> Vector2:
-	var x = randf_range(-200, 200)
+	# 奖励生成在地面附近，确保玩家可以走到拾取
+	var x = randf_range(-200, 200)  # 水平范围缩小，确保在平台附近
 	var y = GROUND_Y - REWARD_FLOAT_OFFSET  # 在地面上方40像素
 	# 返回世界坐标
 	return room_center + Vector2(x, y)

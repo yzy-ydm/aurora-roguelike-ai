@@ -136,20 +136,22 @@ func heal(amount: int) -> void:
 
 
 ## 获得经验 (Phase 9.4.1, Phase 9.4.2 增加经验加成)
-## 返回是否升级
+## 返回是否升级（支持连续升级）
 func gain_exp(amount: int) -> bool:
 	# 应用经验加成
 	var actual_amount = int(amount * (1.0 + exp_rate_bonus))
 	experience += actual_amount
 	print("[PlayerStats] EXP +", actual_amount, " (base:", amount, " bonus:", exp_rate_bonus, ") -> ", experience, "/", experience_to_next)
 
-	if experience >= experience_to_next:
+	# Phase 24: 支持连续升级（一次获得大量EXP可能触发多次升级）
+	var leveled = false
+	while experience >= experience_to_next:
 		_level_up()
-		return true
-	return false
+		leveled = true
+	return leveled
 
 
-## 升级处理 (Phase 9.4.1)
+## 升级处理 (Phase 9.4.1, Phase 24: 支持连续升级信号)
 func _level_up() -> void:
 	level += 1
 	experience -= experience_to_next
@@ -162,6 +164,12 @@ func _level_up() -> void:
 	current_health = max_health  # 升级后满血
 
 	print("[PlayerStats] LEVEL UP! Lv", level, " ATK:", attack, " HP:", max_health)
+	# Phase 24: 每次升级都发出信号，允许处理连续升级
+	level_up_signal.emit(level)
+
+
+## ==================== 信号 ====================
+signal level_up_signal(new_level: int)
 
 
 ## 计算升级所需经验 (Phase 9.4.1)

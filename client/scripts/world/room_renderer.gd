@@ -26,6 +26,13 @@ const GROUND_Y: int = HALF_HEIGHT - GROUND_HEIGHT / 2
 ## 平台配置
 const PLATFORM_THICKNESS: int = 16
 
+## Phase 24: 玩家跳跃可达性约束
+## 根据 player_controller.gd 的 GRAVITY=980, JUMP_FORCE=-400 计算:
+##   最大垂直高度 = JUMP_FORCE² / (2 * GRAVITY) ≈ 65px
+##   最大水平距离 (0.4s内) = MOVE_SPEED * 0.4 ≈ 80px
+const MAX_JUMP_HEIGHT: float = 70.0      # 玩家最大跳跃高度(px)
+const MAX_JUMP_DISTANCE: float = 120.0  # 玩家最大水平跨越(px)
+
 ## ==================== 引用 ====================
 
 ## 房间容器
@@ -240,67 +247,124 @@ func _create_platform(pos: Vector2, width: int) -> StaticBody2D:
 
 ## ==================== 房间类型布局 ====================
 
+## Phase 24: 验证平台间距是否在玩家可达范围内
+## 返回 true 表示平台间距合法
+func _is_platform_reachable(from_y: float, to_y: float, from_x: float, to_x: float) -> bool:
+	var dy = abs(from_y - to_y)
+	var dx = abs(from_x - to_x)
+	# 垂直高度必须在最大跳跃高度内
+	if dy > MAX_JUMP_HEIGHT:
+		return false
+	# 水平距离必须在最大水平跨越内
+	if dx > MAX_JUMP_DISTANCE:
+		return false
+	return true
+
+
+## Phase 24: 验证平台与地面的可达性
+## ground_y 是地面Y坐标，platform_pos是平台相对房间中心的偏移
+func _is_platform_to_ground_reachable(platform_pos: Vector2) -> bool:
+	# 玩家从地面起跳，地面Y = GROUND_Y (相对房间中心)
+	return _is_platform_reachable(0.0, GROUND_Y - platform_pos.y, 0.0, platform_pos.x)
+
+
+## Phase 24: 验证平台之间的可达性
+func _are_platforms_reachable(p1_pos: Vector2, p2_pos: Vector2) -> bool:
+	return _is_platform_reachable(p1_pos.y, p2_pos.y, p1_pos.x, p2_pos.x)
+
+
 ## 起始房间: 简单地面
 func _create_start_room_platforms(parent: Node2D) -> void:
 	# 无额外平台，玩家出生在地面
 	pass
 
 
-## 战斗房间: 多层平台
+## Phase 24: 战斗房间 - 约束算法生成可达平台
 func _create_combat_room_platforms(parent: Node2D) -> void:
-	# 低平台 (所有高度差<=40px)
-	var p1 = _create_platform(Vector2(-200, 30), 200)
-	parent.add_child(p1)
+	# 所有平台必须在地面以上MAX_JUMP_HEIGHT内，水平距离在MAX_JUMP_DISTANCE内
+	var platforms: Array[Vector2] = []
 
-	# 中平台
-	var p2 = _create_platform(Vector2(150, -10), 250)
-	parent.add_child(p2)
+	# 从地面向上生成，每层高度差 <= MAX_JUMP_HEIGHT
+	var floor_y = GROUND_Y
+	var attempts = 0
+	while platforms.size() < 3 and attempts < 50:
+		attempts += 1
+		var px = randf_range(-300, 300)
+		var py = floor_y - randf_range(20, float(MAX_JUMP_HEIGHT) * 0.8)
+		var width = randf_range(150, 250)
+		platforms.append(Vector2(px, py))
+		floor_y = py  # 下一层从这个平台起跳
 
-	# 高平台
-	var p3 = _create_platform(Vector2(-100, 35), 180)
-	parent.add_child(p3)
+	# 确保所有平台可相互到达（简化：相邻平台间距约束）
+	for i in range(platforms.size()):
+		if i == 0:
+			# 第一个平台必须能到达地面
+			if not _is_platform_to_ground_reachable(platforms[i]):
+				platforms[i].y = GROUND_Y - randf_range(20, float(MAX_JUMP_HEIGHT) * 0.5)
+		else:
+			# 与前一个平台检查可达性
+			if not _are_platforms_reachable(platforms[i - 1], platforms[i]):
+				# 调整到可达范围
+				var prev = platforms[i - 1]
+				platforms[i].y = clampf(platforms[i].y, prev.y - float(MAX_JUMP_HEIGHT), prev.y + float(MAX_JUMP_HEIGHT))
+				platforms[i].x = clampf(platforms[i].x, prev.x - float(MAX_JUMP_DISTANCE), prev.x + float(MAX_JUMP_DISTANCE))
+
+	for p in platforms:
+		parent.add_child(_create_platform(p, 200))
 
 
-## 精英房间: 复杂布局
+## Phase 24: 精英房间 - 约束算法生成
 func _create_elite_room_platforms(parent: Node2D) -> void:
-	# 多层交错平台 (max gap 45px)
-	var p1 = _create_platform(Vector2(-250, 15), 180)
-	parent.add_child(p1)
+	var platforms: Array[Vector2] = []
+	var floor_y = GROUND_Y
+	for i in range(4):
+		var px = randf_range(-250, 250)
+		var py = floor_y - randf_range(15, float(MAX_JUMP_HEIGHT) * 0.7)
+		# 钳制到可达范围
+		if platforms.size() > 0:
+			var prev = platforms[-1]
+			py = clampf(py, prev.y - float(MAX_JUMP_HEIGHT), prev.y + float(MAX_JUMP_HEIGHT))
+			px = clampf(px, prev.x - float(MAX_JUMP_DISTANCE), prev.x + float(MAX_JUMP_DISTANCE))
+		platforms.append(Vector2(px, py))
+		floor_y = py
 
-	var p2 = _create_platform(Vector2(0, -10), 150)
-	parent.add_child(p2)
-
-	var p3 = _create_platform(Vector2(250, 15), 180)
-	parent.add_child(p3)
-
-	var p4 = _create_platform(Vector2(0, -30), 200)
-	parent.add_child(p4)
+	for i in range(platforms.size()):
+		var w = randf_range(150, 200)
+		parent.add_child(_create_platform(platforms[i], w))
 
 
-## Boss房间: 大型竞技场
+## Phase 24: Boss房间 - 约束算法生成
 func _create_boss_room_platforms(parent: Node2D) -> void:
-	# 两侧高台
-	var p1 = _create_platform(Vector2(-350, 20), 200)
-	parent.add_child(p1)
+	# 两侧高台必须在玩家跳跃范围内
+	var left_x = randf_range(-400, -200)
+	var left_y = GROUND_Y - randf_range(20, float(MAX_JUMP_HEIGHT) * 0.6)
+	if not _is_platform_to_ground_reachable(Vector2(left_x, left_y)):
+		left_y = GROUND_Y - randf_range(10, float(MAX_JUMP_HEIGHT) * 0.4)
+	parent.add_child(_create_platform(Vector2(left_x, left_y), 200))
 
-	var p2 = _create_platform(Vector2(350, 20), 200)
-	parent.add_child(p2)
+	var right_x = randf_range(200, 400)
+	var right_y = GROUND_Y - randf_range(20, float(MAX_JUMP_HEIGHT) * 0.6)
+	if not _is_platform_to_ground_reachable(Vector2(right_x, right_y)):
+		right_y = GROUND_Y - randf_range(10, float(MAX_JUMP_HEIGHT) * 0.4)
+	parent.add_child(_create_platform(Vector2(right_x, right_y), 200))
 
 	# 中央平台
-	var p3 = _create_platform(Vector2(0, -25), 300)
-	parent.add_child(p3)
+	var center_y = GROUND_Y - randf_range(10, float(MAX_JUMP_HEIGHT) * 0.5)
+	parent.add_child(_create_platform(Vector2(0, center_y), 300))
 
 
-## 奖励房间: 宝箱平台
+## Phase 24: 奖励房间 - 约束算法生成
 func _create_reward_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 25), 300)
-	parent.add_child(p1)
+	var center_y = GROUND_Y - randf_range(10, float(MAX_JUMP_HEIGHT) * 0.5)
+	parent.add_child(_create_platform(Vector2(0, center_y), 300))
 
-	var p2 = _create_platform(Vector2(-200, -15), 150)
-	parent.add_child(p2)
-
-	var p3 = _create_platform(Vector2(200, -15), 150)
-	parent.add_child(p3)
+	for side in [-1, 1]:
+		var px = side * randf_range(150, 250)
+		var py = center_y - randf_range(10, float(MAX_JUMP_HEIGHT) * 0.5)
+		# 确保可达
+		if not _are_platforms_reachable(Vector2(0, center_y), Vector2(px, py)):
+			py = clampf(py, center_y - float(MAX_JUMP_HEIGHT), center_y + float(MAX_JUMP_HEIGHT))
+		parent.add_child(_create_platform(Vector2(px, py), 150))
 
 
 ## 商店房间: 平整布局

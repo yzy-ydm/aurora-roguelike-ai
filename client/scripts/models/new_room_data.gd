@@ -37,6 +37,10 @@ var connections: Array[int] = []
 var visited: bool = false
 var completed: bool = false
 
+## Phase 24: 房间进入计数，防止重复进入
+## enter_count >= 2 表示房间已完成所有流程（进入→清除→离开）
+var enter_count: int = 0
+
 ## 布局(像素坐标)
 var position: Vector2 = Vector2.ZERO   # 房间中心在世界中的像素坐标
 var width: int = 640                    # 房间宽度(像素), 默认640=20*32

@@ -105,6 +105,8 @@ func complete_current_room() -> void:
 	var current = get_current_room()
 	if current:
 		current.mark_completed()
+		# Phase 24: 标记房间进入完成（允许下次进入时清除状态）
+		current.enter_count = 2
 
 
 ## 检查楼层是否完成(Boss房间清除)

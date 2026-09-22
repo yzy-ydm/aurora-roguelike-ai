@@ -167,15 +167,21 @@ func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], 
 
 
 ## Phase 23: 钳制怪物属性到合理范围
-## 普通怪HP上限: 800, 攻击上限: 50, 防御上限: 20
-## 注意: MonsterData 无 max_health 字段，MonsterEntity 自己管理健康值
+## 使用 MonsterBalanceConfig 统一管理数值范围
 func _apply_monster_clamp(monster: MonsterData, level: int) -> void:
 	if not monster:
 		return
-	var hp_max = 800 + level * 50  # 最高不超过800+楼层*50
-	monster.health = clampi(monster.health, 10, hp_max)
-	monster.attack = clampi(monster.attack, 1, 50)
-	monster.defense = clampi(monster.defense, 0, 20)
+	# 根据怪物类型确定基础范围（从name/type推断）
+	var monster_type: String = "normal"
+	if monster.type == "elite" or monster.name.to_lower().contains("elite"):
+		monster_type = "elite"
+	elif monster.type == "boss" or monster.name.to_lower().contains("boss"):
+		monster_type = "boss"
+
+	var stats = MonsterBalanceConfig.generate_monster_stats(monster_type, level)
+	monster.health = stats["health"]
+	monster.attack = stats["attack"]
+	monster.defense = stats["defense"]
 
 
 ## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）

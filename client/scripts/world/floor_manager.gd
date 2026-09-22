@@ -183,6 +183,11 @@ func enter_room(room_id: int) -> bool:
 		print("[FloorManager] Error: Room not found: ", room_id)
 		return false
 
+	# Phase 24: 防止重复进入已完成的房间
+	if room.enter_count >= 2:
+		print("[FloorManager] Room ", room_id, " already entered/completed, skipping")
+		return false
+
 	# 退出当前房间
 	var old_room = _current_floor.get_current_room()
 	if old_room:
@@ -190,6 +195,9 @@ func enter_room(room_id: int) -> bool:
 
 	# 设置新房间为当前房间
 	_current_floor.set_current_room(room_id)
+
+	# Phase 24: 增加进入计数
+	room.enter_count += 1
 
 	# 生成房间内容(如果没有)
 	_ensure_room_content(room)
@@ -200,7 +208,7 @@ func enter_room(room_id: int) -> bool:
 	# 发送信号
 	room_entered.emit(room)
 
-	print("[FloorManager] Entered room ", room_id, " (", room.get_type_string(), ")")
+	print("[FloorManager] Entered room ", room_id, " (", room.get_type_string(), ") enter_count=", room.enter_count)
 
 	# 后台请求AI增强内容(不阻塞)
 	_request_ai_room_content(room)

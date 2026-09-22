@@ -135,8 +135,10 @@ func add_experience(amount: int) -> void:
 	var old_level = s.level
 	var old_exp = s.experience
 
-	# PlayerStats.gain_exp() 内部处理经验加成和升级判定
+	# Phase 24: 记录升级次数（可能连续升级）
+	var level_before = s.level
 	var leveled = s.gain_exp(amount)
+	var level_after = s.level
 
 	# 同步回_player_data
 	_player._player_data = s.to_dict()
@@ -144,11 +146,14 @@ func add_experience(amount: int) -> void:
 	print("[UpgradeManager] Gained EXP (", s.experience, "/", s.experience_to_next, ")")
 	exp_gained.emit(amount, s.experience, s.experience_to_next)
 
+	# Phase 24: 处理所有升级（包括连续升级）
 	if leveled:
-		print("[UpgradeManager] Level Up! Now level ", s.level)
-		level_up.emit(s.level)
+		var levels_gained = level_after - level_before
+		print("[UpgradeManager] Level Up! ", level_before, " -> ", level_after, " (gained ", levels_gained, " levels)")
+		# 发出最终等级信号
+		level_up.emit(level_after)
 
-		# 生成强化选项
+		# 生成强化选项（只生成一次，基于最终等级）
 		var options = await _generate_upgrade_options(3)
 		upgrade_selection_required.emit(options)
 
