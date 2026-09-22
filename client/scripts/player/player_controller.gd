@@ -408,6 +408,16 @@ func _add_bullet_container() -> void:
 
 ## 加载武器数据
 func _load_weapon_data() -> void:
+	# 检查是否有存档的武器ID
+	var saved_weapon_id = GameStateManager.get_extended_save_data().get("weapon_id", -1)
+	if saved_weapon_id > 0:
+		var saved_weapon_data = RewardData.create_weapon_data_from_def(saved_weapon_id)
+		if saved_weapon_data:
+			var weapon_instance = WeaponInstance.create(saved_weapon_data)
+			_weapon.set_weapon_instance(weapon_instance)
+			print("[Player] Restored weapon: ", saved_weapon_data.name, " Lv", weapon_instance.get_level())
+			return
+
 	# 从ResourceService获取武器数据
 	var weapons = ResourceService.get_weapons()
 

@@ -270,6 +270,8 @@ func set_current_save(save_data: Dictionary, slot: int) -> void:
 	# 恢复扩展存档数据
 	if save_data.has("weapon_level"):
 		_extended_save_data["weapon_level"] = save_data["weapon_level"]
+	if save_data.has("weapon_id"):
+		_extended_save_data["weapon_id"] = save_data["weapon_id"]
 	if save_data.has("passive_items"):
 		_extended_save_data["passive_items"] = save_data["passive_items"]
 	if save_data.has("upgrade_history"):
