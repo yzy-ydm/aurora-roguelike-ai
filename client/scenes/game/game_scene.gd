@@ -593,8 +593,6 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 		var monster_count = _room_spawner.spawn_monsters(content, room.position)
 		if monster_count > 0:
 			_combat_manager.start_combat(content)
-		else:
-			_create_room_exits()
 	# 非战斗房间根据类型分发
 	match room.room_type:
 		NewRoomData.RoomType.REWARD:
