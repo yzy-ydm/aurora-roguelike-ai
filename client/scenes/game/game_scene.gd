@@ -860,9 +860,9 @@ func _generate_random_event() -> Dictionary:
 ## 显示事件选择面板
 func _show_event_panel(event: Dictionary, room: NewRoomData) -> void:
 	# 禁用玩家移动
-	var was_physics = player.is_processing_physics() if player else false
+	var was_physics = player.is_physics_processing() if player else false
 	if player:
-		player.set_processing_physics(false)
+		player.set_physics_processing(false)
 		player.set_process_input(false)
 
 	hud.set_status(event.get("title", "事件"))
@@ -907,7 +907,7 @@ func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData
 
 	# 恢复玩家控制
 	if player:
-		player.set_processing_physics(was_physics)
+		player.set_physics_processing(was_physics)
 		player.set_process_input(was_physics)
 
 	hud.set_status("事件完成! " + choice.get("text", ""))
