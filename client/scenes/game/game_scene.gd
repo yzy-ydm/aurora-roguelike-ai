@@ -873,11 +873,11 @@ func _show_event_panel(event: Dictionary, room: NewRoomData) -> void:
 	print("[Event] Choices: ", choices.size())
 
 	# 简化版：自动选择第一个选项（完整实现需要UI面板）
-	_apply_event_choice(event, 0, room)
+	_apply_event_choice(event, 0, room, was_physics)
 
 
 ## 应用事件选择
-func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData) -> void:
+func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData, was_physics: bool = true) -> void:
 	var choices = event.get("choices", [])
 	if choice_index >= choices.size():
 		choice_index = 0
