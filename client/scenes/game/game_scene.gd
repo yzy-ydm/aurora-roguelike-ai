@@ -783,9 +783,10 @@ func _handle_reward_room(content: RoomContentData, room_pos: Vector2) -> void:
 	# 生成奖励物品
 	if _room_spawner:
 		_room_spawner.spawn_rewards(content, room_pos)
-		# 断开旧连接避免重复触发
+		# 断开旧连接避免重复触发（安全模式）
 		if _room_spawner.has_signal("all_rewards_collected"):
-			_room_spawner.all_rewards_collected.disconnect(_on_reward_room_cleared)
+			if _room_spawner.all_rewards_collected.is_connected(_on_reward_room_cleared):
+				_room_spawner.all_rewards_collected.disconnect(_on_reward_room_cleared)
 			_room_spawner.all_rewards_collected.connect(_on_reward_room_cleared)
 
 
@@ -933,8 +934,9 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 	print("[GameScene] Treasure room: spawned ", reward_count, " rewards")
 
 	# 监听奖励收集（断开旧连接避免重复触发）
-	if _room_spawner:
-		_room_spawner.all_rewards_collected.disconnect(_on_treasure_room_cleared)
+	if _room_spawner and _room_spawner.has_signal("all_rewards_collected"):
+		if _room_spawner.all_rewards_collected.is_connected(_on_treasure_room_cleared):
+			_room_spawner.all_rewards_collected.disconnect(_on_treasure_room_cleared)
 		_room_spawner.all_rewards_collected.connect(_on_treasure_room_cleared)
 
 
