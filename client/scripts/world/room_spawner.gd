@@ -89,9 +89,8 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 			var spawn_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count)
 			var entity = _spawn_single_monster(monster_data, spawn_pos)
 			if entity:
-				# 应用等级修正
-				if content.monster_level > 1:
-					_apply_level_modifier(entity, content.monster_level)
+				# MONSTER_BALANCE_ENABLED=true: 服务端已处理楼层缩放
+				# 不需要客户端二次倍率修正，避免双重放大
 				_current_monsters.append(entity)
 
 	print("[RoomSpawner] Spawned ", _current_monsters.size(), " monsters")
@@ -141,6 +140,11 @@ func _spawn_single_monster(monster_data: MonsterData, pos: Vector2) -> MonsterEn
 	return entity
 
 
+## 怪物属性是否由服务端 MonsterBalanceConfig 统一管理
+## 为 true 时禁用客户端二次倍率修正
+const MONSTER_BALANCE_ENABLED: bool = true
+
+
 ## 根据配置获取怪物数据
 func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], level: int) -> MonsterData:
 	if monsters.size() == 0:
@@ -157,9 +161,10 @@ func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], 
 	return monsters[randi() % monsters.size()]
 
 
-## 应用等级修正
+## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）
+## 保留此方法供调试和降级场景使用
 func _apply_level_modifier(entity: MonsterEntity, level: int) -> void:
-	if level <= 1:
+	if not MONSTER_BALANCE_ENABLED or level <= 1:
 		return
 	var multiplier = 1.0 + (level - 1) * 0.3
 	entity.health = int(entity.health * multiplier)

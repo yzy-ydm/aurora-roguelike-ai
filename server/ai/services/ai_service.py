@@ -16,6 +16,7 @@ from logger.logger import logger, log_timing
 
 # 导入LLM Provider工厂
 from .provider_factory import ProviderFactory
+from .monster_balance import MonsterBalanceConfig
 from .prompt_builder import PromptBuilder
 from .ai_validator import AIValidator
 from .ai_quality_checker import AIQualityChecker
@@ -202,7 +203,7 @@ class AIService:
                 result = await self._generate_room_with_llm(room_id, room_type, floor_level, player_level)
 
                 # 验证和质量检查
-                result = self.validator.validate_room_content(result)
+                result = self.validator.validate_room_content(result, floor_level)
                 result = self.quality_checker.check_room_content_quality(result, player_level)
 
                 result["ai_mode"] = self._get_ai_mode()
@@ -218,7 +219,7 @@ class AIService:
                 # 重试一次
                 try:
                     result = await self._generate_room_with_llm(room_id, room_type, floor_level, player_level)
-                    result = self.validator.validate_room_content(result)
+                    result = self.validator.validate_room_content(result, floor_level)
                     result = self.quality_checker.check_room_content_quality(result, player_level)
                     result["ai_mode"] = self._get_ai_mode()
 
@@ -638,61 +639,68 @@ class AIService:
         floor_level: int,
         player_level: int
     ) -> List[Dict[str, Any]]:
-        """生成怪物配置"""
+        """生成怪物配置 - 使用MonsterBalanceConfig确保数值平衡"""
         monsters = []
 
-        # 动态计算怪物属性（基于楼层和玩家等级）
-        base_hp = 30 + floor_level * 15
-        base_attack = 5 + floor_level * 2
-        base_defense = 2 + floor_level
+        # 确定怪物类型（用于平衡配置）
+        if room_type == "elite":
+            monster_type = "elite"
+        elif room_type == "boss":
+            monster_type = "boss"
+        else:
+            monster_type = "normal"
+
+        # 使用平衡配置生成属性
+        config = MonsterBalanceConfig.get_config(monster_type, floor_level)
 
         if room_type == "combat":
             count = random.randint(2, 4)
             monsters.append({
                 "id": random.choice(self.monster_types),
                 "count": count,
-                "health": base_hp + random.randint(-10, 10),
-                "attack": base_attack + random.randint(-2, 2),
-                "defense": base_defense + random.randint(0, 1),
+                "health": config["health"],
+                "attack": config["attack"],
+                "defense": config["defense"],
                 "level": max(1, player_level + random.randint(-1, 1))
             })
             if floor_level > 2:
+                # 第二只怪物品稍强
+                enhanced_config = MonsterBalanceConfig.get_config("elite", floor_level)
                 monsters.append({
                     "id": random.choice(self.monster_types),
                     "count": random.randint(1, 2),
-                    "health": int(base_hp * 1.2),
-                    "attack": int(base_attack * 1.1),
-                    "defense": base_defense,
+                    "health": int(config["health"] * 1.2),
+                    "attack": int(config["attack"] * 1.1),
+                    "defense": config["defense"],
                     "level": max(1, player_level + 1)
                 })
         elif room_type == "elite":
-            elite_hp = int(base_hp * 2.0)
-            elite_attack = int(base_attack * 1.5)
-            elite_defense = int(base_defense * 1.5)
+            elite_config = MonsterBalanceConfig.get_config("elite", floor_level)
             monsters.append({
                 "id": "elite_goblin",
                 "count": random.randint(1, 2),
-                "health": elite_hp,
-                "attack": elite_attack,
-                "defense": elite_defense,
+                "health": elite_config["health"],
+                "attack": elite_config["attack"],
+                "defense": elite_config["defense"],
                 "level": player_level + 1
             })
+            # 精英房间还有普通怪辅助
             monsters.append({
                 "id": random.choice(self.monster_types),
                 "count": random.randint(1, 3),
-                "health": int(base_hp * 1.3),
-                "attack": int(base_attack * 1.2),
-                "defense": int(base_defense * 1.2),
-                "level": max(1, player_level + 1)
+                "health": config["health"],
+                "attack": config["attack"],
+                "defense": config["defense"],
+                "level": max(1, player_level)
             })
         elif room_type == "treasure":
             if random.random() < 0.5:
                 monsters.append({
                     "id": random.choice(self.monster_types),
                     "count": random.randint(1, 2),
-                    "health": base_hp,
-                    "attack": base_attack,
-                    "defense": base_defense,
+                    "health": config["health"],
+                    "attack": config["attack"],
+                    "defense": config["defense"],
                     "level": player_level
                 })
         elif room_type == "event":
@@ -700,9 +708,9 @@ class AIService:
                 monsters.append({
                     "id": random.choice(self.monster_types),
                     "count": random.randint(1, 2),
-                    "health": base_hp,
-                    "attack": base_attack,
-                    "defense": base_defense,
+                    "health": config["health"],
+                    "attack": config["attack"],
+                    "defense": config["defense"],
                     "level": player_level
                 })
         return monsters

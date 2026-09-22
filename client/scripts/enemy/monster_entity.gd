@@ -14,10 +14,12 @@ var _monster_node: CharacterBody2D = null
 var _monster_data: MonsterData = null
 
 ## 战斗属性
-var health: int = 100
-var max_health: int = 100
-var attack: int = 10
-var defense: int = 5
+## 默认值与 MonsterBalanceConfig.NORMAL (floor=1) 对齐
+## HP: 40-80, ATK: 5-10, DEF: 0-3
+var health: int = 50
+var max_health: int = 50
+var attack: int = 7
+var defense: int = 1
 var speed: float = 100.0
 
 ## AI属性
@@ -185,9 +187,9 @@ func to_dict() -> Dictionary:
 ## 从字典加载
 func from_dict(data: Dictionary) -> void:
 	super.from_dict(data)
-	health = data.get("health", 100)
-	max_health = data.get("max_health", 100)
-	attack = data.get("attack", 10)
-	defense = data.get("defense", 5)
+	health = data.get("health", 50)
+	max_health = data.get("max_health", 50)
+	attack = data.get("attack", 7)
+	defense = data.get("defense", 1)
 	speed = data.get("speed", 100.0)
 	is_dead = data.get("is_dead", false)

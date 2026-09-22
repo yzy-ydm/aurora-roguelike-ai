@@ -82,9 +82,8 @@ func _setup_display() -> void:
 
 	# 设置血条
 	if health_bar:
-		health_bar.max_value = 100
-		health_bar.value = 100
 		health_bar.visible = true
+		# 初始值在 set_monster_entity 中由 _update_display() 覆盖
 
 
 ## 设置AI

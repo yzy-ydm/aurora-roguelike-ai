@@ -636,9 +636,12 @@ func _create_boss_data_for_room(room: NewRoomData) -> BossData:
 	boss_data.id = "boss_floor_" + str(floor_level)
 	boss_data.name = _get_boss_name(floor_level)
 	boss_data.description = "守护本层的强大Boss"
-	boss_data.max_health = 300 + floor_level * 200
-	boss_data.attack = 15 + floor_level * 10
-	boss_data.defense = 5 + floor_level * 5
+	# 修正Boss HP范围：500-800（符合MonsterBalanceConfig）
+	boss_data.max_health = 400 + floor_level * 80  # Level 1: 480, Level 5: 800
+	# 修正Boss攻击范围：20-35
+	boss_data.attack = 15 + floor_level * 3      # Level 1: 18, Level 5: 30
+	# 修正Boss防御范围：5-15
+	boss_data.defense = 3 + floor_level * 2      # Level 1: 5, Level 5: 13
 	# Phase 9.3: Boss移动速度降低至60%，避免贴脸持续伤害
 	boss_data.speed = (80.0 + floor_level * 10) * 0.6
 	boss_data.attack_cooldown = 1.5  # 攻击间隔1.5秒

@@ -9,6 +9,7 @@ import json
 from typing import Dict, Any, List, Optional
 
 from logger.logger import logger
+from services.monster_balance import MonsterBalanceConfig
 
 
 class AIValidator:
@@ -57,13 +58,13 @@ class AIValidator:
     }
 
     # ==================== 数值范围常量 ====================
-    # 怪物属性范围（防止AI生成过高/过低的数值）
+    # 基础安全阈值（绝对上限，永不突破）
     MONSTER_HP_MIN = 10
-    MONSTER_HP_MAX = 500      # 合理上限：防止HP过高
+    MONSTER_HP_MAX = 1000     # 绝对安全上限：防止极端异常数据
     MONSTER_ATTACK_MIN = 1
-    MONSTER_ATTACK_MAX = 50   # 合理上限：防止攻击力过高
+    MONSTER_ATTACK_MAX = 100  # 绝对安全上限
     MONSTER_DEFENSE_MIN = 0
-    MONSTER_DEFENSE_MAX = 30  # 合理上限：防止防御力过高
+    MONSTER_DEFENSE_MAX = 50  # 绝对安全上限
 
     # 房间类型枚举
     VALID_ROOM_TYPES = {
@@ -122,12 +123,13 @@ class AIValidator:
         logger.debug(f"Floor data validated: {data['room_count']} rooms")
         return data
 
-    def validate_room_content(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_room_content(self, data: Dict[str, Any], floor_level: int = 1) -> Dict[str, Any]:
         """
         验证房间内容数据
 
         Args:
             data: AI返回的房间内容数据
+            floor_level: 楼层级别（用于动态数值校验）
 
         Returns:
             验证后的数据
@@ -146,10 +148,15 @@ class AIValidator:
         if not isinstance(data.get("room_type"), str):
             data["room_type"] = "combat"
 
-        # 验证monsters列表
+        # 验证monsters列表并应用楼层感知校验
         monsters = data.get("monsters", [])
-        if not isinstance(monsters, list):
-            data["monsters"] = []
+        if isinstance(monsters, list):
+            validated_monsters = []
+            for monster in monsters:
+                if isinstance(monster, dict):
+                    monster = self._validate_single_monster(monster, floor_level)
+                    validated_monsters.append(monster)
+            data["monsters"] = validated_monsters
 
         # 验证rewards字典
         rewards = data.get("rewards", {})
@@ -270,7 +277,7 @@ class AIValidator:
 
         return room
 
-    def _validate_single_monster(self, monster: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_single_monster(self, monster: Dict[str, Any], floor_level: int = 1) -> Dict[str, Any]:
         """验证单个怪物"""
         # 修复id
         if not isinstance(monster.get("id"), str):
@@ -284,36 +291,59 @@ class AIValidator:
         if "level" in monster and not isinstance(monster["level"], int):
             monster["level"] = 1
 
-        # 新增：验证怪物属性范围（修复HP过高等问题）
-        monster = self._validate_monster_attributes(monster)
+        # 验证怪物属性范围（使用楼层感知的动态约束）
+        monster = self._validate_monster_attributes(monster, floor_level)
 
         return monster
 
-    def _validate_monster_attributes(self, monster: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_monster_attributes(self, monster: Dict[str, Any], floor_level: int = 1) -> Dict[str, Any]:
         """
         验证怪物属性是否在合理范围内
 
-        修复AI可能生成过高属性的问题（如HP=99999）
+        使用 MonsterBalanceConfig 获取楼层感知的动态约束
+        同时保留绝对安全上限作为最终防护
+
+        Args:
+            monster: 怪物数据字典
+            floor_level: 当前楼层级别
         """
+        # 从 MonsterBalanceConfig 获取当前楼层的合理范围
+        try:
+            balance_type = monster.get("type", "normal")
+            balance_config = MonsterBalanceConfig.get_config(balance_type, floor_level)
+            hp_min = balance_config["health"]
+            hp_max = balance_config["health"] * 2  # 允许2倍宽松度
+            atk_min = balance_config["attack"]
+            atk_max = balance_config["attack"] * 2
+            def_min = balance_config["defense"]
+            def_max = balance_config["defense"] * 2
+        except Exception:
+            # 降级到静态约束
+            hp_min, hp_max = self.MONSTER_HP_MIN, self.MONSTER_HP_MAX
+            atk_min, atk_max = self.MONSTER_ATTACK_MIN, self.MONSTER_ATTACK_MAX
+            def_min, def_max = self.MONSTER_DEFENSE_MIN, self.MONSTER_DEFENSE_MAX
+
         # 验证HP (支持health和hp两种字段名)
         if "health" in monster:
             monster["health"] = self._clamp_int(
-                monster["health"], self.MONSTER_HP_MIN, self.MONSTER_HP_MAX
+                monster["health"], hp_min, max(hp_max, self.MONSTER_HP_MAX)
             )
         elif "hp" in monster:
             monster["hp"] = self._clamp_int(
-                monster["hp"], self.MONSTER_HP_MIN, self.MONSTER_HP_MAX
+                monster["hp"], hp_min, max(hp_max, self.MONSTER_HP_MAX)
             )
 
         # 验证Attack
         if "attack" in monster:
-            attack = monster["attack"]
-            monster["attack"] = self._clamp_int(attack, self.MONSTER_ATTACK_MIN, self.MONSTER_ATTACK_MAX)
+            monster["attack"] = self._clamp_int(
+                monster["attack"], atk_min, max(atk_max, self.MONSTER_ATTACK_MAX)
+            )
 
         # 验证Defense
         if "defense" in monster:
-            defense = monster["defense"]
-            monster["defense"] = self._clamp_int(defense, self.MONSTER_DEFENSE_MIN, self.MONSTER_DEFENSE_MAX)
+            monster["defense"] = self._clamp_int(
+                monster["defense"], def_min, max(def_max, self.MONSTER_DEFENSE_MAX)
+            )
 
         return monster
 
