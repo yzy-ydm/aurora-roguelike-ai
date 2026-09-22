@@ -121,6 +121,7 @@ func enter_game(save_slot: int = -1) -> void:
 
 ## 退出游戏并保存
 func exit_game() -> void:
+	print("[GameFlow] exit_game() called, current state: ", _flow_state)
 	if not GameStateManager.is_playing():
 		SceneManager.go_to_main()
 		return
@@ -129,14 +130,14 @@ func exit_game() -> void:
 	flow_progress.emit("保存游戏数据...")
 
 	var slot = GameStateManager.get_current_slot()
-	if slot >= 0:
-		var save_data = GameStateManager.get_save_data()
-		SaveService.save_game(slot, save_data)
-	else:
-		# 没有存档槽位，直接返回
-		GameStateManager.set_state(GameStateManager.GameState.NOT_STARTED)
-		SceneManager.go_to_main()
-		_flow_state = FlowState.IDLE
+	# Phase 23: slot=-1 时默认使用 slot 1 进行保存
+	if slot < 1:
+		slot = 1
+		print("[GameFlow] No active slot, using default slot 1 for save")
+	print("[GameFlow] Save slot: ", slot)
+	var save_data = GameStateManager.get_save_data()
+	print("[GameFlow] Save data preview: floor=", save_data.get("current_floor", 0), " level=", save_data.get("player_state", {}).get("level", 0))
+	SaveService.save_game(slot, save_data)
 
 
 ## API请求成功回调

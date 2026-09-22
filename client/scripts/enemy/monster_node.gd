@@ -38,11 +38,11 @@ var _original_color: Color = Color(0.9, 0.2, 0.2, 1.0)
 ## 初始化
 func _ready() -> void:
 	# 碰撞层设计:
-	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
-	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
-	# Enemy在Layer 3，检测Wall(1) + Player(2)
-	collision_layer = 4  # Enemy在第3层
-	collision_mask = 3   # Phase 17.5: 检测第1层(Wall) + 第2层(Player)
+	# Layer 0: Area/Portal/Reward   Layer 1: Wall   Layer 2: Player
+	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
+	# Enemy在Layer 4, 检测Wall(1) + Player(2) + PlayerBullet(8)
+	collision_layer = 4  # Enemy在第4层
+	collision_mask = 11  # Layer 0(Reward) + 1(Wall) + 2(Player) + 8(PlayerBullet)
 
 	# Phase 17.4: 渲染层级设置
 	z_index = 10  # Monster在第10层

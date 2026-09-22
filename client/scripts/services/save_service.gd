@@ -64,6 +64,7 @@ func save_game(slot: int, save_data: Dictionary) -> void:
 	_last_save_slot = slot
 	_last_save_data = data.duplicate()
 	print("[SaveService] save_game(slot=", slot, ") PUT /api/game/save/", slot)
+	print("[SaveService] Save data: floor=", data.current_floor, " level=", data.player_state.get("level", 0), " hp=", data.player_state.get("current_health", 0), "/", data.player_state.get("max_health", 0))
 	ApiClient.put_request(APIConfig.GAME_SAVE + "/" + str(slot), data, true)
 
 

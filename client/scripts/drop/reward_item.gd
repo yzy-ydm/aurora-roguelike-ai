@@ -34,7 +34,8 @@ signal reward_collected(reward_data: RewardData)
 
 ## 初始化
 func _ready() -> void:
-	# 碰撞层
+	# 碰撞层: reward在layer 0, mask=2(检测player layer 2)
+	# player mask=7包含layer 0, 双向检测确保碰撞触发
 	collision_layer = 0
 	collision_mask = 2
 

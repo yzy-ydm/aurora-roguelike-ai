@@ -120,8 +120,28 @@ func _parse_monster_config(content: RoomContentData, monsters: Array) -> void:
 			if level > content.monster_level:
 				content.monster_level = level
 
+			# Phase 23: 钳制怪物属性到合理范围，防止 AI 生成异常值
+			_clamp_monster_attributes(monster_dict, level)
+
 	content.monster_count = total_count
 	content.set_monster_types(monster_types)
+
+
+## Phase 23: 钳制单个怪物字典的属性到合理范围
+func _clamp_monster_attributes(monster: Dictionary, floor_level: int) -> void:
+	# HP: 普通怪 40-800, 精英怪 100-1200, Boss 500-2000
+	var hp_max: int = 800 + floor_level * 100
+	if monster.get("type") == "elite":
+		hp_max = 1200 + floor_level * 100
+	elif monster.get("type") == "boss":
+		hp_max = 2000
+	monster["health"] = clampi(monster.get("health", 50), 10, hp_max)
+	# Attack: 上限 80
+	monster["attack"] = clampi(monster.get("attack", 5), 1, 80)
+	# Defense: 上限 30
+	monster["defense"] = clampi(monster.get("defense", 0), 0, 30)
+	# Count: 防止过多怪物
+	monster["count"] = clampi(monster.get("count", 1), 1, 10)
 
 
 ## 解析奖励配置

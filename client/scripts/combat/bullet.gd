@@ -39,16 +39,16 @@ var is_enemy_bullet: bool = false
 ## 初始化
 func _ready() -> void:
 	# 碰撞层设计:
-	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
-	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
+	# Layer 0: Area/Portal/Reward   Layer 1: Wall   Layer 2: Player
+	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
 	if is_enemy_bullet:
 		# 敌人子弹: 检测Wall(1) + Player(2)
-		collision_layer = 0   # 敌人子弹不需要被检测
-		collision_mask = 3    # 检测第1层(Wall) + 第2层(Player)
+		collision_layer = 16  # EnemyBullet在第16层
+		collision_mask = 3    # 检测Layer 1(Wall) + Layer 2(Player)
 	else:
 		# 玩家子弹: 检测Wall(1) + Enemy(4)
-		collision_layer = 16  # PlayerBullet在第4层
-		collision_mask = 5    # 检测第1层(Wall) + 第3层(Enemy)
+		collision_layer = 8   # PlayerBullet在第8层
+		collision_mask = 5    # Layer 1(Wall) + Layer 4(Enemy)
 
 	# 渲染层级: 子弹在玩家和敌人之上
 	z_index = 20

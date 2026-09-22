@@ -116,11 +116,10 @@ signal player_dead()  # Phase 15: 玩家死亡信号
 
 func _ready() -> void:
 	# 碰撞层设计:
-	# Layer 1: Wall   Layer 2: Player   Layer 3: Enemy
-	# Layer 4: PlayerBullet   Layer 5: EnemyBullet
-	# Player在Layer 2，检测Wall(1)+Enemy(4)
+	# Layer 0: Area/Portal/Reward   Layer 1: Wall   Layer 2: Player
+	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
 	collision_layer = 2   # Player在第2层
-	collision_mask = 5    # 检测第1层(Wall) + 第3层(Enemy)
+	collision_mask = 23   # 检测Layer 0(Reward/Portal) + 1(Wall) + 4(Enemy) + 16(EnemyBullet)
 
 	# 渲染层级: 始终在背景之上
 	z_index = 10

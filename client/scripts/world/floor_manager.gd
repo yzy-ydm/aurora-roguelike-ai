@@ -126,11 +126,15 @@ func get_room_renderer() -> Node:
 func generate_floor(floor_level: int = 1) -> void:
 	print("[FloorManager] Generating floor ", floor_level)
 
-	# 使用本地FloorGenerator生成楼层结构
-	var old_rooms: Array[RoomNodeData] = _floor_generator.generate_floor(floor_level)
+	# Phase 23: FloorGenerator 直接返回 NewRoomData，无需转换
+	var rooms: Array[NewRoomData] = _floor_generator.generate_floor(floor_level)
 
-	# 转换为新数据模型
-	_current_floor = _convert_to_floor_data(old_rooms, floor_level)
+	# 构建 FloorData
+	_current_floor = FloorData.new()
+	_current_floor.floor_level = floor_level
+
+	for room in rooms:
+		_current_floor.rooms.append(room)
 
 	# 分配玩家友好的显示编号
 	_current_floor.assign_display_indices()
@@ -152,25 +156,6 @@ func generate_floor(floor_level: int = 1) -> void:
 
 	# 请求难度调整 (Phase 13)
 	_request_difficulty_adjustment()
-
-
-func _convert_to_floor_data(old_rooms: Array[RoomNodeData], floor_level: int) -> FloorData:
-	var floor_data = FloorData.new()
-	floor_data.floor_level = floor_level
-
-	for old_room in old_rooms:
-		# 显式枚举转换: RoomNodeData.RoomType → NewRoomData.RoomType
-		var new_type: NewRoomData.RoomType = NewRoomData.RoomType.values()[int(old_room.room_type)]
-		var new_room = NewRoomData.new(old_room.id, new_type)
-		new_room.connections = old_room.connections.duplicate()
-		new_room.visited = old_room.visited
-		new_room.completed = old_room.completed
-		new_room.width = WorldCoordinate.ROOM_WIDTH
-		new_room.height = WorldCoordinate.ROOM_HEIGHT
-		new_room.position = old_room.position  # 逻辑坐标, 未来可转换
-		floor_data.rooms.append(new_room)
-
-	return floor_data
 
 
 func _request_ai_background(floor_level: int) -> void:
@@ -314,11 +299,8 @@ func _ensure_room_content(room: NewRoomData) -> void:
 		room.content.validate_for_room_type()
 		return
 
-	# 本地生成默认内容
-	room.content = RoomContentData.from_room_node(
-		_create_room_node_data(room),
-		_current_floor.floor_level
-	)
+	# Phase 23: 本地生成默认内容，直接传入 NewRoomData
+	room.content = RoomContentData.from_room_node_data(room, _current_floor.floor_level)
 
 	# Phase 9.3: 执行房间规则校验，防止AI/随机生成违反类型约束
 	room.content.validate_for_room_type()
@@ -329,9 +311,8 @@ func _ensure_room_content(room: NewRoomData) -> void:
 
 
 func _request_room_content_ai(room: NewRoomData) -> void:
-	var room_node_data = _create_room_node_data(room)
-	var content = await _ai_content_service.generate_room_content(
-		room_node_data,
+	var content = await _ai_content_service.generate_room_content_from_new(
+		room,
 		_current_floor.floor_level,
 		1
 	)
@@ -341,21 +322,16 @@ func _request_room_content_ai(room: NewRoomData) -> void:
 			print("[FloorManager] AI content IGNORED for room ", room.id, " (content already finalized)")
 			return
 
+		# Phase 23: 额外检查 - 如果房间已经有怪物生成过，不覆盖
+		# 防止AI异步结果覆盖正在进行的战斗
+		if room.content and room.content.monster_count > 0:
+			print("[FloorManager] AI content IGNORED for room ", room.id, " (monsters already spawning)")
+			return
+
 		# Phase 9.3: AI生成的内容也要经过规则校验
 		content.validate_for_room_type()
 		room.content = content
 		print("[FloorManager] AI content applied for room ", room.id, " monsters=", content.monster_count)
-
-
-func _create_room_node_data(room: NewRoomData) -> RoomNodeData:
-	# 显式枚举转换: NewRoomData.RoomType → RoomNodeData.RoomType
-	var old_type: RoomNodeData.RoomType = RoomNodeData.RoomType.values()[int(room.room_type)]
-	var node_data = RoomNodeData.new(room.id, old_type)
-	node_data.connections = room.connections.duplicate()
-	node_data.visited = room.visited
-	node_data.completed = room.completed
-	node_data.position = room.position
-	return node_data
 
 
 ## ==================== 查询接口 ====================

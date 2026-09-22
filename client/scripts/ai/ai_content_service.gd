@@ -246,6 +246,54 @@ func generate_room_content(room_node: RoomNodeData, floor_level: int, player_lev
 	return content
 
 
+## Phase 23: 从 NewRoomData 生成房间内容（避免旧 RoomNodeData 转换）
+func generate_room_content_from_new(room: NewRoomData, floor_level: int, player_level: int = 1) -> RoomContentData:
+	print("[AIContentService] Generating content for room (NewRoomData) ", room.id)
+
+	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
+	if not is_initialized():
+		print("[AIContentService] Not initialized, using fallback for room ", room.id)
+		return _generate_fallback_room_content_from_new(room, floor_level)
+
+	# 1. 检查缓存
+	if _use_cache and _cache_manager.has_room_cache(room.id):
+		print("[AIContentService] Using cached room content")
+		var cached_data = _cache_manager.get_room_cache(room.id)
+		return _response_parser.parse_room_content(cached_data)
+
+	# 2. 调用AI服务
+	var response = await _call_ai_service_room_from_new(room, floor_level, player_level)
+
+	if response.is_empty():
+		print("[AIContentService] AI service returned empty, using fallback")
+		return _generate_fallback_room_content_from_new(room, floor_level)
+
+	# 3. 验证响应
+	response = _validator.validate_room_content(response)
+	content_validated.emit("room_content", true)
+
+	# 4. 质量检查
+	var quality_score = _quality_checker.check_room_content_quality(response)
+	content_quality_checked.emit("room_content", quality_score)
+
+	if quality_score < _quality_threshold:
+		print("[AIContentService] Quality score below threshold, using fallback")
+		return _generate_fallback_room_content_from_new(room, floor_level)
+
+	# 5. 缓存结果
+	if _use_cache:
+		_cache_manager.set_room_cache(room.id, response)
+		content_cached.emit("room_content")
+
+	# 6. 解析响应
+	var content = _response_parser.parse_room_content(response)
+
+	print("[AIContentService] Generated content for room (NewRoomData) ", room.id)
+	content_generated.emit("room", response)
+
+	return content
+
+
 ## 调用AI服务生成楼层
 func _call_ai_service_floor(floor_level: int, player_level: int) -> Dictionary:
 	match _service_type:
@@ -269,6 +317,22 @@ func _call_ai_service_room(room_node: RoomNodeData, floor_level: int, player_lev
 			)
 		AIServiceType.REAL:
 			return await _call_cloud_ai_room(room_node, floor_level, player_level)
+		_:
+			return {}
+
+
+## Phase 23: 从 NewRoomData 调用AI服务生成房间内容
+func _call_ai_service_room_from_new(room: NewRoomData, floor_level: int, player_level: int) -> Dictionary:
+	match _service_type:
+		AIServiceType.FAKE:
+			return await _fake_ai_service.generate_room_content(
+				room.id,
+				room.get_type_string(),
+				floor_level,
+				player_level
+			)
+		AIServiceType.REAL:
+			return await _call_cloud_ai_room_from_new(room, floor_level, player_level)
 		_:
 			return {}
 
@@ -330,6 +394,37 @@ func _call_cloud_ai_room(room_node: RoomNodeData, floor_level: int, player_level
 		return {}
 
 	print("[AIContentService] Cloud response received for room")
+	return response
+
+
+## Phase 23: 从 NewRoomData 调用云端AI生成房间内容
+func _call_cloud_ai_room_from_new(room: NewRoomData, floor_level: int, player_level: int) -> Dictionary:
+	print("[AIContentService] Calling cloud AI for room content (NewRoomData)...")
+
+	# 确保有Token
+	await _ensure_ai_token()
+
+	# 检查Token是否获取失败
+	if _token_failed:
+		print("[AIContentService] Token failed, skipping cloud AI")
+		return {}
+
+	# 构建请求数据
+	var request_data = {
+		"room_id": room.id,
+		"room_type": room.get_type_string(),
+		"floor_level": floor_level,
+		"player_level": player_level
+	}
+
+	# 发送HTTP请求
+	var response = await _send_ai_request(APIConfig.AI_GENERATE_ROOM, request_data)
+
+	if response.is_empty():
+		print("[AIContentService] Cloud AI returned empty, will use fallback")
+		return {}
+
+	print("[AIContentService] Cloud response received for room (NewRoomData)")
 	return response
 
 
@@ -532,6 +627,19 @@ func _generate_fallback_room_content(room_node: RoomNodeData, floor_level: int) 
 
 	# 使用本地RoomContentData
 	var content = RoomContentData.from_room_node(room_node, floor_level)
+
+	# 设置默认怪物类型
+	var monster_types: Array[String] = ["goblin", "skeleton"]
+	content.set_monster_types(monster_types)
+
+	return content
+
+
+## Phase 23: 从 NewRoomData 生成本地房间内容
+func _generate_fallback_room_content_from_new(room: NewRoomData, floor_level: int) -> RoomContentData:
+	print("[AIContentService] Fallback to fake AI for room content generation (NewRoomData)")
+
+	var content = RoomContentData.from_room_node_data(room, floor_level)
 
 	# 设置默认怪物类型
 	var monster_types: Array[String] = ["goblin", "skeleton"]

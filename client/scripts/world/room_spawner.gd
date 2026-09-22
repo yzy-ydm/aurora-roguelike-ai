@@ -146,6 +146,7 @@ const MONSTER_BALANCE_ENABLED: bool = true
 
 
 ## 根据配置获取怪物数据
+## Phase 23: 强制钳制怪物HP，防止AI生成异常高HP值
 func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], level: int) -> MonsterData:
 	if monsters.size() == 0:
 		return null
@@ -155,10 +156,26 @@ func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], 
 		var target_type = types[randi() % types.size()]
 		for monster in monsters:
 			if monster.type == target_type or monster.name == target_type:
+				# Phase 23: 钳制HP到合理范围
+				_apply_monster_clamp(monster, level)
 				return monster
 
 	# 否则随机选择
-	return monsters[randi() % monsters.size()]
+	var idx = randi() % monsters.size()
+	_apply_monster_clamp(monsters[idx], level)
+	return monsters[idx]
+
+
+## Phase 23: 钳制怪物属性到合理范围
+## 普通怪HP上限: 800, 攻击上限: 50, 防御上限: 20
+## 注意: MonsterData 无 max_health 字段，MonsterEntity 自己管理健康值
+func _apply_monster_clamp(monster: MonsterData, level: int) -> void:
+	if not monster:
+		return
+	var hp_max = 800 + level * 50  # 最高不超过800+楼层*50
+	monster.health = clampi(monster.health, 10, hp_max)
+	monster.attack = clampi(monster.attack, 1, 50)
+	monster.defense = clampi(monster.defense, 0, 20)
 
 
 ## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）
@@ -402,14 +419,15 @@ func _spawn_single_reward(reward_data: RewardData, pos: Vector2) -> void:
 	if reward_node.has_method("set_reward_data"):
 		reward_node.set_reward_data(reward_data)
 
-	# Phase 17.7: 使用global_position确保位置正确
-	reward_node.position = pos
-
+	# Phase 23: 使用 global_position 确保位置正确
+	# RewardContainer 在 GameWorld 下 (position=0,0)，所以 position 和 global_position 相同
+	# 但使用 global_position 更安全，避免后续场景结构变化导致位置错误
 	if _reward_container:
 		_reward_container.add_child(reward_node)
+		reward_node.global_position = pos
 
 	# Phase 17.7: 输出调试信息
-	print("[Reward Spawn Debug] type=", reward_data.get_type_string() if reward_data else "unknown", " local_position=", pos, " global_position=", reward_node.global_position, " parent=", reward_node.get_parent().name if reward_node.get_parent() else "none")
+	print("[Reward Spawn Debug] type=", reward_data.get_type_string() if reward_data else "unknown", " local_position=", reward_node.position, " global_position=", reward_node.global_position, " parent=", reward_node.get_parent().name if reward_node.get_parent() else "none")
 
 	_current_rewards.append(reward_node)
 

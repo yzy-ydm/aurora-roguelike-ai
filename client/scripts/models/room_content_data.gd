@@ -176,6 +176,15 @@ static func from_room_node(room_node: RoomNodeData, floor_level: int = 1) -> Roo
 	return content
 
 
+## Phase 23: 从 NewRoomData 创建（避免与旧 RoomNodeData 的转换）
+static func from_room_node_data(room_node: NewRoomData, floor_level: int = 1) -> RoomContentData:
+	var content = RoomContentData.new()
+	content.room_id = room_node.id
+	content.setup_defaults_for_type(room_node.get_type_string())
+	content.apply_difficulty_modifier(floor_level)
+	return content
+
+
 ## 打印内容信息
 func print_info() -> void:
 	print("[RoomContent] Room ", room_id, " (", room_type, ")")
