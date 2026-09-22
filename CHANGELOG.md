@@ -8,6 +8,60 @@
 
 ---
 
+## [0.9.3] - 2026-09-22
+
+### Added - AI内容质量保障体系 (Phase 0 Task 0.3)
+
+**Git Commit:** 待提交
+
+#### 新增功能
+
+**Validator增强：**
+- 新增怪物属性范围验证 (`_validate_monster_attributes`)
+  - HP: 10-500 (修复AI生成过高HP问题)
+  - Attack: 1-50 (修复AI生成过高攻击力)
+  - Defense: 0-30 (修复AI生成过高防御力)
+- 新增枚举值验证
+  - `validate_room_type()`: 房间类型合法性检查
+  - `validate_rarity()`: 武器稀有度合法性检查
+- `_validate_room()` 方法集成怪物属性验证
+
+**QualityChecker增强：**
+- 新增质量评分系统 `calculate_quality_score()`
+- 四维度评分模型：
+  - Legality (30%): 字段完整性和格式正确性
+  - Balance (30%): 数值在游戏平衡范围内
+  - Diversity (20%): 内容差异化程度
+  - Completeness (20%): 必需字段齐全度
+- 调整数值范围常量：
+  - MAX_HEALTH: 9999 → 500 (防止HP过高)
+  - 新增 MAX_MONSTER_ATTACK: 50
+  - 新增 MAX_MONSTER_DEFENSE: 30
+
+#### 新增测试
+
+- `server/ai/tests/test_content_validator.py` (15个测试)
+  - Monster属性范围验证 (7个)
+  - 房间类型枚举验证 (2个)
+  - 武器稀有度枚举验证 (2个)
+  - 楼层验证增强 (1个)
+  - 质量评分计算 (3个)
+
+#### 测试结果
+
+```
+总测试数: 114 → 129 (+15)
+全部通过: 129 passed ✅
+运行时间: 5.16s
+```
+
+#### 文档产出
+
+- `AI_CONTENT_PIPELINE_ANALYSIS.md` — AI生成流程分析
+- `AI_CONTENT_VALIDATION_DESIGN.md` — 质量保障体系设计（论文材料）
+
+---
+
 ## [0.9.2] - 2026-09-22
 
 ### Refactored - Provider Factory 集成与 AIService 解耦 (Phase 0 Task 0.2)

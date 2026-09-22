@@ -56,6 +56,26 @@ class AIValidator:
         "damage": (int, float)
     }
 
+    # ==================== 数值范围常量 ====================
+    # 怪物属性范围（防止AI生成过高/过低的数值）
+    MONSTER_HP_MIN = 10
+    MONSTER_HP_MAX = 500      # 合理上限：防止HP过高
+    MONSTER_ATTACK_MIN = 1
+    MONSTER_ATTACK_MAX = 50   # 合理上限：防止攻击力过高
+    MONSTER_DEFENSE_MIN = 0
+    MONSTER_DEFENSE_MAX = 30  # 合理上限：防止防御力过高
+
+    # 房间类型枚举
+    VALID_ROOM_TYPES = {
+        "start", "combat", "elite", "boss",
+        "reward", "treasure", "shop", "event"
+    }
+
+    # 武器稀有度枚举
+    VALID_RARITIES = {
+        "common", "uncommon", "rare", "epic", "legendary"
+    }
+
     def validate_floor_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         验证楼层数据
@@ -217,6 +237,9 @@ class AIValidator:
         # 修复type
         if not isinstance(room.get("type"), str):
             room["type"] = "combat"
+        else:
+            # 验证房间类型枚举
+            room["type"] = self.validate_room_type(room["type"])
 
         # 修复connections
         connections = room.get("connections", [])
@@ -227,6 +250,14 @@ class AIValidator:
         monsters = room.get("monsters", [])
         if not isinstance(monsters, list):
             room["monsters"] = []
+        else:
+            # 验证每个怪物的属性范围
+            validated_monsters = []
+            for monster in monsters:
+                if isinstance(monster, dict):
+                    validated_monster = self._validate_single_monster(monster)
+                    validated_monsters.append(validated_monster)
+            room["monsters"] = validated_monsters
 
         # 修复rewards
         rewards = room.get("rewards", {})
@@ -253,7 +284,76 @@ class AIValidator:
         if "level" in monster and not isinstance(monster["level"], int):
             monster["level"] = 1
 
+        # 新增：验证怪物属性范围（修复HP过高等问题）
+        monster = self._validate_monster_attributes(monster)
+
         return monster
+
+    def _validate_monster_attributes(self, monster: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        验证怪物属性是否在合理范围内
+
+        修复AI可能生成过高属性的问题（如HP=99999）
+        """
+        # 验证HP (支持health和hp两种字段名)
+        if "health" in monster:
+            monster["health"] = self._clamp_int(
+                monster["health"], self.MONSTER_HP_MIN, self.MONSTER_HP_MAX
+            )
+        elif "hp" in monster:
+            monster["hp"] = self._clamp_int(
+                monster["hp"], self.MONSTER_HP_MIN, self.MONSTER_HP_MAX
+            )
+
+        # 验证Attack
+        if "attack" in monster:
+            attack = monster["attack"]
+            monster["attack"] = self._clamp_int(attack, self.MONSTER_ATTACK_MIN, self.MONSTER_ATTACK_MAX)
+
+        # 验证Defense
+        if "defense" in monster:
+            defense = monster["defense"]
+            monster["defense"] = self._clamp_int(defense, self.MONSTER_DEFENSE_MIN, self.MONSTER_DEFENSE_MAX)
+
+        return monster
+
+    def _clamp_int(self, value: Any, min_val: int, max_val: int) -> int:
+        """将整数值限制在范围内"""
+        try:
+            num = int(value)
+            return max(min_val, min(max_val, num))
+        except (TypeError, ValueError):
+            return min_val
+
+    def validate_room_type(self, room_type: str) -> str:
+        """
+        验证房间类型是否合法
+
+        Args:
+            room_type: 房间类型字符串
+
+        Returns:
+            合法的类型字符串，非法时返回默认值"combat"
+        """
+        if room_type in self.VALID_ROOM_TYPES:
+            return room_type
+        logger.warning(f"Invalid room type: '{room_type}', defaulting to 'combat'")
+        return "combat"
+
+    def validate_rarity(self, rarity: str) -> str:
+        """
+        验证武器稀有度是否合法
+
+        Args:
+            rarity: 稀有度字符串
+
+        Returns:
+            合法的稀有度字符串，非法时返回默认值"common"
+        """
+        if rarity in self.VALID_RARITIES:
+            return rarity
+        logger.warning(f"Invalid rarity: '{rarity}', defaulting to 'common'")
+        return "common"
 
     def _ensure_fields(
         self,
