@@ -595,8 +595,16 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 			_combat_manager.start_combat(content)
 		else:
 			_create_room_exits()
-	else:
-		_create_room_exits()
+	# 非战斗房间根据类型分发
+	match room.room_type:
+		NewRoomData.RoomType.REWARD:
+			_handle_reward_room(content, room.position)
+		NewRoomData.RoomType.EVENT:
+			_handle_event_room(room, room.position)
+		NewRoomData.RoomType.TREASURE:
+			_handle_treasure_room(content, room.position)
+		_:
+			_create_room_exits()
 
 
 func _on_fm_room_exited(room: NewRoomData) -> void:
@@ -636,12 +644,12 @@ func _create_boss_data_for_room(room: NewRoomData) -> BossData:
 	boss_data.id = "boss_floor_" + str(floor_level)
 	boss_data.name = _get_boss_name(floor_level)
 	boss_data.description = "守护本层的强大Boss"
-	# 修正Boss HP范围：500-800（符合MonsterBalanceConfig）
-	boss_data.max_health = 400 + floor_level * 80  # Level 1: 480, Level 5: 800
-	# 修正Boss攻击范围：20-35
-	boss_data.attack = 15 + floor_level * 3      # Level 1: 18, Level 5: 30
+	# 修正Boss HP范围：400-600 (floor 1) 到 ~1000 (floor 10)
+	boss_data.max_health = clampi(400 + floor_level * 80, 400, 1000)
+	# 修正Boss攻击范围：15-35
+	boss_data.attack = clampi(15 + floor_level * 3, 15, 40)
 	# 修正Boss防御范围：5-15
-	boss_data.defense = 3 + floor_level * 2      # Level 1: 5, Level 5: 13
+	boss_data.defense = clampi(3 + floor_level * 2, 3, 15)
 	# Phase 9.3: Boss移动速度降低至60%，避免贴脸持续伤害
 	boss_data.speed = (80.0 + floor_level * 10) * 0.6
 	boss_data.attack_cooldown = 1.5  # 攻击间隔1.5秒
@@ -669,6 +677,9 @@ func _get_boss_name(floor_level: int) -> String:
 func _on_floor_completed() -> void:
 	print("[GameScene] Floor completed!")
 	hud.set_status("恭喜通关！楼层已清除！")
+
+	# 自动存档
+	_auto_save()
 
 	# Phase 10.1.6: 创建下一层传送门
 	_create_next_floor_portal()
@@ -764,7 +775,187 @@ func _on_all_rewards_collected() -> void:
 		_combat_manager.complete_reward_phase()
 
 
+## ==================== 非战斗房间处理 ====================
+
+## Reward房: 直接生成奖励物品等待拾取
+func _handle_reward_room(content: RoomContentData, room_pos: Vector2) -> void:
+	print("[GameScene] Reward room entered")
+	hud.set_status("奖励房间! 拾取掉落物品")
+
+	# 生成奖励物品
+	if _room_spawner:
+		_room_spawner.spawn_rewards(content, room_pos)
+
+	# 等待所有奖励收集后创建出口
+	if _room_spawner:
+		_room_spawner.all_rewards_collected.connect(_on_reward_room_cleared)
+
+
+## Reward房所有奖励收集完成
+func _on_reward_room_cleared() -> void:
+	print("[GameScene] Reward room cleared!")
+	hud.set_status("奖励已收集完毕!")
+	_create_room_exits()
+
+
+## Event房: 显示随机事件
+func _handle_event_room(room: NewRoomData, room_pos: Vector2) -> void:
+	print("[GameScene] Event room entered")
+	hud.set_status("发现事件! 选择一个...")
+
+	# 生成随机事件
+	var event = _generate_random_event()
+	if event.is_empty():
+		print("[GameScene] Event room: no event generated, creating exits")
+		_create_room_exits()
+		return
+
+	# 显示事件面板
+	_show_event_panel(event, room)
+
+
+## 生成随机事件
+func _generate_random_event() -> Dictionary:
+	var events = [
+		{
+			"title": "神秘祭坛",
+			"description": "一座古老的祭坛出现在你面前，散发着微弱的光芒。",
+			"choices": [
+				{"text": "献祭10金币获得+5攻击", "reward": {"gold": -10, "attack": 5}, "risk": {}},
+				{"text": "献祭20生命获得+10攻击", "reward": {"max_health": 10, "attack": 10}, "risk": {"damage": 20}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		},
+		{
+			"title": "流浪商人",
+			"description": "一个神秘的商人在此停留，他展示着稀有的物品。",
+			"choices": [
+				{"text": "购买生命药水(15金币)", "reward": {"gold": -15, "heal": 30}, "risk": {}},
+				{"text": "购买攻击强化(25金币)", "reward": {"gold": -25, "attack": 5}, "risk": {}},
+				{"text": "拒绝交易", "reward": {}, "risk": {}}
+			]
+		},
+		{
+			"title": "远古宝箱",
+			"description": "一个布满灰尘的宝箱躺在角落。",
+			"choices": [
+				{"text": "打开宝箱", "reward": {"gold": 50, "attack": 3}, "risk": {"damage": 10}},
+				{"text": "谨慎检查后打开", "reward": {"gold": 30}, "risk": {"damage": 5}},
+				{"text": "离开", "reward": {}, "risk": {}}
+			]
+		},
+		{
+			"title": "智慧老者",
+			"description": "一位老者坐在地上，似乎 knows 你的命运。",
+			"choices": [
+				{"text": "请教战斗技巧(+3攻击)", "reward": {"attack": 3}, "risk": {}},
+				{"text": "请求治疗(+20生命)", "reward": {"heal": 20}, "risk": {}},
+				{"text": "无视离开", "reward": {}, "risk": {}}
+			]
+		}
+	]
+
+	return events[randi() % events.size()]
+
+
+## 显示事件选择面板
+func _show_event_panel(event: Dictionary, room: NewRoomData) -> void:
+	# 禁用玩家移动
+	var was_physics = player.is_physics_process() if player else false
+	if player:
+		player.set_physics_process(false)
+		player.set_process_input(false)
+
+	hud.set_status(event.get("title", "事件"))
+
+	var choices = event.get("choices", [])
+	print("[Event] Event: ", event.get("title", ""))
+	print("[Event] Choices: ", choices.size())
+
+	# 简化版：自动选择第一个选项（完整实现需要UI面板）
+	_apply_event_choice(event, 0, room)
+
+
+## 应用事件选择
+func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData) -> void:
+	var choices = event.get("choices", [])
+	if choice_index >= choices.size():
+		choice_index = 0
+
+	var choice = choices[choice_index]
+	var reward = choice.get("reward", {})
+	var risk = choice.get("risk", {})
+
+	print("[Event] Selected: ", choice.get("text", ""))
+
+	# 应用奖励
+	if player:
+		if reward.has("gold"):
+			player.add_gold(reward["gold"])
+		if reward.has("attack"):
+			player.add_attack(reward["attack"])
+		if reward.has("max_health"):
+			player.add_max_health(reward["max_health"])
+		if reward.has("heal"):
+			player.heal(reward["heal"])
+
+	# 应用风险
+	if risk.has("damage") and player:
+		player.take_damage(risk["damage"])
+
+	_player_data = player.get_player_data()
+	_update_game_display()
+
+	# 恢复玩家控制
+	if player:
+		player.set_physics_process(was_physics)
+		player.set_process_input(was_physics)
+
+	hud.set_status("事件完成! " + choice.get("text", ""))
+
+	# 延迟后创建出口
+	await get_tree().create_timer(1.5).timeout
+	_create_room_exits()
+
+
+## Treasure房: 生成宝箱
+func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
+	print("[GameScene] Treasure room entered")
+	hud.set_status("发现宝箱! 寻找并打开它")
+
+	# 生成奖励物品（chest作为reward_item的特殊形式）
+	var reward_count = content.reward_count if content else 2
+	reward_count = max(1, min(reward_count, 3))
+
+	for i in range(reward_count):
+		var reward_data = RewardData.generate_random_reward(i)
+		var spawn_pos = room_pos + Vector2(randf_range(-150, 150), randf_range(-30, 30))
+		_room_spawner._spawn_single_reward(reward_data, spawn_pos)
+
+	print("[GameScene] Treasure room: spawned ", reward_count, " rewards")
+
+	# 监听奖励收集
+	if _room_spawner:
+		_room_spawner.all_rewards_collected.connect(_on_treasure_room_cleared)
+
+
+func _on_treasure_room_cleared() -> void:
+	print("[GameScene] Treasure room cleared!")
+	hud.set_status("宝箱已打开! 获得奖励!")
+	_create_room_exits()
+
+
 ## ==================== 出口传送门 ====================
+
+## 自动保存: 当前进度到slot 0
+func _auto_save() -> void:
+	var save_data = GameStateManager.get_save_data()
+	if save_data.is_empty():
+		print("[GameScene] Auto-save skipped: no save data")
+		return
+	save_data["current_floor"] = _floor_manager.get_floor_level() if _floor_manager else 1
+	SaveService.save_game(0, save_data)
+	print("[GameScene] Auto-saved to slot 0 (floor ", save_data["current_floor"], ")")
 
 func _on_exit_portal_entered(target_room_id: int) -> void:
 	print("[GameScene] Exit portal entered: room ", target_room_id)
@@ -1188,6 +1379,10 @@ func _on_boss_defeated() -> void:
 		# Boss击败后也创建出口（进入下一层）
 		_create_room_exits()
 
+	# Boss击败后自动存档
+	await get_tree().create_timer(0.5).timeout
+	_auto_save()
+
 
 ## ==================== Phase 12: 存档系统回调 ====================
 
@@ -1275,6 +1470,9 @@ func _on_player_damaged(damage: int, current_health: int) -> void:
 func _on_player_dead() -> void:
 	print("[GameScene] Player is dead!")
 	hud.set_status("你已阵亡...")
+
+	# 自动存档
+	_auto_save()
 
 	# 停止所有怪物AI
 	_stop_all_monsters()

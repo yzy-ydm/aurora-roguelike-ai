@@ -11,6 +11,9 @@ var _saves: Array = []
 ## 加载状态
 var _is_loading: bool = false
 
+## 最后一次保存数据(用于404回退)
+var _last_save_data: Dictionary = {}
+
 ## 信号
 signal saves_loaded(saves: Array)
 signal save_loaded(save_data: Dictionary)
@@ -45,7 +48,7 @@ func load_save_by_slot(slot: int) -> void:
 	ApiClient.get_request(APIConfig.GAME_SAVE + "/" + str(slot), true)
 
 
-## 保存存档
+## 保存存档 (智能模式: PUT更新 or POST创建)
 func save_game(slot: int, save_data: Dictionary) -> void:
 	_is_loading = true
 	var data = {
@@ -56,6 +59,8 @@ func save_game(slot: int, save_data: Dictionary) -> void:
 		"kill_count": save_data.get("kill_count", 0),
 		"gold_collected": save_data.get("gold_collected", 0)
 	}
+	# 先尝试PUT更新，如果返回404则改用POST创建
+	_last_save_data = data.duplicate()
 	ApiClient.put_request(APIConfig.GAME_SAVE + "/" + str(slot), data, true)
 
 
@@ -109,7 +114,23 @@ func _on_api_error(error: String, status_code: int) -> void:
 	if status_code == 401:
 		save_error.emit("认证失败，请重新登录")
 	elif status_code == 404:
-		save_error.emit("存档不存在")
+		# 首次保存: slot不存在，改用POST创建
+		print("[SaveService] 404 - archive not found, retrying with POST...")
+		# 从之前的请求中获取数据(通过_signal方式传递)
+		if _last_save_data and _last_save_data.has("_save_slot"):
+			var slot = _last_save_data["_save_slot"]
+			var create_data = {
+				"save_name": _last_save_data.get("save_name", "存档" + str(slot)),
+				"slot_number": slot,
+				"player_state": _last_save_data.get("player_state", {}),
+				"current_floor": _last_save_data.get("current_floor", 1),
+				"play_time": _last_save_data.get("play_time", 0),
+				"kill_count": _last_save_data.get("kill_count", 0),
+				"gold_collected": _last_save_data.get("gold_collected", 0)
+			}
+			ApiClient.post_request(APIConfig.GAME_SAVE, create_data, true)
+		else:
+			save_error.emit("存档不存在")
 	else:
 		save_error.emit(error)
 

@@ -248,82 +248,82 @@ func _create_start_room_platforms(parent: Node2D) -> void:
 
 ## 战斗房间: 多层平台
 func _create_combat_room_platforms(parent: Node2D) -> void:
-	# 低平台
-	var p1 = _create_platform(Vector2(-200, 100), 200)
+	# 低平台 (所有高度差<=40px)
+	var p1 = _create_platform(Vector2(-200, 30), 200)
 	parent.add_child(p1)
 
 	# 中平台
-	var p2 = _create_platform(Vector2(150, 0), 250)
+	var p2 = _create_platform(Vector2(150, -10), 250)
 	parent.add_child(p2)
 
 	# 高平台
-	var p3 = _create_platform(Vector2(-100, -120), 180)
+	var p3 = _create_platform(Vector2(-100, 35), 180)
 	parent.add_child(p3)
 
 
 ## 精英房间: 复杂布局
 func _create_elite_room_platforms(parent: Node2D) -> void:
 	# 多层交错平台
-	var p1 = _create_platform(Vector2(-250, 80), 180)
+	var p1 = _create_platform(Vector2(-250, 20), 180)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(0, 20), 150)
+	var p2 = _create_platform(Vector2(0, -15), 150)
 	parent.add_child(p2)
 
-	var p3 = _create_platform(Vector2(250, 80), 180)
+	var p3 = _create_platform(Vector2(250, 25), 180)
 	parent.add_child(p3)
 
-	var p4 = _create_platform(Vector2(0, -100), 200)
+	var p4 = _create_platform(Vector2(0, -35), 200)
 	parent.add_child(p4)
 
 
 ## Boss房间: 大型竞技场
 func _create_boss_room_platforms(parent: Node2D) -> void:
 	# 两侧高台
-	var p1 = _create_platform(Vector2(-350, 60), 200)
+	var p1 = _create_platform(Vector2(-350, 20), 200)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(350, 60), 200)
+	var p2 = _create_platform(Vector2(350, 20), 200)
 	parent.add_child(p2)
 
 	# 中央平台
-	var p3 = _create_platform(Vector2(0, -60), 300)
+	var p3 = _create_platform(Vector2(0, -25), 300)
 	parent.add_child(p3)
 
 
 ## 奖励房间: 宝箱平台
 func _create_reward_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 50), 300)
+	var p1 = _create_platform(Vector2(0, 25), 300)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(-200, -50), 150)
+	var p2 = _create_platform(Vector2(-200, -15), 150)
 	parent.add_child(p2)
 
-	var p3 = _create_platform(Vector2(200, -50), 150)
+	var p3 = _create_platform(Vector2(200, -15), 150)
 	parent.add_child(p3)
 
 
 ## 商店房间: 平整布局
 func _create_shop_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(-200, 60), 200)
+	var p1 = _create_platform(Vector2(-200, 20), 200)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(200, 60), 200)
+	var p2 = _create_platform(Vector2(200, 20), 200)
 	parent.add_child(p2)
 
 
 ## 事件房间: 中央平台
 func _create_event_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 30), 250)
+	var p1 = _create_platform(Vector2(0, 15), 250)
 	parent.add_child(p1)
 
 
-## 宝箱房间: 高台
+## 宝箱房间: 平台
 func _create_treasure_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 80), 200)
+	var p1 = _create_platform(Vector2(0, 20), 200)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(0, -40), 150)
+	var p2 = _create_platform(Vector2(0, -20), 150)
 	parent.add_child(p2)
 
 
