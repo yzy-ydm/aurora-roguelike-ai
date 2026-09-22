@@ -118,13 +118,11 @@ func _on_api_error(error: String, status_code: int) -> void:
 		save_error.emit("认证失败，请重新登录")
 	elif status_code == 404:
 		# 首次保存: slot不存在，改用POST创建
-		print("[SaveService] 404 - archive not found, retrying with POST...")
-		# 从之前的请求中获取数据(通过_signal方式传递)
-		if _last_save_data and _last_save_data.has("_save_slot"):
-			var slot = _last_save_data["_save_slot"]
+		print("[SaveService] 404 - archive not found (slot=", _last_save_slot, "), retrying with POST...")
+		if _last_save_slot >= 1 and _last_save_data.size() > 0:
 			var create_data = {
-				"save_name": _last_save_data.get("save_name", "存档" + str(slot)),
-				"slot_number": slot,
+				"save_name": _last_save_data.get("save_name", "存档" + str(_last_save_slot)),
+				"slot_number": _last_save_slot,
 				"player_state": _last_save_data.get("player_state", {}),
 				"current_floor": _last_save_data.get("current_floor", 1),
 				"play_time": _last_save_data.get("play_time", 0),
@@ -133,7 +131,7 @@ func _on_api_error(error: String, status_code: int) -> void:
 			}
 			ApiClient.post_request(APIConfig.GAME_SAVE, create_data, true)
 		else:
-			save_error.emit("存档不存在")
+			save_error.emit("存档槽位无效或数据缺失")
 	else:
 		save_error.emit(error)
 
