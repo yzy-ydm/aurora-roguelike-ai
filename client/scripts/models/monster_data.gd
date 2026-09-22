@@ -12,9 +12,9 @@ var name: String = ""
 var description: String = ""
 var type: String = ""
 var level: int = 1
-var health: int = 0
-var attack: int = 0
-var defense: int = 0
+var health: int = 50      # 默认HP，防止为0
+var attack: int = 5       # 默认攻击，防止为0
+var defense: int = 2      # 默认防御，防止为0
 var speed: int = 10
 var experience_reward: int = 10
 var gold_reward: int = 5
@@ -23,6 +23,17 @@ var attributes: Variant = null
 var icon_path: String = ""
 var min_floor: int = 1
 var max_floor: int = 999
+
+
+## 根据楼层调整默认属性（当AI未提供时）
+func apply_level_modifiers(floor_level: int) -> void:
+	"""当AI生成数据缺失时，使用合理的默认值"""
+	if health <= 0:
+		health = 30 + floor_level * 15  # 合理HP范围
+	if attack <= 0:
+		attack = 3 + floor_level * 2    # 合理攻击力
+	if defense <= 0:
+		defense = 1 + floor_level       # 合理防御力
 
 
 ## 从Dictionary创建MonsterData
@@ -37,9 +48,12 @@ static func from_dict(data: Dictionary) -> MonsterData:
 	var type_val = data.get("type")
 	monster.type = type_val if type_val != null else ""
 	monster.level = data.get("level", 1)
-	monster.health = data.get("health", 0)
-	monster.attack = data.get("attack", 0)
-	monster.defense = data.get("defense", 0)
+
+	# 修复默认值：确保属性不为0
+	monster.health = max(data.get("health", 50), 10)  # 最低10HP
+	monster.attack = max(data.get("attack", 5), 1)    # 最低1攻击
+	monster.defense = max(data.get("defense", 2), 0)  # 最低0防御
+
 	monster.speed = data.get("speed", 10)
 	monster.experience_reward = data.get("experience_reward", 10)
 	monster.gold_reward = data.get("gold_reward", 5)

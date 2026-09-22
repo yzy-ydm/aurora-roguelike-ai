@@ -541,6 +541,25 @@ func upgrade_weapon() -> bool:
 	return false
 
 
+## 装备新武器 (Phase 0.4: 修复武器掉落无法装备问题)
+func equip_new_weapon(weapon_id: int) -> bool:
+	"""
+	装备指定ID的新武器
+	如果weapon_id <= 0，表示武器升级而非新武器
+	"""
+	if weapon_id <= 0:
+		# 武器升级逻辑（现有逻辑）
+		return upgrade_weapon()
+
+	# TODO: 实现新武器装备逻辑
+	# 当前阶段：打印日志，暂时不支持多武器切换
+	print("[Player] Attempting to equip weapon ID: ", weapon_id)
+	print("[Player] Multi-weapon system not yet implemented, using upgrade instead")
+
+	# 临时方案：触发武器升级
+	return upgrade_weapon()
+
+
 ## 设置玩家数据 (Phase 9.4.1: 同步到PlayerStats)
 func set_player_data(data: Dictionary) -> void:
 	_player_data = data
