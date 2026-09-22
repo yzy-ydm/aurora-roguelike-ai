@@ -7,10 +7,10 @@ extends Node
 
 
 ## 解析楼层数据
-func parse_floor_data(data: Dictionary) -> Array[RoomNodeData]:
+func parse_floor_data(data: Dictionary) -> Array[NewRoomData]:
 	print("[AIParser] Parsing floor data")
 
-	var rooms: Array[RoomNodeData] = []
+	var rooms: Array[NewRoomData] = []
 
 	# 获取房间数组
 	var rooms_array = data.get("rooms", [])
@@ -26,7 +26,7 @@ func parse_floor_data(data: Dictionary) -> Array[RoomNodeData]:
 
 
 ## 解析房间节点
-func _parse_room_node(data: Dictionary) -> RoomNodeData:
+func _parse_room_node(data: Dictionary) -> NewRoomData:
 	var room_id = data.get("id", -1)
 	if room_id < 0:
 		print("[AIParser] Warning: Invalid room id")
@@ -37,7 +37,7 @@ func _parse_room_node(data: Dictionary) -> RoomNodeData:
 	var room_type = _parse_room_type(type_str)
 
 	# 创建房间节点
-	var room_node = RoomNodeData.new(room_id, room_type)
+	var room_node = NewRoomData.new(room_id, room_type)
 
 	# 解析连接
 	var connections = data.get("connections", [])
@@ -52,27 +52,27 @@ func _parse_room_node(data: Dictionary) -> RoomNodeData:
 
 
 ## 解析房间类型
-func _parse_room_type(type_str: String) -> RoomNodeData.RoomType:
+func _parse_room_type(type_str: String) -> NewRoomData.RoomType:
 	match type_str:
 		"start":
-			return RoomNodeData.RoomType.START
+			return NewRoomData.RoomType.START
 		"combat":
-			return RoomNodeData.RoomType.COMBAT
+			return NewRoomData.RoomType.COMBAT
 		"reward":
-			return RoomNodeData.RoomType.REWARD
+			return NewRoomData.RoomType.REWARD
 		"shop":
-			return RoomNodeData.RoomType.SHOP
+			return NewRoomData.RoomType.SHOP
 		"elite":
-			return RoomNodeData.RoomType.ELITE
+			return NewRoomData.RoomType.ELITE
 		"boss":
-			return RoomNodeData.RoomType.BOSS
+			return NewRoomData.RoomType.BOSS
 		"event":
-			return RoomNodeData.RoomType.EVENT
+			return NewRoomData.RoomType.EVENT
 		"treasure":
-			return RoomNodeData.RoomType.TREASURE
+			return NewRoomData.RoomType.TREASURE
 		_:
 			print("[AIParser] Warning: Unknown room type: ", type_str)
-			return RoomNodeData.RoomType.COMBAT
+			return NewRoomData.RoomType.COMBAT
 
 
 ## 解析房间内容数据

@@ -1,6 +1,6 @@
 ## 房间内容管理器
 ##
-## 根据RoomNodeData生成RoomContentData
+## 根据NewRoomData生成RoomContentData
 ## 管理房间内容的数据驱动
 ## 支持AI内容生成
 
@@ -73,7 +73,7 @@ func load_monster_types_from_resource() -> void:
 
 
 ## 为房间生成内容（永远返回有效的RoomContentData）
-func generate_content_for_room(room_node: RoomNodeData) -> RoomContentData:
+func generate_content_for_room(room_node: NewRoomData) -> RoomContentData:
 	# 检查缓存
 	if _room_contents.has(room_node.id):
 		var cached = _room_contents[room_node.id]
@@ -132,7 +132,7 @@ func clear_cache() -> void:
 
 
 ## 为整层生成所有房间内容
-func generate_floor_content(rooms: Array[RoomNodeData]) -> void:
+func generate_floor_content(rooms: Array[NewRoomData]) -> void:
 	print("[RoomContentManager] Generating content for ", rooms.size(), " rooms")
 
 	for room in rooms:

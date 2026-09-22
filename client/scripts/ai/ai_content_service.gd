@@ -144,7 +144,7 @@ func set_quality_threshold(threshold: float) -> void:
 
 
 ## 生成楼层内容
-func generate_floor_content(floor_level: int, player_level: int = 1) -> Array[RoomNodeData]:
+func generate_floor_content(floor_level: int, player_level: int = 1) -> Array[NewRoomData]:
 	print("[AIContentService] Generating floor content for level ", floor_level)
 
 	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
@@ -606,7 +606,7 @@ func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 
 
 ## 降级：生成本地楼层
-func _generate_fallback_floor(floor_level: int) -> Array[RoomNodeData]:
+func _generate_fallback_floor(floor_level: int) -> Array[NewRoomData]:
 	print("[AIContentService] Fallback to fake AI for floor generation")
 
 	# 使用本地FloorGenerator

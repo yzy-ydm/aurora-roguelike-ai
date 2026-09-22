@@ -10,7 +10,7 @@
 extends Node
 
 ## 房间节点字典
-var _rooms: Dictionary = {}  # id -> RoomNodeData
+var _rooms: Dictionary = {}  # id -> NewRoomData
 
 ## 当前房间ID
 var _current_room_id: int = -1
@@ -68,7 +68,7 @@ func generate_new_floor(floor_level: int = 1) -> void:
 
 	# 第一步：立即使用本地FloorGenerator（同步，不阻塞）
 	print("[RoomGraph] Using local FloorGenerator for immediate start")
-	var rooms: Array[RoomNodeData] = _floor_generator.generate_floor(floor_level)
+	var rooms: Array[NewRoomData] = _floor_generator.generate_floor(floor_level)
 
 	# 添加到字典
 	for room in rooms:
@@ -94,7 +94,7 @@ func generate_new_floor(floor_level: int = 1) -> void:
 
 ## 后台请求AI楼层（不阻塞游戏流程）
 func _request_ai_floor_async(floor_level: int) -> void:
-	var ai_rooms: Array[RoomNodeData] = await _ai_content_service.generate_floor_content(floor_level, _player_level)
+	var ai_rooms: Array[NewRoomData] = await _ai_content_service.generate_floor_content(floor_level, _player_level)
 
 	if ai_rooms.size() > 0:
 		print("[RoomGraph] AI floor received: ", ai_rooms.size(), " rooms, updating...")
@@ -112,7 +112,7 @@ func _request_ai_floor_async(floor_level: int) -> void:
 
 
 ## 获取当前房间
-func get_current_room() -> RoomNodeData:
+func get_current_room() -> NewRoomData:
 	if _current_room_id >= 0 and _rooms.has(_current_room_id):
 		return _rooms[_current_room_id]
 	return null
@@ -124,13 +124,13 @@ func get_current_room_id() -> int:
 
 
 ## 获取指定ID的房间
-func get_room(room_id: int) -> RoomNodeData:
+func get_room(room_id: int) -> NewRoomData:
 	return _rooms.get(room_id)
 
 
 ## 获取所有房间
-func get_all_rooms() -> Array[RoomNodeData]:
-	var result: Array[RoomNodeData] = []
+func get_all_rooms() -> Array[NewRoomData]:
+	var result: Array[NewRoomData] = []
 	for room in _rooms.values():
 		result.append(room)
 	return result
@@ -142,12 +142,12 @@ func get_room_count() -> int:
 
 
 ## 获取当前房间的可访问房间
-func get_available_rooms() -> Array[RoomNodeData]:
+func get_available_rooms() -> Array[NewRoomData]:
 	var current_room = get_current_room()
 	if not current_room:
 		return []
 
-	var available: Array[RoomNodeData] = []
+	var available: Array[NewRoomData] = []
 	for conn_id in current_room.connections:
 		var room = _rooms.get(conn_id)
 		if room:
@@ -208,7 +208,7 @@ func complete_current_room() -> void:
 		room_completed.emit(current_room.id)
 
 		# 检查是否完成Boss房间
-		if current_room.room_type == RoomNodeData.RoomType.BOSS:
+		if current_room.room_type == NewRoomData.RoomType.BOSS:
 			print("[RoomGraph] Floor completed!")
 			floor_completed.emit()
 
