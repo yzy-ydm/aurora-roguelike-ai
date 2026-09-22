@@ -314,9 +314,18 @@ static func from_dict(data: Dictionary) -> RewardData:
 	return reward
 
 
+## 武器定义（用于新武器奖励）
+const WEAPON_DEFS = [
+	{"id": 1, "name": "基础手枪", "damage": 20, "fire_rate": 0.2, "description": "基础攻击武器"},
+	{"id": 2, "name": "火焰步枪", "damage": 35, "fire_rate": 0.3, "description": "高伤害火焰武器"},
+	{"id": 3, "name": "冰霜法杖", "damage": 25, "fire_rate": 0.25, "description": "冰冻伤害武器"},
+	{"id": 4, "name": "雷霆弓", "damage": 30, "fire_rate": 0.22, "description": "闪电伤害远程武器"},
+]
+
+
 ## 生成随机奖励
 static func generate_random_reward(reward_id: int = 0) -> RewardData:
-	var random_type = randi() % 7
+	var random_type = randi() % 8  # 改为8种奖励类型
 	var reward_type: RewardType
 	var value: int
 	var reward: RewardData
@@ -343,6 +352,8 @@ static func generate_random_reward(reward_id: int = 0) -> RewardData:
 		5:
 			reward = _create_random_weapon_upgrade(reward_id)
 		6:
+			reward = _create_random_new_weapon(reward_id)  # 新增：新武器
+		7:
 			reward = _create_random_passive_item(reward_id)
 		_:
 			reward = RewardData.new(reward_id, "", RewardType.GOLD, randi_range(10, 50))
@@ -379,6 +390,21 @@ static func _create_random_attribute_boost(reward_id: int) -> RewardData:
 ## 生成随机武器升级奖励
 static func _create_random_weapon_upgrade(reward_id: int) -> RewardData:
 	var reward = RewardData.new(reward_id, "", RewardType.WEAPON_UPGRADE, 1)
+	reward._setup_defaults()
+	return reward
+
+
+## 生成随机新武器奖励 (Phase 0.5)
+static func _create_random_new_weapon(reward_id: int) -> RewardData:
+	var weapon_def = WEAPON_DEFS[randi() % WEAPON_DEFS.size()]
+	var reward = RewardData.new(
+		reward_id,
+		weapon_def["name"],
+		RewardType.NEW_WEAPON,
+		weapon_def["damage"]
+	)
+	reward.weapon_id = weapon_def["id"]
+	reward.description = weapon_def["description"]
 	reward._setup_defaults()
 	return reward
 

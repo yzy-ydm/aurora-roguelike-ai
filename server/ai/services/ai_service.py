@@ -640,37 +640,70 @@ class AIService:
     ) -> List[Dict[str, Any]]:
         """生成怪物配置"""
         monsters = []
+
+        # 动态计算怪物属性（基于楼层和玩家等级）
+        base_hp = 30 + floor_level * 15
+        base_attack = 5 + floor_level * 2
+        base_defense = 2 + floor_level
+
         if room_type == "combat":
             count = random.randint(2, 4)
             monsters.append({
                 "id": random.choice(self.monster_types),
-                "count": count
+                "count": count,
+                "health": base_hp + random.randint(-10, 10),
+                "attack": base_attack + random.randint(-2, 2),
+                "defense": base_defense + random.randint(0, 1),
+                "level": max(1, player_level + random.randint(-1, 1))
             })
             if floor_level > 2:
                 monsters.append({
                     "id": random.choice(self.monster_types),
-                    "count": random.randint(1, 2)
+                    "count": random.randint(1, 2),
+                    "health": int(base_hp * 1.2),
+                    "attack": int(base_attack * 1.1),
+                    "defense": base_defense,
+                    "level": max(1, player_level + 1)
                 })
         elif room_type == "elite":
+            elite_hp = int(base_hp * 2.0)
+            elite_attack = int(base_attack * 1.5)
+            elite_defense = int(base_defense * 1.5)
             monsters.append({
                 "id": "elite_goblin",
-                "count": random.randint(1, 2)
+                "count": random.randint(1, 2),
+                "health": elite_hp,
+                "attack": elite_attack,
+                "defense": elite_defense,
+                "level": player_level + 1
             })
             monsters.append({
                 "id": random.choice(self.monster_types),
-                "count": random.randint(1, 3)
+                "count": random.randint(1, 3),
+                "health": int(base_hp * 1.3),
+                "attack": int(base_attack * 1.2),
+                "defense": int(base_defense * 1.2),
+                "level": max(1, player_level + 1)
             })
         elif room_type == "treasure":
             if random.random() < 0.5:
                 monsters.append({
                     "id": random.choice(self.monster_types),
-                    "count": random.randint(1, 2)
+                    "count": random.randint(1, 2),
+                    "health": base_hp,
+                    "attack": base_attack,
+                    "defense": base_defense,
+                    "level": player_level
                 })
         elif room_type == "event":
             if random.random() < 0.3:
                 monsters.append({
                     "id": random.choice(self.monster_types),
-                    "count": random.randint(1, 2)
+                    "count": random.randint(1, 2),
+                    "health": base_hp,
+                    "attack": base_attack,
+                    "defense": base_defense,
+                    "level": player_level
                 })
         return monsters
 
