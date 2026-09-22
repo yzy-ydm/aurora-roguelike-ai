@@ -13,6 +13,7 @@ var _is_loading: bool = false
 
 ## 最后一次保存数据(用于404回退)
 var _last_save_data: Dictionary = {}
+var _last_save_slot: int = -1
 
 ## 信号
 signal saves_loaded(saves: Array)
@@ -59,8 +60,10 @@ func save_game(slot: int, save_data: Dictionary) -> void:
 		"kill_count": save_data.get("kill_count", 0),
 		"gold_collected": save_data.get("gold_collected", 0)
 	}
-	# 先尝试PUT更新，如果返回404则改用POST创建
+	# 保存slot和data用于404回退
+	_last_save_slot = slot
 	_last_save_data = data.duplicate()
+	print("[SaveService] save_game(slot=", slot, ") PUT /api/game/save/", slot)
 	ApiClient.put_request(APIConfig.GAME_SAVE + "/" + str(slot), data, true)
 
 

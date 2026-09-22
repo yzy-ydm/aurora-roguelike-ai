@@ -948,15 +948,19 @@ func _on_treasure_room_cleared() -> void:
 
 ## ==================== 出口传送门 ====================
 
-## 自动保存: 当前进度到slot 0
+## 自动保存: 当前进度到slot 1
 func _auto_save() -> void:
 	var save_data = GameStateManager.get_save_data()
 	if save_data.is_empty():
 		print("[GameScene] Auto-save skipped: no save data")
 		return
-	save_data["current_floor"] = _floor_manager.get_floor_level() if _floor_manager else 1
-	SaveService.save_game(0, save_data)
-	print("[GameScene] Auto-saved to slot 0 (floor ", save_data["current_floor"], ")")
+	var floor_level = 1
+	if _floor_manager:
+		floor_level = _floor_manager.get_floor_level()
+	save_data["current_floor"] = floor_level
+	print("[Save Debug] Auto-save: slot=1 floor=", floor_level, " level=", save_data.get("player_state", {}).get("level", 1), " weapon_id=", save_data.get("player_state", {}).get("weapon_id", -1))
+	SaveService.save_game(1, save_data)
+	print("[GameScene] Auto-saved to slot 1 (floor ", floor_level, ")")
 
 func _on_exit_portal_entered(target_room_id: int) -> void:
 	print("[GameScene] Exit portal entered: room ", target_room_id)
