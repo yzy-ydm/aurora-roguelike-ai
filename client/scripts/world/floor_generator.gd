@@ -6,6 +6,10 @@
 extends Node
 
 ## 生成配置
+const ROOM_WIDTH: int = 1280
+const HALF_WIDTH: int = 640
+const PORTAL_OFFSET_X: int = HALF_WIDTH - 40  # 传送门距房间中心X距离
+const ROOM_SPACING_X: int = PORTAL_OFFSET_X + HALF_WIDTH  # 房间中心间距 = 1240
 var _min_rooms: int = 8
 var _max_rooms: int = 12
 var _branch_chance: float = 0.3  # 分支概率
@@ -31,8 +35,8 @@ func generate_floor(floor_level: int = 1) -> Array[RoomNodeData]:
 		var room_type = _get_random_room_type(floor_level)
 		var new_room = RoomNodeData.new(rooms.size(), room_type)
 
-		# 计算位置（向右延伸）
-		new_room.position = current_room.position + Vector2(200, randf_range(-50, 50))
+		# 计算位置（向右延伸，门对门对齐）
+		new_room.position = current_room.position + Vector2(ROOM_SPACING_X, randf_range(-50, 50))
 
 		# 建立连接
 		current_room.add_connection(new_room.id)
@@ -50,10 +54,10 @@ func generate_floor(floor_level: int = 1) -> Array[RoomNodeData]:
 		var room_type = _get_random_room_type(floor_level)
 		var new_room = RoomNodeData.new(rooms.size(), room_type)
 
-		# 计算位置（从分支起点延伸）
+		# 计算位置（从分支起点延伸，X方向一个房间宽）
 		var offset = Vector2(
-			randf_range(100, 200),
-			randf_range(-100, 100)
+			randf_range(ROOM_SPACING_X * 0.5, ROOM_SPACING_X * 1.5),
+			randf_range(-ROOM_SPACING_X * 0.3, ROOM_SPACING_X * 0.3)
 		)
 		new_room.position = branch_from.position + offset
 
@@ -63,9 +67,9 @@ func generate_floor(floor_level: int = 1) -> Array[RoomNodeData]:
 
 		rooms.append(new_room)
 
-	# 在最后添加Boss房间
+	# 在最后添加Boss房间（紧贴最后一个房间右侧）
 	var boss_room = RoomNodeData.new(rooms.size(), RoomNodeData.RoomType.BOSS)
-	boss_room.position = current_room.position + Vector2(200, 0)
+	boss_room.position = current_room.position + Vector2(ROOM_SPACING_X, 0)
 
 	# 建立连接
 	current_room.add_connection(boss_room.id)
@@ -155,7 +159,7 @@ func create_rooms_from_ai_data(ai_rooms: Array) -> Array[RoomNodeData]:
 					room_node.add_connection(conn)
 
 			# 计算位置
-			room_node.position = Vector2(room_id * 200, randf_range(-50, 50))
+			room_node.position = Vector2(room_id * ROOM_SPACING_X, randf_range(-50, 50))
 
 			rooms.append(room_node)
 
