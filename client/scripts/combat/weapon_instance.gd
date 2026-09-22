@@ -86,9 +86,11 @@ func get_weapon_data() -> WeaponData:
 	return _weapon_data
 
 
-## 获取攻击力（供DamageSystem兼容调用）
-func get_attack() -> int:
-	return get_damage()
+## 获取武器类型 (fire/ice/thunder/none)
+func get_weapon_type() -> String:
+	if _weapon_data:
+		return _weapon_data.type
+	return ""
 
 
 ## ==================== 升级 ====================

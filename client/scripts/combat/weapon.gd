@@ -139,8 +139,10 @@ func _fire(direction: Vector2) -> void:
 
 	# 获取当前伤害（优先从WeaponInstance获取，支持等级成长）
 	var current_damage = weapon_damage
+	var current_weapon_type = ""
 	if _weapon_instance:
 		current_damage = _weapon_instance.get_damage()
+		current_weapon_type = _weapon_instance.get_weapon_type()
 
 	# 创建子弹 - 只传递武器伤害，不计算总伤害
 	# 伤害计算由DamageSystem在命中时完成
@@ -153,12 +155,14 @@ func _fire(direction: Vector2) -> void:
 	var spawn_offset = direction * 20.0
 	var spawn_pos = (_owner.global_position if _owner else Vector2.ZERO) + spawn_offset
 	bullet.global_position = spawn_pos
-	bullet.setup(current_damage, bullet_speed, direction, is_critical, _owner)
+	bullet.setup(current_damage, bullet_speed, direction, is_critical, _owner, false, current_weapon_type)
 
 	_bullet_container.add_child(bullet)
 
 	weapon_fired.emit()
-	print("[Weapon] Fired bullet, damage:", current_damage, " crit:", is_critical, " pos:", spawn_pos, " dir:", direction)
+	print("[Weapon] Fired: ", _weapon_instance.get_name() if _weapon_instance else "unknown",
+		  " damage:", current_damage, " type:", current_weapon_type,
+		  " crit:", is_critical)
 
 
 ## 是否可以攻击

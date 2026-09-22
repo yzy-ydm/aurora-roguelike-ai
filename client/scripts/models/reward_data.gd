@@ -316,11 +316,41 @@ static func from_dict(data: Dictionary) -> RewardData:
 
 ## 武器定义（用于新武器奖励）
 const WEAPON_DEFS = [
-	{"id": 1, "name": "基础手枪", "damage": 20, "fire_rate": 0.2, "description": "基础攻击武器"},
-	{"id": 2, "name": "火焰步枪", "damage": 35, "fire_rate": 0.3, "description": "高伤害火焰武器"},
-	{"id": 3, "name": "冰霜法杖", "damage": 25, "fire_rate": 0.25, "description": "冰冻伤害武器"},
-	{"id": 4, "name": "雷霆弓", "damage": 30, "fire_rate": 0.22, "description": "闪电伤害远程武器"},
+	{"id": 1, "name": "基础手枪", "damage": 20, "fire_rate": 0.2, "description": "基础攻击武器", "type": "gun", "bullet_color": Color.WHITE},
+	{"id": 2, "name": "火焰步枪", "damage": 35, "fire_rate": 0.3, "description": "高伤害火焰武器", "type": "fire", "bullet_color": Color(1.0, 0.3, 0.1, 1.0)},
+	{"id": 3, "name": "冰霜法杖", "damage": 25, "fire_rate": 0.25, "description": "冰冻伤害武器", "type": "ice", "bullet_color": Color(0.2, 0.7, 1.0, 1.0)},
+	{"id": 4, "name": "雷霆弓", "damage": 30, "fire_rate": 0.22, "description": "闪电伤害远程武器", "type": "thunder", "bullet_color": Color(0.9, 0.8, 0.1, 1.0)},
 ]
+
+
+## 根据weapon_id从WEAPON_DEFS创建WeaponData
+static func create_weapon_data_from_def(weapon_id: int) -> WeaponData:
+	for def in WEAPON_DEFS:
+		if def["id"] == weapon_id:
+			var wd = WeaponData.new()
+			wd.id = def["id"]
+			wd.name = def["name"]
+			wd.description = def["description"]
+			wd.type = def["type"]
+			wd.rarity = "common"
+			wd.damage = def["damage"]
+			wd.base_damage = def["damage"]
+			wd.damage_growth = 5
+			wd.max_level = 10
+			wd.fire_rate = def["fire_rate"]
+			wd.bullet_speed = 500.0
+			wd.bullet_count = 1
+			wd.range = 500.0
+			return wd
+	return null
+
+
+## 根据weapon_id从WEAPON_DEFS获取子弹颜色
+static func get_bullet_color(weapon_id: int) -> Color:
+	for def in WEAPON_DEFS:
+		if def["id"] == weapon_id:
+			return def.get("bullet_color", Color.WHITE)
+	return Color.WHITE
 
 
 ## 生成随机奖励

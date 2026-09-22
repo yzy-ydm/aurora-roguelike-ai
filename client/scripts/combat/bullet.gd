@@ -11,6 +11,7 @@ var is_critical: bool = false
 var speed: float = 500.0
 var direction: Vector2 = Vector2.RIGHT
 var source: Node2D = null  # 发射者
+var weapon_type: String = ""  # fire/ice/thunder/gun
 
 ## 生命周期 (Phase 17.2: 优化限制)
 var lifetime: float = 2.0  # 最大存活时间
@@ -96,20 +97,32 @@ func _get_room_center() -> Vector2:
 
 
 ## 设置子弹属性
-func setup(bullet_damage: int, bullet_speed: float, bullet_direction: Vector2, critical: bool = false, bullet_source: Node2D = null, enemy_bullet: bool = false) -> void:
+func setup(bullet_damage: int, bullet_speed: float, bullet_direction: Vector2, critical: bool = false, bullet_source: Node2D = null, enemy_bullet: bool = false, weapon_type_str: String = "") -> void:
 	damage = bullet_damage
 	speed = bullet_speed if bullet_speed > 0 else 500.0
 	direction = bullet_direction.normalized()
 	is_critical = critical
 	source = bullet_source
 	is_enemy_bullet = enemy_bullet
+	weapon_type = weapon_type_str
 
 
 ## 设置外观
 func _setup_appearance() -> void:
-	# 创建白色圆形子弹
+	# 根据武器类型设置子弹颜色
+	var color = Color.WHITE
+	match weapon_type:
+		"fire":
+			color = Color(1.0, 0.3, 0.1, 1.0)
+		"ice":
+			color = Color(0.2, 0.7, 1.0, 1.0)
+		"thunder":
+			color = Color(0.9, 0.8, 0.1, 1.0)
+		_:
+			color = Color.WHITE
+
 	var image = Image.create(8, 8, false, Image.FORMAT_RGBA8)
-	image.fill(Color.WHITE)
+	image.fill(color)
 	var texture = ImageTexture.create_from_image(image)
 	sprite.texture = texture
 

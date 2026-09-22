@@ -541,7 +541,7 @@ func upgrade_weapon() -> bool:
 	return false
 
 
-## 装备新武器 (Phase 0.4: 修复武器掉落无法装备问题)
+## 装备新武器 (Phase 0.4: 实现新武器装备逻辑)
 func equip_new_weapon(weapon_id: int) -> bool:
 	"""
 	装备指定ID的新武器
@@ -551,13 +551,27 @@ func equip_new_weapon(weapon_id: int) -> bool:
 		# 武器升级逻辑（现有逻辑）
 		return upgrade_weapon()
 
-	# TODO: 实现新武器装备逻辑
-	# 当前阶段：打印日志，暂时不支持多武器切换
-	print("[Player] Attempting to equip weapon ID: ", weapon_id)
-	print("[Player] Multi-weapon system not yet implemented, using upgrade instead")
+	# 从 RewardData.WEAPON_DEFS 创建 WeaponData
+	var new_weapon_data = RewardData.create_weapon_data_from_def(weapon_id)
+	if not new_weapon_data:
+		print("[Player] Error: Weapon ID ", weapon_id, " not found in WEAPON_DEFS")
+		return false
 
-	# 临时方案：触发武器升级
-	return upgrade_weapon()
+	# 创建新的 WeaponInstance (从Lv1开始)
+	var new_instance = WeaponInstance.create(new_weapon_data)
+	if not new_instance:
+		print("[Player] Error: Failed to create WeaponInstance for ID ", weapon_id)
+		return false
+
+	# 替换当前武器
+	_weapon.set_weapon_instance(new_instance)
+	print("[Weapon] Equipped: ", new_instance.get_name(), " damage=", new_instance.get_damage(), " type=", new_instance.get_weapon_type())
+
+	# 同步存档
+	GameStateManager.set_extended_save_data("weapon_id", weapon_id)
+	GameStateManager.set_extended_save_data("weapon_level", new_instance.get_level())
+
+	return true
 
 
 ## 设置玩家数据 (Phase 9.4.1: 同步到PlayerStats)
