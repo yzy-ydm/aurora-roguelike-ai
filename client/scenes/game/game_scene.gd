@@ -1050,7 +1050,10 @@ func _create_room_exits() -> void:
 	# TASK-005: 传送门目标禁止选择已完成房间
 	# （旧代码兜底级允许已完成 → 玩家进入被拒 "already entered/completed, skipping"）
 	# 优先级: 未访问房间 > 已访问未完成房间（已完成房间一律排除）
+	# TASK-006: 增加 [PortalSelection] 防御日志；无有效目标时走紧急出口（绝不软锁）
+	print("[PortalSelection] room ", current_room_id, " candidates=", available_ids)
 	var target_id = -1
+	var selection_reason = ""
 
 	# 第一优先：未访问的房间
 	for id in available_ids:
@@ -1059,6 +1062,7 @@ func _create_room_exits() -> void:
 		var room = current_floor.get_room(id)
 		if room and not room.visited:
 			target_id = id
+			selection_reason = "priority1 unvisited"
 			break
 
 	# 第二优先：任意未完成的房间(允许回溯到未完成房；已完成房间一律排除)
@@ -1069,22 +1073,67 @@ func _create_room_exits() -> void:
 			var room = current_floor.get_room(id)
 			if room and not room.is_completed():
 				target_id = id
+				selection_reason = "priority2 unfinished"
 				break
 
-	# TASK-005: 无有效目标时不乱建门——楼层完成走下一层流程，否则提示玩家
+	# TASK-005: 无有效目标时不乱建门——楼层完成走下一层流程
+	# TASK-006: 楼层未完成则走紧急出口防御（DAG 结构下理论不可达，绝不软锁）
 	if target_id == -1:
 		if _floor_manager.is_floor_complete():
-			print("[GameScene] No valid exit targets, floor complete")
+			print("[PortalSelection] no valid target, floor complete")
 			_on_floor_completed()
 		else:
-			print("[GameScene] No valid exit targets, skip portal creation")
-			hud.set_status("附近没有可探索的房间了...")
+			_emergency_exit_portal(current_floor, current_room_id)
 		return
 
 	var target_room = current_floor.get_room(target_id)
 	if target_room:
+		print("[PortalSelection] ", selection_reason, " -> room ", target_id)
 		print("[Portal] Current Room:", current_room_id, " | Target Room:", target_id, " | Type:", target_room.get_type_string())
 		_room_renderer.create_exit_portal(target_id, target_room.get_type_string())
+
+
+## TASK-006: 紧急出口——正常 DAG 拓扑下不会触发（每房必有未访问前向边）
+## 防御性兜底：宁可让玩家跳过探索，绝不允许软锁
+## 优先级: 未完成Boss房 > 未访问非当前房 > 未完成非当前房
+func _emergency_exit_portal(current_floor: FloorData, current_room_id: int) -> void:
+	print("[PortalSelection] WARNING: no valid forward target for room ", current_room_id, " (should not happen)")
+	var target_id = -1
+	var reason = ""
+
+	# 优先1: 未完成的 Boss 房
+	for room in current_floor.get_all_rooms():
+		if room.room_type == NewRoomData.RoomType.BOSS and not room.is_completed():
+			target_id = room.id
+			reason = "unfinished boss"
+			break
+	# 优先2: 未访问的非当前房
+	if target_id == -1:
+		for room in current_floor.get_all_rooms():
+			if room.id == current_room_id or room.is_completed():
+				continue
+			if not room.visited:
+				target_id = room.id
+				reason = "unvisited"
+				break
+	# 优先3: 未完成的非当前房
+	if target_id == -1:
+		for room in current_floor.get_all_rooms():
+			if room.id == current_room_id or room.is_completed():
+				continue
+			target_id = room.id
+			reason = "unfinished"
+			break
+
+	var target_room = current_floor.get_room(target_id) if target_id >= 0 else null
+	if not target_room:
+		print("[PortalSelection] ERROR: no emergency target, cannot create portal")
+		hud.set_status("附近没有可探索的房间了...")
+		return
+
+	print("[PortalSelection] EMERGENCY: portal to room ", target_id, " (", reason, ")")
+	print("[Portal] Current Room:", current_room_id, " | Target Room:", target_id, " | Type:", target_room.get_type_string())
+	_room_renderer.create_exit_portal(target_id, target_room.get_type_string())
 
 
 ## ==================== 下一层传送门（Phase 10.1.6） ====================
