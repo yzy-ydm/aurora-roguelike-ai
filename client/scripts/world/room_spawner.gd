@@ -73,32 +73,40 @@ func set_room_center(center: Vector2) -> void:
 	print("[RoomSpawner] Room center set to: ", center)
 
 
-## Phase 26: 获取当前房间的怪物容器（从RoomRenderer获取）
-func _get_monster_container() -> Node2D:
+## Phase 26: 获取 RoomRenderer 引用（通过 GameScene→FloorManager 查找链）
+func _get_room_renderer() -> Node:
 	var root = Engine.get_main_loop().root
 	if root:
 		var game_scene = root.get_node_or_null("GameScene")
 		if game_scene:
 			var floor_manager = game_scene.get_node_or_null("FloorManager")
 			if floor_manager:
-				var room_renderer = floor_manager.get_room_renderer()
-				if room_renderer and room_renderer.has_method("get_monster_container"):
-					return room_renderer.get_monster_container()
+				return floor_manager.get_room_renderer()
+	return null
+
+
+## Phase 26: 获取当前房间的怪物容器（从RoomRenderer获取）
+func _get_monster_container() -> Node2D:
+	var room_renderer = _get_room_renderer()
+	if room_renderer and room_renderer.has_method("get_monster_container"):
+		return room_renderer.get_monster_container()
 	return null
 
 
 ## Phase 26: 获取当前房间的奖励容器（从RoomRenderer获取）
 func _get_reward_container() -> Node2D:
-	var root = Engine.get_main_loop().root
-	if root:
-		var game_scene = root.get_node_or_null("GameScene")
-		if game_scene:
-			var floor_manager = game_scene.get_node_or_null("FloorManager")
-			if floor_manager:
-				var room_renderer = floor_manager.get_room_renderer()
-				if room_renderer and room_renderer.has_method("get_reward_container"):
-					return room_renderer.get_reward_container()
+	var room_renderer = _get_room_renderer()
+	if room_renderer and room_renderer.has_method("get_reward_container"):
+		return room_renderer.get_reward_container()
 	return null
+
+
+## TASK-002: 获取当前房间平台矩形列表（用于奖励生成避让）
+func _get_platform_rects() -> Array[Rect2]:
+	var room_renderer = _get_room_renderer()
+	if room_renderer and room_renderer.has_method("get_platform_rects"):
+		return room_renderer.get_platform_rects()
+	return []
 
 
 ## ==================== 怪物生成 ====================
@@ -435,8 +443,9 @@ func spawn_rewards(content: RoomContentData, room_center: Vector2) -> void:
 		else:
 			reward_data = RewardData.generate_random_reward(i)
 
-		# Phase 26: 转换为房间内local坐标
-		var world_pos = WorldCoordinate.reward_spawn_pos(room_center)
+		# TASK-002: 平台感知采样（避开平台碰撞体，保证玩家可拾取）
+		var platform_rects := _get_platform_rects()
+		var world_pos = WorldCoordinate.reward_spawn_pos(room_center, platform_rects, i, reward_count)
 		var local_pos = world_pos - room_center
 		spawn_reward(reward_data, local_pos)
 

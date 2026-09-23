@@ -26,6 +26,10 @@ const GROUND_Y: int = HALF_HEIGHT - GROUND_HEIGHT / 2
 ## 平台配置
 const PLATFORM_THICKNESS: int = 16
 
+## TASK-002: 当前房间的平台碰撞矩形列表（local 坐标，position=左上角）
+## 由 _create_platform 记录，供奖励生成位置避让查询（WorldCoordinate.reward_spawn_pos）
+var _platform_rects: Array[Rect2] = []
+
 ## Phase 24: 玩家跳跃可达性约束
 ## 根据 player_controller.gd 的 GRAVITY=980, JUMP_FORCE=-400 计算:
 ##   最大垂直高度 = JUMP_FORCE² / (2 * GRAVITY) ≈ 65px
@@ -113,6 +117,11 @@ func get_reward_container() -> Node2D:
 ## Phase 26: 获取当前房间节点（用于BackgroundManager等）
 func get_current_room_node() -> Node2D:
 	return _current_room_node
+
+
+## TASK-002: 获取当前房间的平台矩形列表（RoomSpawner/GameScene 奖励避让查询）
+func get_platform_rects() -> Array[Rect2]:
+	return _platform_rects
 
 
 ## ==================== 横版房间渲染 ====================
@@ -271,6 +280,9 @@ func _create_platform(pos: Vector2, width: int) -> StaticBody2D:
 	sprite.position = Vector2(-width / 2, -PLATFORM_THICKNESS / 2)
 	sprite.color = Color(0.4, 0.35, 0.3)
 	platform.add_child(sprite)
+
+	# TASK-002: 记录平台碰撞矩形（pos 为平台中心 → 换算为左上角矩形）
+	_platform_rects.append(Rect2(pos - Vector2(width / 2.0, PLATFORM_THICKNESS / 2.0), Vector2(width, PLATFORM_THICKNESS)))
 
 	return platform
 
@@ -458,6 +470,8 @@ func _create_label(room: NewRoomData) -> Label:
 
 func clear_room() -> void:
 	clear_exit_portals()
+	# TASK-002: 房间销毁时清空平台矩形记录（新房间会重新生成）
+	_platform_rects.clear()
 	if _decoration_manager:
 		_decoration_manager.clear_decorations()
 	if _clear_feedback:

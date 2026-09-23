@@ -934,12 +934,12 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 
 	for i in range(reward_count):
 		var reward_data = RewardData.generate_random_reward(i)
-		# TASK-001: 生成在地面附近（与战斗房奖励同高度），保证可见可拾取
-		# 旧代码生成在房间中心高度 y∈[-30,30]，超出玩家跳跃可达范围
-		var world_pos = WorldCoordinate.reward_spawn_pos(room_pos)
+		# TASK-002: 平台感知采样（与战斗房/Reward房一致，避开平台碰撞体）
+		var platform_rects: Array[Rect2] = []
+		if _room_renderer and _room_renderer.has_method("get_platform_rects"):
+			platform_rects = _room_renderer.get_platform_rects()
+		var world_pos = WorldCoordinate.reward_spawn_pos(room_pos, platform_rects, i, reward_count)
 		var local_spawn_pos = world_pos - room_pos
-		local_spawn_pos.x += randf_range(-150.0, 150.0)
-		local_spawn_pos.y += randf_range(-10.0, 10.0)
 		_room_spawner.spawn_reward(reward_data, local_spawn_pos)
 
 	print("[GameScene] Treasure room: spawned ", reward_count, " rewards")
