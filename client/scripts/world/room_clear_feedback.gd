@@ -84,7 +84,8 @@ func show_clear_feedback(room_center: Vector2) -> void:
 func _create_feedback_node(room_center: Vector2) -> Node2D:
 	var feedback_node = Node2D.new()
 	feedback_node.name = "RoomClearFeedback"
-	feedback_node.position = room_center + Vector2(0, -50)
+	# Phase 26: 使用local坐标（相对于房间中心）
+	feedback_node.position = Vector2(0, -50)
 
 	# 创建文本标签
 	var label = Label.new()
@@ -196,7 +197,8 @@ func show_custom_feedback(text: String, color: Color, room_center: Vector2) -> v
 func _create_custom_feedback_node(text: String, color: Color, room_center: Vector2) -> Node2D:
 	var feedback_node = Node2D.new()
 	feedback_node.name = "CustomFeedback"
-	feedback_node.position = room_center + Vector2(0, -50)
+	# Phase 26: 使用local坐标（相对于房间中心）
+	feedback_node.position = Vector2(0, -50)
 
 	var label = Label.new()
 	label.text = text

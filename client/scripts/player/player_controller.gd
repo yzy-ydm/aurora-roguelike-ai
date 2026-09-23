@@ -167,6 +167,7 @@ func _physics_process(delta: float) -> void:
 
 	# ========== 4. 获取地面状态 ==========
 	var on_floor = is_on_floor()
+	_is_on_ground = on_floor  # Phase 25: 更新地面状态，确保 is_on_ground() 返回正确值
 
 	# ========== 5. 更新Coyote Timer ==========
 	if on_floor:

@@ -12,14 +12,17 @@ extends Node
 
 ## ==================== 引用 ====================
 
-## 怪物容器
+## 怪物容器（当前房间的，由RoomRenderer提供）
 var _monster_container: Node2D = null
 
-## 奖励容器
+## 奖励容器（当前房间的，由RoomRenderer提供）
 var _reward_container: Node2D = null
 
 ## 玩家引用
 var _player: CharacterBody2D = null
+
+## Phase 26: 当前房间中心（用于坐标转换）
+var _current_room_center: Vector2 = Vector2.ZERO
 
 ## ==================== 状态 ====================
 
@@ -64,6 +67,40 @@ func set_player(player: CharacterBody2D) -> void:
 	_player = player
 
 
+## Phase 26: 设置当前房间中心（用于local/global坐标转换）
+func set_room_center(center: Vector2) -> void:
+	_current_room_center = center
+	print("[RoomSpawner] Room center set to: ", center)
+
+
+## Phase 26: 获取当前房间的怪物容器（从RoomRenderer获取）
+func _get_monster_container() -> Node2D:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			var floor_manager = game_scene.get_node_or_null("FloorManager")
+			if floor_manager:
+				var room_renderer = floor_manager.get_room_renderer()
+				if room_renderer and room_renderer.has_method("get_monster_container"):
+					return room_renderer.get_monster_container()
+	return null
+
+
+## Phase 26: 获取当前房间的奖励容器（从RoomRenderer获取）
+func _get_reward_container() -> Node2D:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			var floor_manager = game_scene.get_node_or_null("FloorManager")
+			if floor_manager:
+				var room_renderer = floor_manager.get_room_renderer()
+				if room_renderer and room_renderer.has_method("get_reward_container"):
+					return room_renderer.get_reward_container()
+	return null
+
+
 ## ==================== 怪物生成 ====================
 
 ## 根据房间内容生成怪物
@@ -72,8 +109,17 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 	if not content or content.monster_count <= 0:
 		return 0
 
+	# Phase 26: 获取房间级容器
+	_monster_container = _get_monster_container()
+	if not _monster_container:
+		print("[RoomSpawner] Error: No monster container for room")
+		return 0
+
 	# 清除旧怪物
 	clear_monsters()
+
+	# Phase 26: 保存房间中心用于local坐标转换
+	_current_room_center = room_center
 
 	var monsters = ResourceService.get_monsters()
 	if monsters.size() == 0:
@@ -86,8 +132,10 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 	for i in range(content.monster_count):
 		var monster_data = _get_monster_by_config(monsters, content.monster_types, content.monster_level)
 		if monster_data:
-			var spawn_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count)
-			var entity = _spawn_single_monster(monster_data, spawn_pos)
+			# Phase 26: 转换为房间内local坐标
+			var world_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count)
+			var local_pos = world_pos - room_center
+			var entity = _spawn_single_monster(monster_data, local_pos)
 			if entity:
 				# MONSTER_BALANCE_ENABLED=true: 服务端已处理楼层缩放
 				# 不需要客户端二次倍率修正，避免双重放大
@@ -99,6 +147,7 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 
 ## 生成单个怪物
 func _spawn_single_monster(monster_data: MonsterData, pos: Vector2) -> MonsterEntity:
+	# Phase 26: pos现在是local坐标（相对于房间中心）
 	if not _monster_container:
 		print("[RoomSpawner] Error: No monster container")
 		return null
@@ -122,12 +171,12 @@ func _spawn_single_monster(monster_data: MonsterData, pos: Vector2) -> MonsterEn
 	# 绑定节点
 	entity.bind_monster_node(monster_node)
 
-	# 添加到场景
+	# Phase 26: 添加到房间级容器，使用local坐标
 	_monster_container.add_child(monster_node)
-	monster_node.position = pos
+	monster_node.position = pos  # local坐标
 
 	# Phase 17.4: 调试日志 - 确认怪物生成
-	print("[MonsterSpawn] name=", monster_data.name, " position=", pos, " global_position=", monster_node.global_position, " parent=", monster_node.get_parent().name if monster_node.get_parent() else "none", " z_index=", monster_node.z_index)
+	print("[MonsterSpawn] name=", monster_data.name, " local_position=", pos, " global_position=", monster_node.global_position, " parent=", monster_node.get_parent().name if monster_node.get_parent() else "none")
 
 	# 设置节点的实体引用
 	if monster_node.has_method("set_monster_entity"):
@@ -227,10 +276,19 @@ func spawn_boss(boss_data: BossData, room_center: Vector2) -> MonsterEntity:
 		print("[RoomSpawner] Error: No boss data")
 		return null
 
+	# Phase 26: 获取房间级容器
+	_monster_container = _get_monster_container()
+	if not _monster_container:
+		print("[RoomSpawner] Error: No monster container for boss room")
+		return null
+
 	print("[BOSS SPAWN] Starting boss spawn: ", boss_data.name)
 
 	# 清除旧怪物
 	clear_monsters()
+
+	# Phase 26: 保存房间中心用于local坐标转换
+	_current_room_center = room_center
 
 	# 加载怪物场景
 	var monster_scene = load("res://scenes/enemy/monster.tscn")
@@ -258,14 +316,17 @@ func spawn_boss(boss_data: BossData, room_center: Vector2) -> MonsterEntity:
 	# 创建实体
 	var entity = MonsterEntity.new()
 	entity.set_monster_data(monster_data)
-	entity.set_position(room_center)
+
+	# Phase 26: Boss在房间中心，local坐标为(0, 0)
+	var boss_local_pos = Vector2.ZERO
+	entity.set_position(boss_local_pos)
 
 	# 绑定节点
 	entity.bind_monster_node(monster_node)
 
-	# 添加到场景
+	# Phase 26: 添加到房间级容器，使用local坐标
 	_monster_container.add_child(monster_node)
-	monster_node.position = room_center
+	monster_node.position = boss_local_pos
 
 	# 设置节点的实体引用
 	if monster_node.has_method("set_monster_entity"):
@@ -349,16 +410,21 @@ func _find_combat_manager() -> Node:
 ## 根据房间内容生成奖励
 ## room_center: 房间中心的世界坐标
 func spawn_rewards(content: RoomContentData, room_center: Vector2) -> void:
+	# Phase 26: 获取房间级容器
+	_reward_container = _get_reward_container()
 	if not _reward_container:
-		print("[RoomSpawner] Error: No reward container")
+		print("[RoomSpawner] Error: No reward container for room")
 		return
 
 	# 清除旧奖励
 	clear_rewards()
 
+	# Phase 26: 保存房间中心用于local坐标转换
+	_current_room_center = room_center
+
 	var reward_count = 3  # 默认
 	if content:
-		reward_count = content.reward_count
+		reward_count = maxi(1, content.reward_count)  # TASK-001: 至少生成1个，避免空奖励房无法触发完成信号
 
 	print("[RoomSpawner] Spawning ", reward_count, " rewards")
 
@@ -369,8 +435,20 @@ func spawn_rewards(content: RoomContentData, room_center: Vector2) -> void:
 		else:
 			reward_data = RewardData.generate_random_reward(i)
 
-		var spawn_pos = WorldCoordinate.reward_spawn_pos(room_center)
-		_spawn_single_reward(reward_data, spawn_pos)
+		# Phase 26: 转换为房间内local坐标
+		var world_pos = WorldCoordinate.reward_spawn_pos(room_center)
+		var local_pos = world_pos - room_center
+		spawn_reward(reward_data, local_pos)
+
+
+## TASK-001: 生成单个奖励（公开接口，供奖励房/宝箱房/战斗房/未来AI奖励调用）
+## local_pos: 房间内local坐标（相对于房间中心）
+func spawn_reward(reward_data: RewardData, local_pos: Vector2) -> void:
+	_reward_container = _get_reward_container()
+	if not _reward_container:
+		print("[RoomSpawner] Error: No reward container, cannot spawn reward")
+		return
+	_spawn_single_reward(reward_data, local_pos)
 
 
 ## 根据策略生成奖励
@@ -412,7 +490,13 @@ func _reward_from_config(config: Dictionary, quality: float) -> RewardData:
 
 
 ## 生成单个奖励
+## TASK-001 修复要点:
+## - 旧代码 add_child 后才赋值 position，_ready 捕获到 (0,0)，
+##   浮动动画每帧把奖励拉回房间中心高度 → 不可见不可拾取
+## - 现在改为"先定位后入树"：set_spawn_position 在 add_child 之前设置出生点
+## - set_spawn_position 同时校准动画起点，任何调用顺序都安全
 func _spawn_single_reward(reward_data: RewardData, pos: Vector2) -> void:
+	# Phase 26: pos是local坐标（相对于房间中心）
 	var reward_scene = load("res://scenes/drop/reward_item.tscn")
 	if not reward_scene:
 		print("[RoomSpawner] Error: Failed to load reward scene")
@@ -422,32 +506,40 @@ func _spawn_single_reward(reward_data: RewardData, pos: Vector2) -> void:
 	if not reward_node:
 		return
 
+	if not _reward_container:
+		print("[RoomSpawner] Error: No reward container, reward discarded")
+		reward_node.free()
+		return
+
+	# TASK-001: 先设置数据与出生点，再入树（_ready 中捕获的动画起点即为正确位置）
 	if reward_node.has_method("set_reward_data"):
 		reward_node.set_reward_data(reward_data)
+	if reward_node.has_method("set_spawn_position"):
+		reward_node.set_spawn_position(pos)
 
-	# Phase 23: 使用 global_position 确保位置正确
-	# RewardContainer 在 GameWorld 下 (position=0,0)，所以 position 和 global_position 相同
-	# 但使用 global_position 更安全，避免后续场景结构变化导致位置错误
-	if _reward_container:
-		_reward_container.add_child(reward_node)
-		reward_node.global_position = pos
-
-	# Phase 17.7: 输出调试信息
-	print("[Reward Spawn Debug] type=", reward_data.get_type_string() if reward_data else "unknown", " local_position=", reward_node.position, " global_position=", reward_node.global_position, " parent=", reward_node.get_parent().name if reward_node.get_parent() else "none")
+	# Phase 26: 添加到房间级容器（local坐标系）
+	_reward_container.add_child(reward_node)
 
 	_current_rewards.append(reward_node)
 
+	# TASK-001: 绑定节点引用，收集时精确移除对应节点（修复收集后列表不清空 → 出口永不出现）
 	if reward_node.has_signal("reward_collected"):
-		reward_node.reward_collected.connect(_on_reward_collected)
+		reward_node.reward_collected.connect(_on_reward_collected.bind(reward_node))
 
 	reward_spawned.emit(reward_data)
 
 
-func _on_reward_collected(data: RewardData) -> void:
+## 奖励收集回调
+## TASK-001: 携带被收集的节点引用（由 bind 注入），立即精确移除，
+## 避免依赖 queue_free 时序导致 all_rewards_collected 永不触发
+func _on_reward_collected(data: RewardData, reward_node: Node = null) -> void:
 	reward_collected.emit(data)
 
-	# 从当前奖励列表中移除已收集的奖励
-	# 遍历查找并移除（reward_item在收集后会被销毁）
+	# 精确移除被收集的奖励节点
+	if reward_node and reward_node in _current_rewards:
+		_current_rewards.erase(reward_node)
+
+	# 兜底清理：移除已失效的节点引用
 	for i in range(_current_rewards.size() - 1, -1, -1):
 		var reward = _current_rewards[i]
 		if not reward or not is_instance_valid(reward) or reward.is_queued_for_deletion():

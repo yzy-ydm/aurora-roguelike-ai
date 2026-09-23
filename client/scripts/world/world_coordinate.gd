@@ -68,21 +68,30 @@ static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int =
 		# 添加随机偏移
 		x_offset += randf_range(-30, 30)
 
-	# Y坐标在地面上方（怪物高度的一半）
-	var y_pos = GROUND_Y - 30
+	# TASK-001 修复: 怪物出生在地面上站立高度（而非悬浮于空中）
+	# 地面顶部 = GROUND_Y - GROUND_HEIGHT/2 = 328 - 32 = 296
+	# 怪物碰撞体28px高，中心 = 296 - 14 = 282
+	# 旧值 298 使怪物出生后陷入地面16px（AI尚未修复重力前会永久悬浮）
+	const MONSTER_HALF_HEIGHT: float = 14.0
+	var y_pos = GROUND_Y - GROUND_HEIGHT / 2.0 - MONSTER_HALF_HEIGHT
 
 	return room_center + Vector2(x_offset, y_pos)
 
 
 ## 获取奖励生成位置(横版: 地面上，玩家可达范围)
-## Phase 24: 奖励必须在玩家跳跃可达范围内生成
+## Phase 25: 强制钳制Y坐标到地面附近，防止生成到地图顶部
 const REWARD_FLOAT_OFFSET: int = 40
 static func reward_spawn_pos(room_center: Vector2) -> Vector2:
-	# 奖励生成在地面附近，确保玩家可以走到拾取
-	var x = randf_range(-200, 200)  # 水平范围缩小，确保在平台附近
-	var y = GROUND_Y - REWARD_FLOAT_OFFSET  # 在地面上方40像素
-	# 返回世界坐标
-	return room_center + Vector2(x, y)
+	# X: 水平随机范围（房间内中央区域）
+	var x = randf_range(-200, 200)
+	# Y: 固定在地面以上40像素，基于ROOM坐标系计算
+	# GROUND_Y = HALF_HEIGHT - GROUND_HEIGHT/2 = 360 - 32 = 328
+	# reward Y = 328 - 40 = 288（房间中心坐标系）
+	# 绝对世界坐标 = room_center + (x, 288)
+	var y = GROUND_Y - REWARD_FLOAT_OFFSET
+	# Phase 25: 钳制到安全范围，防止负坐标或过高（超出玩家跳跃范围）
+	y = clampi(y, 50, int(GROUND_Y))
+	return room_center + Vector2(x, float(y))
 
 
 ## 获取出口传送门位置(横版: 右侧地面)

@@ -42,7 +42,7 @@ func _ready() -> void:
 	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
 	# Enemy在Layer 4, 检测Wall(1) + Player(2) + PlayerBullet(8)
 	collision_layer = 4  # Enemy在第4层
-	collision_mask = 11  # Layer 0(Reward) + 1(Wall) + 2(Player) + 8(PlayerBullet)
+	collision_mask = 263  # Layer 0(Reward) + 1(Wall) + 2(Player) + 8(PlayerBullet) = 1+2+4+256
 
 	# Phase 17.4: 渲染层级设置
 	z_index = 10  # Monster在第10层

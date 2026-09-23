@@ -44,13 +44,17 @@ func spawn_background(room_type: NewRoomData.RoomType, room_position: Vector2) -
 		print("[BackgroundManager] Error: No room container")
 		return
 
+	# Phase 26: 获取当前房间节点
+	var current_room = _get_current_room_node()
+
 	# 清除旧背景
 	clear_background()
 
 	# 创建背景根节点
 	var bg_node = Node2D.new()
 	bg_node.name = "ParallaxBackground"
-	bg_node.position = room_position
+	# Phase 26: 使用local坐标(0,0)，因为背景跟随房间移动
+	bg_node.position = Vector2.ZERO
 	bg_node.z_index = -20  # 在所有元素之下
 
 	# 根据房间类型生成不同背景
@@ -68,7 +72,11 @@ func spawn_background(room_type: NewRoomData.RoomType, room_position: Vector2) -
 		_:
 			_create_dungeon_background(bg_node)
 
-	_room_container.add_child(bg_node)
+	# Phase 26: 添加到当前房间节点（而非GameWorld），使用local坐标
+	if current_room:
+		current_room.add_child(bg_node)
+	else:
+		_room_container.add_child(bg_node)  # fallback
 	_current_background = bg_node
 
 	print("[BackgroundManager] Spawned background for room type: ", _get_type_name(room_type))
@@ -394,3 +402,17 @@ func _get_type_name(room_type: NewRoomData.RoomType) -> String:
 		NewRoomData.RoomType.BOSS: return "boss"
 		NewRoomData.RoomType.REWARD: return "reward"
 		_: return "unknown"
+
+
+## Phase 26: 获取当前房间节点（用于将背景添加到正确位置）
+func _get_current_room_node() -> Node2D:
+	var root = Engine.get_main_loop().root
+	if root:
+		var game_scene = root.get_node_or_null("GameScene")
+		if game_scene:
+			var floor_manager = game_scene.get_node_or_null("FloorManager")
+			if floor_manager:
+				var room_renderer = floor_manager.get_room_renderer()
+				if room_renderer and room_renderer.has_method("get_current_room_node"):
+					return room_renderer.get_current_room_node()
+	return null

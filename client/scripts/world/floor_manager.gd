@@ -159,16 +159,12 @@ func generate_floor(floor_level: int = 1) -> void:
 
 
 func _request_ai_background(floor_level: int) -> void:
-	if not _ai_content_service:
-		return
-	if _ai_content_service.has_method("generate_floor_content"):
-		ai_request_started.emit("floor_content")
-		var ai_rooms = await _ai_content_service.generate_floor_content(floor_level, 1)
-		if ai_rooms.size() > 0:
-			print("[FloorManager] AI floor received in background: ", ai_rooms.size(), " rooms")
-			ai_request_finished.emit("floor_content")
-		else:
-			ai_request_failed.emit("floor_content", "No rooms generated")
+	# Phase 25: Floor结构已冻结，禁止AI重新生成楼层拓扑
+	# FloorGenerator是唯一生成源，AI只用于room content和难度调整
+	# 保留日志能力供调试
+	print("[FloorManager] Floor structure LOCKED. AI floor generation disabled.")
+	print("[FloorManager] AI will only enhance room content (background task).")
+	ai_request_finished.emit("floor_content")
 
 
 ## ==================== 房间切换 ====================

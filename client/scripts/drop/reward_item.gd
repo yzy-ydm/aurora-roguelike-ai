@@ -34,10 +34,10 @@ signal reward_collected(reward_data: RewardData)
 
 ## 初始化
 func _ready() -> void:
-	# 碰撞层: reward在layer 0, mask=2(检测player layer 2)
-	# player mask=7包含layer 0, 双向检测确保碰撞触发
+	# 碰撞层: reward在layer 0, mask=7(检测Layer0+1+2即Reward/Wall/Player)
+	# Player mask=23包含layer 0, 双向检测确保碰撞触发
 	collision_layer = 0
-	collision_mask = 2
+	collision_mask = 7
 
 	# Phase 17.7.2: 设置z_index确保可见
 	z_index = 50
@@ -45,7 +45,9 @@ func _ready() -> void:
 	# 设置碰撞检测
 	body_entered.connect(_on_body_entered)
 
-	# 记录起始位置
+	# TASK-001: 记录浮动动画起始位置
+	# 出生点由 RoomSpawner 在 add_child 之前通过 set_spawn_position() 设置，
+	# 此处捕获的 position 即为正确出生点（兜底：兼容直接 add_child 的调用方）
 	_start_position = position
 
 	# 创建默认外观 (白色方块)
@@ -76,13 +78,20 @@ func _process(delta: float) -> void:
 func set_reward_data(data: RewardData) -> void:
 	_reward_data = data
 
-	# 确保 sprite 已就绪
+	# 入树前调用时 @onready sprite 尚未就绪，延迟到 _ready 之后应用视觉
 	if not sprite:
-		push_warning("[RewardItem] Sprite not ready in set_reward_data, deferring")
 		call_deferred("_apply_reward_visual")
 		return
 
 	_apply_reward_visual()
+
+
+## TASK-001: 设置出生点（由 RoomSpawner 在 add_child 之前调用）
+## 同时记录浮动动画起始位置，修复"入树后才赋值 position 导致动画起点为 (0,0)"的问题
+## 入树前/入树后调用均安全：_ready 中捕获的 position 已正确，此处再次校准
+func set_spawn_position(pos: Vector2) -> void:
+	position = pos
+	_start_position = pos
 
 
 ## 应用奖励视觉 (延迟调用版本)
@@ -96,20 +105,14 @@ func _apply_reward_visual() -> void:
 		return
 
 	# 生成类型专属纹理
-	var type_name = _reward_data.get_type_string()
 	var texture = _generate_reward_texture(_reward_data.type)
 
 	if texture:
 		sprite.texture = texture
 		sprite.modulate = Color.WHITE  # 不叠加颜色，纹理已经是正确颜色
-		print("[RewardVisual] type=", type_name, " visual_created=", _get_visual_name(_reward_data.type))
 	else:
 		# Fallback: 使用颜色方块
 		_setup_color_fallback()
-		print("[RewardVisual] type=", type_name, " visual_created=color_fallback")
-
-	# Phase 17.7.2: 输出调试信息
-	print("[Reward Debug] global_position=", global_position, " z_index=", z_index, " visible=", visible, " sprite_texture=", sprite.texture if sprite else "null", " parent=", get_parent().name if get_parent() else "none")
 
 
 ## 设置默认外观 (白色方块)

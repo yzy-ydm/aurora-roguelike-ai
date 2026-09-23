@@ -35,11 +35,17 @@ const MAX_JUMP_DISTANCE: float = 120.0  # 玩家最大水平跨越(px)
 
 ## ==================== 引用 ====================
 
-## 房间容器
+## 房间容器（GameWorld）
 var _room_container: Node2D = null
 
 ## 当前房间节点
 var _current_room_node: Node2D = null
+
+## 当前房间的怪物容器（子节点）
+var _current_monster_container: Node2D = null
+
+## 当前房间的奖励容器（子节点）
+var _current_reward_container: Node2D = null
 
 ## 出口传送门列表
 var _exit_portals: Array[Area2D] = []
@@ -94,6 +100,21 @@ func set_room_container(container: Node2D) -> void:
 		_background_manager.set_room_container(container)
 
 
+## Phase 26: 获取当前房间的怪物容器（用于RoomSpawner）
+func get_monster_container() -> Node2D:
+	return _current_monster_container
+
+
+## Phase 26: 获取当前房间的奖励容器（用于RoomSpawner）
+func get_reward_container() -> Node2D:
+	return _current_reward_container
+
+
+## Phase 26: 获取当前房间节点（用于BackgroundManager等）
+func get_current_room_node() -> Node2D:
+	return _current_room_node
+
+
 ## ==================== 横版房间渲染 ====================
 
 ## 渲染横版房间
@@ -113,6 +134,15 @@ func render_room(room: NewRoomData) -> void:
 	room_node.name = "Room_" + str(room.id)
 	room_node.position = room.position
 
+	# Phase 26: 为每个房间创建独立的子容器（使用local coordinates）
+	_current_monster_container = Node2D.new()
+	_current_monster_container.name = "MonsterContainer"
+	room_node.add_child(_current_monster_container)
+
+	_current_reward_container = Node2D.new()
+	_current_reward_container.name = "RewardContainer"
+	room_node.add_child(_current_reward_container)
+
 	# 根据房间类型生成横版布局
 	_create_platform_layout(room_node, room)
 
@@ -121,7 +151,7 @@ func render_room(room: NewRoomData) -> void:
 	_current_room_node = room_node
 	_current_room_position = room.position
 
-	print("[PlatformRoom] Room generated: ", room.id, " (", room.get_type_string(), ")")
+	print("[PlatformRoom] Room generated: ", room.id, " (", room.get_type_string(), ") monsters_container=", _current_monster_container.name, " rewards_container=", _current_reward_container.name)
 
 
 ## 创建横版平台布局
@@ -436,6 +466,8 @@ func clear_room() -> void:
 	if _background_manager:
 		_background_manager.clear_background()
 	if _current_room_node and _current_room_node.is_inside_tree():
+		_current_monster_container = null
+		_current_reward_container = null
 		_current_room_node.queue_free()
 		_current_room_node = null
 
@@ -457,8 +489,8 @@ func _create_exit_portal_deferred(target_room_id: int, room_type_string: String)
 	if not _room_container:
 		return
 
-	# 出口在右侧
-	var pos = _current_room_position + Vector2(HALF_WIDTH - 40, GROUND_Y - 30)
+	# Phase 26: 出口应该在当前房间内，使用local坐标
+	var pos = Vector2(HALF_WIDTH - 40, GROUND_Y - 30)  # local坐标（相对于房间中心）
 
 	var portal = Area2D.new()
 	portal.name = "Exit_" + str(target_room_id)
@@ -490,10 +522,14 @@ func _create_exit_portal_deferred(target_room_id: int, room_type_string: String)
 	portal.set_meta("target_room_id", target_room_id)
 	portal.body_entered.connect(_on_portal_body_entered.bind(target_room_id))
 
-	_room_container.add_child(portal)
+	# Phase 26: 添加到当前房间节点（而非GameWorld）
+	if _current_room_node:
+		_current_room_node.add_child(portal)
+	else:
+		_room_container.add_child(portal)  # fallback
 	_exit_portals.append(portal)
 
-	print("[PlatformRoom] Created exit portal to room ", target_room_id)
+	print("[PlatformRoom] Created exit portal to room ", target_room_id, " at local pos=", pos)
 
 
 func clear_exit_portals() -> void:
@@ -536,8 +572,8 @@ func _create_next_floor_portal_deferred() -> void:
 	if not _room_container:
 		return
 
-	# 出口在右侧
-	var pos = _current_room_position + Vector2(HALF_WIDTH - 40, GROUND_Y - 30)
+	# Phase 26: 下一层传送门也在当前房间内，使用local坐标
+	var pos = Vector2(HALF_WIDTH - 40, GROUND_Y - 30)  # local坐标
 
 	var portal = Area2D.new()
 	portal.name = "NextFloorPortal"
@@ -568,10 +604,14 @@ func _create_next_floor_portal_deferred() -> void:
 
 	portal.body_entered.connect(_on_next_floor_portal_body_entered)
 
-	_room_container.add_child(portal)
+	# Phase 26: 添加到当前房间节点（而非GameWorld）
+	if _current_room_node:
+		_current_room_node.add_child(portal)
+	else:
+		_room_container.add_child(portal)  # fallback
 	_exit_portals.append(portal)
 
-	print("[PlatformRoom] Created next floor portal")
+	print("[PlatformRoom] Created next floor portal at local pos=", pos)
 
 
 func _on_next_floor_portal_body_entered(body: Node2D) -> void:

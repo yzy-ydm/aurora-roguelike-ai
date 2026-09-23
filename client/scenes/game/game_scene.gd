@@ -588,6 +588,10 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 		_start_boss_fight(room)
 		return
 
+	# Phase 26: 设置当前房间中心（用于local坐标计算）
+	if _room_spawner:
+		_room_spawner.set_room_center(room.position)
+
 	# 普通战斗房间
 	if content.monster_count > 0:
 		var monster_count = _room_spawner.spawn_monsters(content, room.position)
@@ -734,12 +738,14 @@ func _on_combat_cleared() -> void:
 				room_pos = current_room.position
 		_room_spawner.spawn_rewards(content, room_pos)
 
-	# 创建出口
-	_create_room_exits()
+	# 标记房间完成并创建传送门
+	_complete_current_room("all_monsters_dead")
 
 
 func _on_combat_room_completed() -> void:
 	print("[GameScene] Room completed")
+	# Phase 27: 触发房间完成流程，生成Portal
+	_complete_current_room("reward_phase_completed")
 
 
 func _on_monster_killed(dead_count: int, total_count: int) -> void:
@@ -794,7 +800,7 @@ func _handle_reward_room(content: RoomContentData, room_pos: Vector2) -> void:
 func _on_reward_room_cleared() -> void:
 	print("[GameScene] Reward room cleared!")
 	hud.set_status("奖励已收集完毕!")
-	_create_room_exits()
+	_complete_current_room("reward_collected")
 
 
 ## Event房: 显示随机事件
@@ -914,7 +920,7 @@ func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData
 
 	# 延迟后创建出口
 	await get_tree().create_timer(1.5).timeout
-	_create_room_exits()
+	_complete_current_room("event_completed")
 
 
 ## Treasure房: 生成宝箱
@@ -928,8 +934,13 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 
 	for i in range(reward_count):
 		var reward_data = RewardData.generate_random_reward(i)
-		var spawn_pos = room_pos + Vector2(randf_range(-150, 150), randf_range(-30, 30))
-		_room_spawner._spawn_single_reward(reward_data, spawn_pos)
+		# TASK-001: 生成在地面附近（与战斗房奖励同高度），保证可见可拾取
+		# 旧代码生成在房间中心高度 y∈[-30,30]，超出玩家跳跃可达范围
+		var world_pos = WorldCoordinate.reward_spawn_pos(room_pos)
+		var local_spawn_pos = world_pos - room_pos
+		local_spawn_pos.x += randf_range(-150.0, 150.0)
+		local_spawn_pos.y += randf_range(-10.0, 10.0)
+		_room_spawner.spawn_reward(reward_data, local_spawn_pos)
 
 	print("[GameScene] Treasure room: spawned ", reward_count, " rewards")
 
@@ -943,7 +954,7 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 func _on_treasure_room_cleared() -> void:
 	print("[GameScene] Treasure room cleared!")
 	hud.set_status("宝箱已打开! 获得奖励!")
-	_create_room_exits()
+	_complete_current_room("treasure_opened")
 
 
 ## ==================== 出口传送门 ====================
@@ -964,6 +975,32 @@ func _auto_save() -> void:
 	print("[Save Debug] Auto-save: slot=", save_slot, " floor=", floor_level, " level=", save_data.get("player_state", {}).get("level", 1), " weapon_id=", save_data.get("player_state", {}).get("weapon_id", -1))
 	SaveService.save_game(save_slot, save_data)
 	print("[GameScene] Auto-saved to slot ", save_slot, " (floor ", floor_level, ")")
+
+
+## Phase 24: 统一房间完成接口
+## 所有房间类型完成后必须调用此函数，确保状态机一致
+func _complete_current_room(reason: String) -> void:
+	var room = _floor_manager.get_current_room()
+	if not room:
+		print("[RoomComplete] WARNING: No current room!")
+		return
+	print("[RoomComplete] room_id=" + str(room.id) + " type=" + room.get_type_string() + " reason=" + reason)
+
+	# TASK-001: 幂等保护——战斗房存在两条完成路径（清怪 + 奖励收集完毕），
+	# 已完成房间不再重复创建传送门，避免双传送门重叠（B-10）
+	var already_completed: bool = room.completed
+
+	# 标记房间完成
+	if _floor_manager and _floor_manager._current_floor:
+		_floor_manager._current_floor.complete_current_room()
+
+	# 创建传送门（仅首次完成时创建）
+	if already_completed:
+		print("[RoomComplete] Room already completed, skip portal creation")
+		return
+
+	_create_room_exits()
+
 
 func _on_exit_portal_entered(target_room_id: int) -> void:
 	print("[GameScene] Exit portal entered: room ", target_room_id)
@@ -1365,6 +1402,11 @@ func _on_boss_defeated() -> void:
 			var current_room = _floor_manager.get_current_room()
 			if current_room:
 				room_pos = current_room.position
+				# Phase 26: 设置房间中心
+				_room_spawner.set_room_center(room_pos)
+				var reward_container = _room_spawner._get_reward_container()
+				if reward_container:
+					_room_spawner._reward_container = reward_container
 
 		# 创建Boss专属奖励内容
 		var boss_content = RoomContentData.new()

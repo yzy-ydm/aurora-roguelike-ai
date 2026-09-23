@@ -143,9 +143,8 @@ func _on_all_monsters_dead() -> void:
 	print("[CombatManager] All monsters dead!")
 	_set_state(CombatState.CLEARED)
 
-	# 标记当前房间完成
-	if _floor_manager and _floor_manager._current_floor:
-		_floor_manager._current_floor.complete_current_room()
+	# Phase 25: 房间完成由 GameScene._complete_current_room() 统一处理
+	# 此处不再重复调用，避免状态机重复触发
 
 	# 延迟发送cleared信号，避免在物理回调链中触发奖励生成
 	# 导致"Can't change this state while flushing queries"错误

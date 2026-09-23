@@ -176,6 +176,7 @@ func _get_random_position(room_center: Vector2) -> Vector2:
 	var hw = WorldCoordinate.HALF_WIDTH
 	var hh = WorldCoordinate.HALF_HEIGHT
 
+	# Phase 26: 返回local坐标（相对于房间中心），而不是world坐标
 	# 避开中心区域（玩家可能站立的地方）
 	var margin = 80.0
 	var x = randf_range(-hw + margin, hw - margin)
@@ -186,7 +187,7 @@ func _get_random_position(room_center: Vector2) -> Vector2:
 		x = randf_range(-hw + margin, hw - margin)
 		y = randf_range(-hh + margin, hh - margin)
 
-	return room_center + Vector2(x, y)
+	return Vector2(x, y)  # Phase 26: 返回local坐标
 
 
 ## 获取随机大小
