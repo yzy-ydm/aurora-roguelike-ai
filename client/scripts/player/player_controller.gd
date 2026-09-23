@@ -803,6 +803,20 @@ func get_passive_items() -> Array[String]:
 ## Phase 15: 玩家死亡处理
 var _is_dying: bool = false  # 死亡锁，防止重复触发
 
+## 设置玩家控制开关（TASK-003: 事件面板等UI弹出时禁用控制，关闭后恢复）
+## 注意: Godot 4 正确API是 set_physics_process / is_physics_processing，
+## 不存在 set_physics_processing（曾导致事件房崩溃）
+## 禁用时: 关闭物理帧与输入处理，清零速度并中断冲刺/击退 → 恢复时玩家从静止状态开始
+func set_control_enabled(enabled: bool) -> void:
+	set_physics_process(enabled)
+	set_process_input(enabled)
+	if not enabled:
+		velocity = Vector2.ZERO
+		_is_dashing = false
+		_knockback_velocity = Vector2.ZERO
+		_knockback_timer = 0.0
+
+
 func _die() -> void:
 	# 防止重复触发死亡
 	if _is_dying:

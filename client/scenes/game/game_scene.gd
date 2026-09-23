@@ -865,11 +865,11 @@ func _generate_random_event() -> Dictionary:
 
 ## 显示事件选择面板
 func _show_event_panel(event: Dictionary, room: NewRoomData) -> void:
-	# 禁用玩家移动
-	var was_physics = player.is_physics_processing() if player else false
+	# TASK-003: 暂停玩家控制
+	# 旧代码调用不存在的 player.set_physics_processing(false) → 进入事件房即崩溃
+	# 现封装为 player_controller.set_control_enabled()（物理帧+输入+速度清零）
 	if player:
-		player.set_physics_processing(false)
-		player.set_process_input(false)
+		player.set_control_enabled(false)
 
 	hud.set_status(event.get("title", "事件"))
 
@@ -878,11 +878,11 @@ func _show_event_panel(event: Dictionary, room: NewRoomData) -> void:
 	print("[Event] Choices: ", choices.size())
 
 	# 简化版：自动选择第一个选项（完整实现需要UI面板）
-	_apply_event_choice(event, 0, room, was_physics)
+	_apply_event_choice(event, 0, room)
 
 
 ## 应用事件选择
-func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData, was_physics: bool = true) -> void:
+func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData) -> void:
 	var choices = event.get("choices", [])
 	if choice_index >= choices.size():
 		choice_index = 0
@@ -911,10 +911,9 @@ func _apply_event_choice(event: Dictionary, choice_index: int, room: NewRoomData
 	_player_data = player.get_player_data()
 	_update_game_display()
 
-	# 恢复玩家控制
+	# TASK-003: 恢复玩家控制（物理帧+输入处理；速度已在禁用时清零，从静止状态恢复）
 	if player:
-		player.set_physics_processing(was_physics)
-		player.set_process_input(was_physics)
+		player.set_control_enabled(true)
 
 	hud.set_status("事件完成! " + choice.get("text", ""))
 
