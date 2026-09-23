@@ -95,7 +95,8 @@ func setup_defaults_for_type(type: String) -> void:
 			reward_count = 0
 			chest_count = 0
 		"event":
-			monster_count = randi_range(0, 2)
+			# TASK-004: 事件房禁止生成怪物（旧规则允许0-2只，导致事件房进入战斗流程）
+			monster_count = 0
 			reward_count = randi_range(1, 2)
 			event_chance = 1.0
 
@@ -212,7 +213,7 @@ func has_reward_strategy() -> bool:
 ##   treasure: monsters=0
 ##   boss:     monsters=1 (由Boss系统单独处理)
 ##   shop:     monsters=0
-##   event:    monsters=0-2 (允许少量怪物)
+##   event:    monsters=0 (TASK-004: 事件房为纯事件流程，禁止怪物)
 ##   elite:    monsters>=1
 func validate_for_room_type() -> void:
 	match room_type:
@@ -231,7 +232,8 @@ func validate_for_room_type() -> void:
 		"shop":
 			monster_count = 0
 		"event":
-			monster_count = clampi(monster_count, 0, 2)
+			# TASK-004: 事件房禁止怪物——AI/随机生成的内容也强制归零
+			monster_count = 0
 		"elite":
 			if monster_count < 1:
 				monster_count = randi_range(1, 2)

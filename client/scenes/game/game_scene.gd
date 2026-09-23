@@ -592,8 +592,9 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 	if _room_spawner:
 		_room_spawner.set_room_center(room.position)
 
-	# 普通战斗房间
-	if content.monster_count > 0:
+	# 普通战斗房间（TASK-004: 仅战斗型房间走怪物生成+战斗流程）
+	# 事件/奖励/宝箱等非战斗房禁止生成怪物，由下方类型分发处理各自流程
+	if room.room_type in [NewRoomData.RoomType.COMBAT, NewRoomData.RoomType.ELITE] and content.monster_count > 0:
 		var monster_count = _room_spawner.spawn_monsters(content, room.position)
 		if monster_count > 0:
 			_combat_manager.start_combat(content)
