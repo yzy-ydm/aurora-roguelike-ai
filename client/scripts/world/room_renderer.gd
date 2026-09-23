@@ -54,6 +54,9 @@ var _current_reward_container: Node2D = null
 ## 出口传送门列表
 var _exit_portals: Array[Area2D] = []
 
+## TASK-005: 当前房间是否已创建出口（同房间最多一个出口；clear_exit_portals 时重置）
+var _has_exit_portal: bool = false
+
 ## 当前房间位置
 var _current_room_position: Vector2 = Vector2.ZERO
 
@@ -503,6 +506,11 @@ func _create_exit_portal_deferred(target_room_id: int, room_type_string: String)
 	if not _room_container:
 		return
 
+	# TASK-005: 同房间最多一个出口（状态机 + 渲染层双保险，防重复建门）
+	if _has_exit_portal:
+		print("[PlatformRoom] Exit portal already exists for this room, skip duplicate")
+		return
+
 	# Phase 26: 出口应该在当前房间内，使用local坐标
 	var pos = Vector2(HALF_WIDTH - 40, GROUND_Y - 30)  # local坐标（相对于房间中心）
 
@@ -542,6 +550,7 @@ func _create_exit_portal_deferred(target_room_id: int, room_type_string: String)
 	else:
 		_room_container.add_child(portal)  # fallback
 	_exit_portals.append(portal)
+	_has_exit_portal = true
 
 	print("[PlatformRoom] Created exit portal to room ", target_room_id, " at local pos=", pos)
 
@@ -551,6 +560,7 @@ func clear_exit_portals() -> void:
 		if portal and portal.is_inside_tree():
 			portal.queue_free()
 	_exit_portals.clear()
+	_has_exit_portal = false
 
 
 func _get_portal_color(room_type: String) -> Color:

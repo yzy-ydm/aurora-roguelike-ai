@@ -179,20 +179,27 @@ func enter_room(room_id: int) -> bool:
 		print("[FloorManager] Error: Room not found: ", room_id)
 		return false
 
-	# Phase 24: 防止重复进入已完成的房间
-	if room.enter_count >= 2:
-		print("[FloorManager] Room ", room_id, " already entered/completed, skipping")
+	# TASK-005: 统一进入限制——已完成房间禁止重入
+	# （旧规则 enter_count >= 2 已废弃；enter_count 仅保留为统计字段）
+	if room.is_completed():
+		print("[FloorManager] Room ", room_id, " already COMPLETED, refuse re-enter")
 		return false
 
 	# 退出当前房间
 	var old_room = _current_floor.get_current_room()
 	if old_room:
 		_exit_room(old_room)
+		# TASK-005: 未完成房标记 EXITING（允许回溯重入）；已完成房保持 COMPLETED 终态
+		if not old_room.is_completed():
+			old_room.transition_to(NewRoomData.RoomState.EXITING)
 
 	# 设置新房间为当前房间
 	_current_floor.set_current_room(room_id)
 
-	# Phase 24: 增加进入计数
+	# TASK-005: 进入房间状态机（初始/EXITING → ENTERING）
+	room.transition_to(NewRoomData.RoomState.ENTERING)
+
+	# 进入计数（仅调试/存档/统计用途，不参与任何业务判断）
 	room.enter_count += 1
 
 	# 生成房间内容(如果没有)

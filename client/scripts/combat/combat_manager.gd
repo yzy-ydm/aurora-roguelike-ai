@@ -213,9 +213,8 @@ func on_boss_defeated() -> void:
 	boss_defeated.emit()
 	combat_cleared.emit()
 
-	# 标记当前房间完成
-	if _floor_manager and _floor_manager._current_floor:
-		_floor_manager._current_floor.complete_current_room()
+	# TASK-005: 房间完成统一由 GameScene 处理
+	# CombatManager 禁止访问 _floor_manager._current_floor、禁止修改房间状态
 
 	# 延迟进入奖励阶段
 	await get_tree().create_timer(1.0).timeout

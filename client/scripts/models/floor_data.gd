@@ -100,20 +100,29 @@ func move_to_room(room_id: int) -> bool:
 
 ## ==================== 楼层状态 ====================
 
-## 标记当前房间完成
-func complete_current_room() -> void:
+## TASK-005: 标记当前房间完成（统一入口 → NewRoomData.transition_to(COMPLETED)）
+## 返回转换是否成功；已完成房间重复调用返回 false（上层据此保证出口唯一）
+func complete_current_room() -> bool:
 	var current = get_current_room()
 	if current:
-		current.mark_completed()
-		# Phase 24: 标记房间进入完成（允许下次进入时清除状态）
-		current.enter_count = 2
+		return current.transition_to(NewRoomData.RoomState.COMPLETED)
+	return false
+
+
+## TASK-005: 推进当前房间状态（统一入口；所有房间状态变化必须经过此处）
+func set_current_room_state(new_state: NewRoomData.RoomState) -> bool:
+	var current = get_current_room()
+	if current:
+		return current.transition_to(new_state)
+	return false
 
 
 ## 检查楼层是否完成(Boss房间清除)
+## TASK-005: 业务判断统一读取 RoomState
 func is_floor_complete() -> bool:
 	for room in rooms:
 		if room.room_type == NewRoomData.RoomType.BOSS:
-			return room.completed
+			return room.is_completed()
 	return false
 
 
@@ -127,10 +136,11 @@ func get_visited_count() -> int:
 
 
 ## 获取已完成房间数
+## TASK-005: 业务判断统一读取 RoomState
 func get_completed_count() -> int:
 	var count = 0
 	for room in rooms:
-		if room.completed:
+		if room.is_completed():
 			count += 1
 	return count
 

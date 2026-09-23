@@ -546,6 +546,10 @@ func _on_floor_generated(floor_data: FloorData) -> void:
 
 
 func _on_fm_room_entered(room: NewRoomData) -> void:
+	# TASK-005: 重复进入防护（与 FloorManager.enter_room 的 is_completed 拒绝构成双层防御）
+	if room.is_completed():
+		print("[Room Enter] Room ", room.id, " already COMPLETED, ignore re-enter")
+		return
 	print("[Room Enter] Room ID:", room.id, " | Display:", room.display_index, " | Type:", room.get_type_string(), " | Name:", room.room_name)
 	hud.set_status("进入: " + room.room_name)
 	# 更新HUD房间信息(使用display_index和房间类型)
@@ -573,8 +577,9 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 	# 获取房间内容
 	var content = room.content
 	if not content:
-		print("[GameScene] No content for room, creating exits")
-		_create_room_exits()
+		# TASK-005: 无内容房间走统一完成入口（禁止直接建门）
+		print("[GameScene] No content for room, completing via state machine")
+		_complete_current_room("no_content")
 		return
 
 	print("[GameScene] Room content: monsters=", content.monster_count, " rewards=", content.reward_count)
@@ -585,6 +590,8 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 	# 检查是否是Boss房间
 	if room.room_type == NewRoomData.RoomType.BOSS:
 		print("[GameScene] Boss room detected!")
+		# TASK-005: Boss战属于战斗流程 → COMBAT 状态
+		_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.COMBAT)
 		_start_boss_fight(room)
 		return
 
@@ -594,10 +601,13 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 
 	# 普通战斗房间（TASK-004: 仅战斗型房间走怪物生成+战斗流程）
 	# 事件/奖励/宝箱等非战斗房禁止生成怪物，由下方类型分发处理各自流程
+	# TASK-005: 生成怪物成功后进入 COMBAT 状态；禁止进房时提前创建出口
+	var spawned_monsters := 0
 	if room.room_type in [NewRoomData.RoomType.COMBAT, NewRoomData.RoomType.ELITE] and content.monster_count > 0:
-		var monster_count = _room_spawner.spawn_monsters(content, room.position)
-		if monster_count > 0:
+		spawned_monsters = _room_spawner.spawn_monsters(content, room.position)
+		if spawned_monsters > 0:
 			_combat_manager.start_combat(content)
+			_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.COMBAT)
 	# 非战斗房间根据类型分发
 	match room.room_type:
 		NewRoomData.RoomType.REWARD:
@@ -606,8 +616,13 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 			_handle_event_room(room, room.position)
 		NewRoomData.RoomType.TREASURE:
 			_handle_treasure_room(content, room.position)
+		NewRoomData.RoomType.COMBAT, NewRoomData.RoomType.ELITE:
+			# TASK-005: 战斗房不提前建出口；无怪物可生成时走统一完成入口
+			if spawned_monsters == 0:
+				_complete_current_room("no_monsters")
 		_:
-			_create_room_exits()
+			# TASK-005: START/商店/空房无战斗流程，进房即完成（统一入口建唯一出口）
+			_complete_current_room("empty_room")
 
 
 func _on_fm_room_exited(room: NewRoomData) -> void:
@@ -619,15 +634,16 @@ func _start_boss_fight(room: NewRoomData) -> void:
 	# 创建Boss数据
 	var boss_data = _create_boss_data_for_room(room)
 	if not boss_data:
+		# TASK-005: Boss生成失败走统一完成入口（避免玩家卡死）
 		print("[GameScene] Failed to create boss data")
-		_create_room_exits()
+		_complete_current_room("boss_spawn_failed")
 		return
 
 	# 生成Boss
 	var boss_entity = _room_spawner.spawn_boss(boss_data, room.position)
 	if not boss_entity:
 		print("[GameScene] failed to spawn boss")
-		_create_room_exits()
+		_complete_current_room("boss_spawn_failed")
 		return
 
 	# 开始Boss战
@@ -739,8 +755,9 @@ func _on_combat_cleared() -> void:
 				room_pos = current_room.position
 		_room_spawner.spawn_rewards(content, room_pos)
 
-	# 标记房间完成并创建传送门
-	_complete_current_room("all_monsters_dead")
+	# TASK-005: 清怪 → REWARD 状态（不创建出口）
+	# 出口在奖励全部领取后由 room_completed 信号路径统一创建
+	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
 
 
 func _on_combat_room_completed() -> void:
@@ -787,6 +804,9 @@ func _handle_reward_room(content: RoomContentData, room_pos: Vector2) -> void:
 	print("[GameScene] Reward room entered")
 	hud.set_status("奖励房间! 拾取掉落物品")
 
+	# TASK-005: 奖励房进入 REWARD 状态
+	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
+
 	# 生成奖励物品
 	if _room_spawner:
 		_room_spawner.spawn_rewards(content, room_pos)
@@ -809,11 +829,14 @@ func _handle_event_room(room: NewRoomData, room_pos: Vector2) -> void:
 	print("[GameScene] Event room entered")
 	hud.set_status("发现事件! 选择一个...")
 
+	# TASK-005: 事件房进入 EVENT 状态（禁止生成怪物/进入战斗）
+	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.EVENT)
+
 	# 生成随机事件
 	var event = _generate_random_event()
 	if event.is_empty():
-		print("[GameScene] Event room: no event generated, creating exits")
-		_create_room_exits()
+		print("[GameScene] Event room: no event generated, completing via state machine")
+		_complete_current_room("event_empty")
 		return
 
 	# 显示事件面板
@@ -928,6 +951,9 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 	print("[GameScene] Treasure room entered")
 	hud.set_status("发现宝箱! 寻找并打开它")
 
+	# TASK-005: 宝箱房属于奖励流程 → REWARD 状态
+	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
+
 	# 生成奖励物品（chest作为reward_item的特殊形式）
 	var reward_count = content.reward_count if content else 2
 	reward_count = max(1, min(reward_count, 3))
@@ -979,26 +1005,25 @@ func _auto_save() -> void:
 
 ## Phase 24: 统一房间完成接口
 ## 所有房间类型完成后必须调用此函数，确保状态机一致
+## TASK-005: 重复防护由 RoomState.COMPLETED 终态保证
+## （旧 TASK-001 completed 布尔锁已由状态机替代）
 func _complete_current_room(reason: String) -> void:
 	var room = _floor_manager.get_current_room()
 	if not room:
 		print("[RoomComplete] WARNING: No current room!")
 		return
-	print("[RoomComplete] room_id=" + str(room.id) + " type=" + room.get_type_string() + " reason=" + reason)
 
-	# TASK-001: 幂等保护——战斗房存在两条完成路径（清怪 + 奖励收集完毕），
-	# 已完成房间不再重复创建传送门，避免双传送门重叠（B-10）
-	var already_completed: bool = room.completed
-
-	# 标记房间完成
-	if _floor_manager and _floor_manager._current_floor:
-		_floor_manager._current_floor.complete_current_room()
-
-	# 创建传送门（仅首次完成时创建）
-	if already_completed:
-		print("[RoomComplete] Room already completed, skip portal creation")
+	# 已完成房间不再重复处理（transition_to(COMPLETED) 只成功一次 → 出口唯一）
+	if room.is_completed():
+		print("[RoomComplete] Room already COMPLETED, skip. reason=", reason)
 		return
 
+	print("[RoomComplete] room_id=" + str(room.id) + " type=" + room.get_type_string() + " reason=" + reason)
+
+	# 唯一完成入口（FloorData → NewRoomData.transition_to(COMPLETED)）
+	_floor_manager._current_floor.complete_current_room()
+
+	# 出口仅在状态成功转换为 COMPLETED 后创建
 	_create_room_exits()
 
 
@@ -1022,7 +1047,9 @@ func _create_room_exits() -> void:
 	var current_room_id = current_room.id if current_room else -1
 
 	# Phase 9.3: 强制线性推进，禁止返回已访问房间
-	# 优先级: 未访问房间 > 已访问未完成房间 > 已完成房间(最后手段)
+	# TASK-005: 传送门目标禁止选择已完成房间
+	# （旧代码兜底级允许已完成 → 玩家进入被拒 "already entered/completed, skipping"）
+	# 优先级: 未访问房间 > 已访问未完成房间（已完成房间一律排除）
 	var target_id = -1
 
 	# 第一优先：未访问的房间
@@ -1034,26 +1061,25 @@ func _create_room_exits() -> void:
 			target_id = id
 			break
 
-	# 第二优先：已访问但未完成的房间(允许回溯到未清怪的房间)
+	# 第二优先：任意未完成的房间(允许回溯到未完成房；已完成房间一律排除)
 	if target_id == -1:
 		for id in available_ids:
 			if id == current_room_id:
 				continue
 			var room = current_floor.get_room(id)
-			if room and room.visited and not room.completed:
+			if room and not room.is_completed():
 				target_id = id
 				break
 
-	# 第三优先：任意非当前房间(兜底)
+	# TASK-005: 无有效目标时不乱建门——楼层完成走下一层流程，否则提示玩家
 	if target_id == -1:
-		for id in available_ids:
-			if id != current_room_id:
-				target_id = id
-				break
-
-	# 最终兜底
-	if target_id == -1:
-		target_id = available_ids[0]
+		if _floor_manager.is_floor_complete():
+			print("[GameScene] No valid exit targets, floor complete")
+			_on_floor_completed()
+		else:
+			print("[GameScene] No valid exit targets, skip portal creation")
+			hud.set_status("附近没有可探索的房间了...")
+		return
 
 	var target_room = current_floor.get_room(target_id)
 	if target_room:
@@ -1417,6 +1443,8 @@ func _on_boss_defeated() -> void:
 
 	# 标记房间完成
 	if _floor_manager and _floor_manager._current_floor:
+		# TASK-005: Boss 状态链 COMBAT → REWARD → COMPLETED（统一状态机）
+		_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
 		_floor_manager._current_floor.complete_current_room()
 
 	# Phase 10.1.6: 等待2秒后检查楼层完成状态

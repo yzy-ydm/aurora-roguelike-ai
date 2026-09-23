@@ -37,9 +37,27 @@ var connections: Array[int] = []
 var visited: bool = false
 var completed: bool = false
 
-## Phase 24: 房间进入计数，防止重复进入
-## enter_count >= 2 表示房间已完成所有流程（进入→清除→离开）
+## Phase 24: 房间进入计数
+## TASK-005: 仅保留用于调试/存档兼容/数据统计
+## 禁止任何业务逻辑使用（旧规则 enter_count >= 2 已废弃）
+## 所有进入限制统一使用 RoomState.COMPLETED
 var enter_count: int = 0
+
+## ==================== TASK-005: 房间生命周期状态机 ====================
+## 所有状态变化必须经过 transition_to()，禁止其他脚本直接修改
+
+enum RoomState {
+	ENTERING,   ## 进入房间（初始化阶段）
+	COMBAT,     ## 战斗中（战斗房/Boss房）
+	REWARD,     ## 奖励阶段（战斗房清怪后 / 奖励房 / 宝箱房）
+	EVENT,      ## 事件流程（事件房）
+	COMPLETED,  ## 已完成（终态：创建唯一出口，禁止重入）
+	EXITING     ## 已离开（未完成房被放弃，允许回溯重入）
+}
+
+## 当前房间状态（唯一权威来源）
+## completed 字段仅为存档兼容快照；所有业务判断一律读取 state
+var state: RoomState = RoomState.ENTERING
 
 ## 布局(像素坐标)
 var position: Vector2 = Vector2.ZERO   # 房间中心在世界中的像素坐标
@@ -103,17 +121,85 @@ func get_connection_count() -> int:
 
 ## ==================== 状态管理 ====================
 
+## TASK-005: 房间状态转换唯一入口
+## 所有状态变化必须经过此方法；非法转换直接拒绝并记录日志
+## 转换日志格式: [RoomState] Room ID: X | OLD_STATE -> NEW_STATE
+func transition_to(new_state: RoomState) -> bool:
+	if new_state == state:
+		return true  # 幂等：同状态转换视为成功，不重复记录日志
+	if not _is_legal_transition(state, new_state):
+		print("[RoomState] Room ID: ", id, " | ", state_to_string(state),
+			" -> ", state_to_string(new_state), " REJECTED (illegal transition)")
+		return false
+	var old_state: RoomState = state
+	state = new_state
+	if new_state == RoomState.COMPLETED:
+		completed = true   # 存档兼容快照（禁止作为业务判断条件）
+		visited = true
+	print("[RoomState] Room ID: ", id, " | ", state_to_string(old_state),
+		" -> ", state_to_string(new_state))
+	return true
+
+
+## 合法转换表
+## ENTERING → COMBAT / REWARD / EVENT / COMPLETED / EXITING
+## COMBAT   → REWARD / EXITING / COMPLETED（仅异常兜底，如Boss生成失败；正常流程必须经 REWARD）
+## REWARD   → COMPLETED / EXITING
+## EVENT    → COMPLETED / EXITING
+## COMPLETED → (终态，禁止任何再转换)
+## EXITING  → ENTERING（回溯重入未完成房）
+func _is_legal_transition(from_state: RoomState, to_state: RoomState) -> bool:
+	match from_state:
+		RoomState.ENTERING:
+			return to_state in [RoomState.COMBAT, RoomState.REWARD, RoomState.EVENT,
+				RoomState.COMPLETED, RoomState.EXITING]
+		RoomState.COMBAT:
+			return to_state in [RoomState.REWARD, RoomState.EXITING, RoomState.COMPLETED]
+		RoomState.REWARD:
+			return to_state in [RoomState.COMPLETED, RoomState.EXITING]
+		RoomState.EVENT:
+			return to_state in [RoomState.COMPLETED, RoomState.EXITING]
+		RoomState.COMPLETED:
+			return false
+		RoomState.EXITING:
+			return to_state == RoomState.ENTERING
+	return false
+
+
+## 状态字符串（日志/调试/论文展示用）
+static func state_to_string(s: RoomState) -> String:
+	match s:
+		RoomState.ENTERING: return "ENTERING"
+		RoomState.COMBAT: return "COMBAT"
+		RoomState.REWARD: return "REWARD"
+		RoomState.EVENT: return "EVENT"
+		RoomState.COMPLETED: return "COMPLETED"
+		RoomState.EXITING: return "EXITING"
+	return "UNKNOWN"
+
+
+## TASK-005: 房间是否已完成（业务判断统一入口，替代旧 completed 布尔）
+func is_completed() -> bool:
+	return state == RoomState.COMPLETED
+
+
+## TASK-005: 房间是否允许进入（统一进入限制，替代旧 enter_count>=2）
+func can_enter() -> bool:
+	return state != RoomState.COMPLETED
+
+
 func mark_visited() -> void:
 	visited = true
 
 
+## 兼容接口：仅存档/旧代码使用；业务上请使用 transition_to(RoomState.COMPLETED)
 func mark_completed() -> void:
 	completed = true
 	visited = true
 
 
 func is_cleared() -> bool:
-	return completed
+	return is_completed()
 
 
 ## ==================== 类型工具 ====================
@@ -208,6 +294,7 @@ func to_dict() -> Dictionary:
 		"connections": connections,
 		"visited": visited,
 		"completed": completed,
+		"state": state_to_string(state),
 		"position": {"x": position.x, "y": position.y},
 		"width": width,
 		"height": height

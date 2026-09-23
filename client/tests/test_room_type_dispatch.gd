@@ -179,7 +179,8 @@ func _test_flow_layer_dispatch() -> void:
 		+ "var other_room: Variant = null\n"
 		+ "func get_current_room() -> Variant: return current_room\n"
 		+ "func get_room(id: int) -> Variant: return other_room if id == other_room.id else null\n"
-		+ "func complete_current_room() -> void: completed_count += 1\n").new()
+		+ "func complete_current_room() -> void: completed_count += 1\n"
+		+ "func set_current_room_state(s: Variant) -> bool: return true\n").new()
 	root.add_child(floor_stub)
 
 	# ---- 桩: 楼层管理器 ----
