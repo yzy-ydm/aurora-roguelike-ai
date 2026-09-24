@@ -156,11 +156,20 @@ static func from_dict(data: Dictionary) -> RoomContentData:
 	content.difficulty = data.get("difficulty", 1)
 	content.monster_count = data.get("monster_count", 3)
 	content.monster_level = data.get("monster_level", 1)
-	content.monster_types = data.get("monster_types", [])
+	# TASK-022: 未类型化 Array 不能直接赋给类型化数组成员，逐项验证类型
+	var raw_types = data.get("monster_types", [])
+	if raw_types is Array:
+		for item in raw_types:
+			if item is String:
+				content.monster_types.append(item)
 	content.reward_count = data.get("reward_count", 3)
 	content.reward_quality = data.get("reward_quality", 1.0)
 	content.reward_strategy = data.get("reward_strategy", "")
-	content.reward_items = data.get("reward_items", [])
+	var raw_reward_items = data.get("reward_items", [])
+	if raw_reward_items is Array:
+		for item in raw_reward_items:
+			if item is Dictionary:
+				content.reward_items.append(item)
 	content.chest_count = data.get("chest_count", 0)
 	content.chest_quality = data.get("chest_quality", 1.0)
 	content.event_id = data.get("event_id", -1)

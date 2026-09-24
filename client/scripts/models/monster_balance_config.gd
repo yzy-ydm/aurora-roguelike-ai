@@ -17,6 +17,11 @@ const NORMAL_ATK_MAX: int = 15
 const NORMAL_DEF_MIN: int = 0
 const NORMAL_DEF_MAX: int = 5
 
+## 移动速度 (px/s) - TASK-017.7: 玩家基础速度200，怪物约为其1/3
+## 修复前 DB 数据为 3~15（蜗速），统一由本配置生成
+const NORMAL_SPEED_MIN: float = 60.0
+const NORMAL_SPEED_MAX: float = 90.0
+
 ## 精英怪物 (floor 1)
 const ELITE_HP_MIN: int = 200
 const ELITE_HP_MAX: int = 400
@@ -24,6 +29,8 @@ const ELITE_ATK_MIN: int = 12
 const ELITE_ATK_MAX: int = 25
 const ELITE_DEF_MIN: int = 3
 const ELITE_DEF_MAX: int = 10
+const ELITE_SPEED_MIN: float = 70.0
+const ELITE_SPEED_MAX: float = 120.0
 
 ## Boss (floor 1)
 const BOSS_HP_MIN: int = 800
@@ -32,6 +39,8 @@ const BOSS_ATK_MIN: int = 20
 const BOSS_ATK_MAX: int = 35
 const BOSS_DEF_MIN: int = 5
 const BOSS_DEF_MAX: int = 15
+const BOSS_SPEED_MIN: float = 90.0
+const BOSS_SPEED_MAX: float = 130.0
 
 ## ==================== 楼层缩放系数 ====================
 
@@ -39,11 +48,13 @@ const BOSS_DEF_MAX: int = 15
 const HP_SCALE_PER_LEVEL: float = 0.15   # 每层+15%HP
 const ATK_SCALE_PER_LEVEL: float = 0.10  # 每层+10%攻击
 const DEF_SCALE_PER_LEVEL: float = 0.08  # 每层+8%防御
+const SPEED_SCALE_PER_LEVEL: float = 0.05  # 每层+5%速度（TASK-017.7，远慢于属性增长）
 
 ## 最大缩放倍数（防止数值膨胀）
 const MAX_HP_MULTIPLIER: float = 3.0
 const MAX_ATK_MULTIPLIER: float = 2.5
 const MAX_DEF_MULTIPLIER: float = 2.0
+const MAX_SPEED_MULTIPLIER: float = 1.5  # TASK-017.7: 速度上限+50%（怪物不追上玩家）
 
 
 ## ==================== 核心方法 ====================
@@ -52,25 +63,29 @@ const MAX_DEF_MULTIPLIER: float = 2.0
 static func get_range(monster_type: String, floor_level: int) -> Dictionary:
 	var base: Dictionary
 	var level_factor: float = _get_level_factor(floor_level)
+	var speed_factor: float = _get_speed_factor(floor_level)
 
 	match monster_type:
 		"elite":
 			base = {
 				"hp_min": ELITE_HP_MIN, "hp_max": ELITE_HP_MAX,
 				"atk_min": ELITE_ATK_MIN, "atk_max": ELITE_ATK_MAX,
-				"def_min": ELITE_DEF_MIN, "def_max": ELITE_DEF_MAX
+				"def_min": ELITE_DEF_MIN, "def_max": ELITE_DEF_MAX,
+				"spd_min": ELITE_SPEED_MIN, "spd_max": ELITE_SPEED_MAX
 			}
 		"boss":
 			base = {
 				"hp_min": BOSS_HP_MIN, "hp_max": BOSS_HP_MAX,
 				"atk_min": BOSS_ATK_MIN, "atk_max": BOSS_ATK_MAX,
-				"def_min": BOSS_DEF_MIN, "def_max": BOSS_DEF_MAX
+				"def_min": BOSS_DEF_MIN, "def_max": BOSS_DEF_MAX,
+				"spd_min": BOSS_SPEED_MIN, "spd_max": BOSS_SPEED_MAX
 			}
 		_:  # normal 或未知
 			base = {
 				"hp_min": NORMAL_HP_MIN, "hp_max": NORMAL_HP_MAX,
 				"atk_min": NORMAL_ATK_MIN, "atk_max": NORMAL_ATK_MAX,
-				"def_min": NORMAL_DEF_MIN, "def_max": NORMAL_DEF_MAX
+				"def_min": NORMAL_DEF_MIN, "def_max": NORMAL_DEF_MAX,
+				"spd_min": NORMAL_SPEED_MIN, "spd_max": NORMAL_SPEED_MAX
 			}
 
 	return {
@@ -79,7 +94,9 @@ static func get_range(monster_type: String, floor_level: int) -> Dictionary:
 		"atk_min": int(base["atk_min"] * level_factor),
 		"atk_max": int(base["atk_max"] * level_factor),
 		"def_min": int(base["def_min"] * level_factor),
-		"def_max": int(base["def_max"] * level_factor)
+		"def_max": int(base["def_max"] * level_factor),
+		"spd_min": base["spd_min"] * speed_factor,
+		"spd_max": base["spd_max"] * speed_factor
 	}
 
 
@@ -90,6 +107,7 @@ static func generate_monster_stats(monster_type: String, floor_level: int) -> Di
 		"health": randi_range(range["hp_min"], range["hp_max"]),
 		"attack": randi_range(range["atk_min"], range["atk_max"]),
 		"defense": randi_range(range["def_min"], range["def_max"]),
+		"speed": randi_range(int(range["spd_min"]), int(range["spd_max"])),  # TASK-017.7
 		"level": floor_level
 	}
 
@@ -114,3 +132,10 @@ static func _get_level_factor(floor_level: int) -> float:
 	var def_factor = min(1.0 + (floor_level - 1) * DEF_SCALE_PER_LEVEL, MAX_DEF_MULTIPLIER)
 	# 使用HP因子作为统一缩放（简化）
 	return hp_factor
+
+
+## 计算速度楼层缩放因子（TASK-017.7: 速度独立缩放，上限+50%保持玩家风筝能力）
+static func _get_speed_factor(floor_level: int) -> float:
+	if floor_level <= 1:
+		return 1.0
+	return min(1.0 + (floor_level - 1) * SPEED_SCALE_PER_LEVEL, MAX_SPEED_MULTIPLIER)

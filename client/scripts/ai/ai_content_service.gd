@@ -429,10 +429,16 @@ func _call_cloud_ai_room_from_new(room: NewRoomData, floor_level: int, player_le
 
 
 ## 确保有AI服务端Token
-func _ensure_ai_token() -> void:
-	# 如果已有Token，直接返回
-	if _ai_token != "":
+## TASK-020.2: force=true 时强制刷新（用于401恢复；清空旧token与失败标记）
+func _ensure_ai_token(force: bool = false) -> void:
+	# 如果已有Token且非强制刷新，直接返回
+	if _ai_token != "" and not force:
 		return
+
+	# 强制刷新: 清空旧token与失败标记
+	if force:
+		_ai_token = ""
+		_token_failed = false
 
 	# 如果之前获取失败，不再尝试
 	if _token_failed:
@@ -468,35 +474,12 @@ func _ensure_ai_token() -> void:
 		_token_failed = true
 		return
 
-	# 等待响应（带超时保护）
-	var result = null
-	var timeout_counter = 0
-	while timeout_counter < 50:  # 最多等待5秒
-		if http.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
-			break
-		await get_tree().process_frame
-		timeout_counter += 1
-
-	# 检查是否超时
-	if timeout_counter >= 50:
-		print("[AIContentService] Token request timeout")
-		http.cancel_request()
-		http.queue_free()
-		_token_loading = false
-		_token_failed = true
-		return
-
-	# 获取结果
-	result = http.request_completed.get_value() if http.request_completed else null
+	# 等待响应（TASK-021: 用 Godot 4 标准 await 信号替代轮询+Signal.get_value()
+	# http.timeout=5.0 保证最终返回——超时时信号以 RESULT_TIMEOUT 发射）
+	var result = await http.request_completed
 	http.queue_free()
 
-	if result == null:
-		print("[AIContentService] Token request failed: no response")
-		_token_loading = false
-		_token_failed = true
-		return
-
-	# 检查结果
+	# 检查结果（超时/网络失败/非200 → 标记失败，不再尝试）
 	if result[0] != HTTPRequest.RESULT_SUCCESS:
 		print("[AIContentService] Token request failed: ", result[0])
 		_token_loading = false
@@ -527,8 +510,26 @@ func _ensure_ai_token() -> void:
 	_token_loading = false
 
 
-## 发送AI请求
+## 发送AI请求（TASK-020.2: 401 时自动刷新 token 并重试一次，仍失败则归 fallback）
 func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
+	var response = await _do_ai_request(endpoint, request_data)
+
+	# 401: AI服务重启/Token过期 → 清空token → 强制重新获取 → 重试一次
+	if response.has("__http_status") and response["__http_status"] == 401:
+		print("[AIContentService] AI service returned 401, refreshing token and retrying once")
+		await _ensure_ai_token(true)
+		if _ai_token != "":
+			response = await _do_ai_request(endpoint, request_data)
+
+	# 任何HTTP错误状态统一返回空 → 调用方走 fallback（保持原有契约）
+	if response.has("__http_status"):
+		return {}
+	return response
+
+
+## 执行单次AI请求（TASK-020.2 从 _send_ai_request 拆分）
+## 非200状态时返回 {"__http_status": 状态码}，由 _send_ai_request 统一处理
+func _do_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 	var url = APIConfig.get_ai_url(endpoint)
 	var headers = [
 		"Content-Type: application/json",
@@ -549,31 +550,12 @@ func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 		http.queue_free()
 		return {}
 
-	# 等待响应（带手动超时保护）
-	var result = null
-	var timeout_counter = 0
-	var max_wait = 100  # 10秒 (100 * 0.1秒)
-
-	while timeout_counter < max_wait:
-		# 检查请求是否完成
-		if http.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
-			break
-
-		await get_tree().process_frame
-		timeout_counter += 1
-
-	# 检查是否超时
-	if timeout_counter >= max_wait:
-		print("[AIContentService] HTTP request timeout after 10 seconds, will use fallback")
-		http.cancel_request()
-		http.queue_free()
-		return {}
-
-	# 获取结果
-	result = http.request_completed.get_value() if http.request_completed else null
+	# 等待响应（TASK-021: 用 Godot 4 标准 await 信号替代轮询+Signal.get_value()
+	# http.timeout=10.0 保证最终返回——超时时信号以 RESULT_TIMEOUT 发射）
+	var result = await http.request_completed
 	http.queue_free()
 
-	# 检查结果
+	# 检查结果（网络失败/超时 → 返回空 → 调用方走 fallback）
 	if result[0] != HTTPRequest.RESULT_SUCCESS:
 		if result[0] == HTTPRequest.RESULT_TIMEOUT:
 			print("[AIContentService] HTTP request timeout, will use fallback")
@@ -586,7 +568,7 @@ func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 
 	if status_code != 200:
 		print("[AIContentService] Server returned error status: ", status_code)
-		return {}
+		return {"__http_status": status_code}
 
 	# 解析JSON响应
 	var response_body = result[3].get_string_from_utf8()
@@ -661,8 +643,8 @@ func generate_room_event(room_type: String, player_level: int, context: Dictiona
 		print("[AIContentService] AI event generation failed, returning null")
 		return null
 
-	# 解析响应
-	var event_data = AIEventData.from_dict(response)
+	# 解析响应（TASK-023: 响应经适配层防御转换）
+	var event_data = AIEventData.from_dict(AIResponseAdapter.to_safe_dictionary(response))
 	if event_data.is_valid():
 		content_generated.emit("event", response)
 		return event_data
@@ -758,8 +740,9 @@ func generate_npc_dialogue(npc_type: String, room_environment: String, player_st
 		print("[AIContentService] AI dialogue generation failed, using fallback")
 		return _generate_mock_dialogue(npc_type)
 
-	# 解析响应
-	var dialogue = response.get("dialogue", [])
+	# 解析响应（TASK-023: 统一经适配层转换 JSON Array → Array[String]，
+	# 禁止未类型化 Array 直接作为类型化返回）
+	var dialogue := AIResponseAdapter.to_string_array(response.get("dialogue", []))
 	if dialogue.size() > 0:
 		content_generated.emit("dialogue", response)
 		return dialogue
@@ -866,8 +849,8 @@ func generate_upgrade_options(player_level: int, player_stats: Dictionary = {}) 
 		print("[AIContentService] AI upgrade generation failed, using fallback")
 		return _generate_mock_upgrades(player_level)
 
-	# 解析响应
-	var upgrades = response.get("upgrades", [])
+	# 解析响应（TASK-023: 统一经适配层转换 JSON Array → Array[Dictionary]）
+	var upgrades := AIResponseAdapter.to_dictionary_array(response.get("upgrades", []))
 	if upgrades.size() > 0:
 		content_generated.emit("upgrade", response)
 		return upgrades
@@ -1072,11 +1055,12 @@ func _get_default_difficulty() -> Dictionary:
 ## 解析难度响应
 func _parse_difficulty_response(response: Dictionary) -> Dictionary:
 	var default = _get_default_difficulty()
+	# TASK-023: 数值字段经适配层规整（AI 可能返回字符串数字/整型）
 	return {
-		"enemy_hp_multiplier": response.get("enemy_hp_multiplier", default["enemy_hp_multiplier"]),
-		"enemy_damage_multiplier": response.get("enemy_damage_multiplier", default["enemy_damage_multiplier"]),
-		"elite_spawn_rate": response.get("elite_spawn_rate", default["elite_spawn_rate"]),
-		"reward_multiplier": response.get("reward_multiplier", default["reward_multiplier"])
+		"enemy_hp_multiplier": AIResponseAdapter.to_float(response.get("enemy_hp_multiplier"), default["enemy_hp_multiplier"]),
+		"enemy_damage_multiplier": AIResponseAdapter.to_float(response.get("enemy_damage_multiplier"), default["enemy_damage_multiplier"]),
+		"elite_spawn_rate": AIResponseAdapter.to_float(response.get("elite_spawn_rate"), default["elite_spawn_rate"]),
+		"reward_multiplier": AIResponseAdapter.to_float(response.get("reward_multiplier"), default["reward_multiplier"])
 	}
 
 
@@ -1115,7 +1099,7 @@ func generate_room_strategy(context: Dictionary = {}) -> Dictionary:
 		return _get_default_room_strategy()
 
 	content_generated.emit("room_strategy", response)
-	return response
+	return AIResponseAdapter.to_safe_dictionary(response)
 
 
 ## 调用AI服务生成房间策略
@@ -1201,7 +1185,7 @@ func generate_npc_memory_response(npc_id: String, context: Dictionary = {}) -> D
 		return {}
 
 	content_generated.emit("npc_memory", response)
-	return response
+	return AIResponseAdapter.to_safe_dictionary(response)
 
 
 ## 调用AI服务生成NPC记忆响应
@@ -1278,7 +1262,7 @@ func generate_context_event(context: Dictionary = {}) -> AIEventData:
 		print("[AIContentService] AI context event generation failed, using fallback")
 		return null
 
-	var event_data = AIEventData.from_dict(response)
+	var event_data = AIEventData.from_dict(AIResponseAdapter.to_safe_dictionary(response))
 	if event_data.is_valid():
 		content_generated.emit("context_event", response)
 		return event_data

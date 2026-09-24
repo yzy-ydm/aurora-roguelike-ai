@@ -130,7 +130,8 @@ func on_monster_attack_player(attacker: Node2D, target: Node2D) -> void:
 	var final_damage = result["damage"]
 
 	# 应用伤害到玩家
-	apply_damage_to_player(target, final_damage, attacker.position)
+	# TASK-017.7: 击退方向基准统一用世界坐标（attacker.position 是房间local，方向会错乱）
+	apply_damage_to_player(target, final_damage, attacker.global_position)
 
 
 ## ==================== Boss→玩家 伤害 ====================

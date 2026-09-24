@@ -56,7 +56,12 @@ static func from_dict(data: Dictionary) -> BossData:
 	boss.speed = data.get("speed", 120.0)
 	boss.attack_cooldown = data.get("attack_cooldown", 1.5)
 	boss.attack_prepare_time = data.get("attack_prepare_time", 0.5)
-	boss.skills = data.get("skills", [])
+	# TASK-022: 未类型化 Array 不能直接赋给 Array[Dictionary] 成员，逐项验证类型
+	var raw_skills = data.get("skills", [])
+	if raw_skills is Array:
+		for item in raw_skills:
+			if item is Dictionary:
+				boss.skills.append(item)
 	boss.reward_gold = data.get("reward_gold", 200)
 	boss.reward_exp = data.get("reward_exp", 150)
 

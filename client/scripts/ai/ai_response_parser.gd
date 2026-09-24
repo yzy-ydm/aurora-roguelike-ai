@@ -152,7 +152,12 @@ func _parse_reward_config(content: RoomContentData, rewards: Dictionary) -> void
 		content.reward_count = rewards.get("count", 3)
 		content.reward_quality = rewards.get("quality", 1.0)
 		content.reward_strategy = rewards.get("strategy", "")
-		content.reward_items = rewards.get("items", [])
+		# TASK-022: 未类型化 Array 不能直接赋给 Array[Dictionary] 成员，逐项验证类型
+		var raw_items = rewards.get("items", [])
+		if raw_items is Array:
+			for item in raw_items:
+				if item is Dictionary:
+					content.reward_items.append(item)
 	else:
 		content.reward_count = 3
 		content.reward_quality = 1.0

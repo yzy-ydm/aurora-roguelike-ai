@@ -255,7 +255,7 @@ func attack_player(player_node: Node2D) -> void:
 		# Fallback: 直接调用take_damage(无防御计算)
 		print("[MonsterNode] DamageSystem not found, using fallback")
 		if player_node.has_method("take_damage"):
-			player_node.take_damage(_monster_entity.get_attack(), position)
+			player_node.take_damage(_monster_entity.get_attack(), global_position)
 
 
 ## 查找DamageSystem

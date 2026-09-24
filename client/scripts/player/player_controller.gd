@@ -226,6 +226,11 @@ func _physics_process(delta: float) -> void:
 	# ========== 14. 移动并处理碰撞 ==========
 	move_and_slide()
 
+	# ========== 15. TASK-018.0: 按住左键持续攻击 ==========
+	# 攻击频率仍由 weapon 冷却（fire_rate）控制，按住即可连续射击
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_try_attack()
+
 
 ## 输入处理 (Phase 17.0: 添加冲刺)
 func _input(event: InputEvent) -> void:

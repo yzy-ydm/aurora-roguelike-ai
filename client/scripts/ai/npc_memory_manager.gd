@@ -160,9 +160,18 @@ func from_dict(data: Dictionary) -> void:
 		memory.npc_id = npc_id
 		memory.interaction_count = memory_data.get("interaction_count", 0)
 		memory.last_interaction_time = memory_data.get("last_interaction_time", 0.0)
-		memory.player_choices = memory_data.get("player_choices", [])
+		# TASK-022: 未类型化 Array 不能直接赋给类型化数组成员，逐项验证类型
+		var raw_choices = memory_data.get("player_choices", [])
+		if raw_choices is Array:
+			for item in raw_choices:
+				if item is Dictionary:
+					memory.player_choices.append(item)
 		memory.relationship = memory_data.get("relationship", 0.0)
-		memory.notes = memory_data.get("notes", [])
+		var raw_notes = memory_data.get("notes", [])
+		if raw_notes is Array:
+			for item in raw_notes:
+				if item is String:
+					memory.notes.append(item)
 		_memories[npc_id] = memory
 
 	print("[NPCMemory] Loaded ", _memories.size(), " NPC memories")

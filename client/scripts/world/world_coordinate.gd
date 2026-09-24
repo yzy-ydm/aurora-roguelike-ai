@@ -48,9 +48,26 @@ static func world_to_local(room_center: Vector2, world_pos: Vector2) -> Vector2:
 
 ## ==================== 预设位置 ====================
 
+## ==================== 怪物生成位置（TASK-017.8: 平台感知） ====================
+
+## 怪物碰撞体半宽/半高（monster.tscn 碰撞体 28×28）
+const MONSTER_HALF_WIDTH: float = 14.0
+
+## 怪物出生点与平台的安全间距
+const MONSTER_PLATFORM_CLEARANCE: float = 4.0
+
+## 地面扫描范围（TASK-018.0: 最小 x=-330，与玩家出生点(-540)保持至少 210px 距离
+## 防止贴脸出生；最大 x=550，墙内侧面 630 - 怪物半宽 14 仍安全）
+const MONSTER_SCAN_MIN_X: float = -330.0
+const MONSTER_SCAN_MAX_X: float = 550.0
+
 ## 获取房间内预设的怪物生成区域(横版: 地面上)
 ## Phase 17.5: 根据index分布怪物位置，避免重叠
-static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int = 1) -> Vector2:
+## TASK-017.8: platform_rects 提供时做平台避让三级采样
+##   1) 槽位附近随机抖动（12次）
+##   2) 地面带系统化扫描（-550 → 550，步进56；按index错开起点防多怪重叠）
+##   3) 兜底: 保留旧槽位点（地面带1100px vs 平台总宽≤800px，理论不可达）
+static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int = 1, platform_rects: Array[Rect2] = []) -> Vector2:
 	# 根据index分布怪物位置
 	var x_offset: float
 
@@ -75,7 +92,36 @@ static func monster_spawn_pos(room_center: Vector2, index: int = 0, total: int =
 	const MONSTER_HALF_HEIGHT: float = 14.0
 	var y_pos = GROUND_Y - GROUND_HEIGHT / 2.0 - MONSTER_HALF_HEIGHT
 
-	return room_center + Vector2(x_offset, y_pos)
+	# TASK-017.8: 平台避让（不传 platform_rects 时完全保持旧行为，向后兼容）
+	if platform_rects.size() == 0:
+		return room_center + Vector2(x_offset, y_pos)
+
+	# 1) 槽位附近随机抖动采样
+	for attempt in range(12):
+		var x: float = clampf(x_offset + randf_range(-30.0, 30.0), MONSTER_SCAN_MIN_X, MONSTER_SCAN_MAX_X)
+		if _monster_pos_clear(Vector2(x, y_pos), platform_rects):
+			return room_center + Vector2(x, y_pos)
+
+	# 2) 地面带系统化扫描（确定性兜底；起点按 index 错开 8px，使各怪扫描格点互不重合，防止多怪拿到同一点）
+	var scan_x: float = MONSTER_SCAN_MIN_X + float(index) * 8.0
+	while scan_x <= MONSTER_SCAN_MAX_X:
+		if _monster_pos_clear(Vector2(scan_x, y_pos), platform_rects):
+			return room_center + Vector2(scan_x, y_pos)
+		scan_x += 56.0
+
+	# 3) 最终兜底: 保留旧槽位点并钳制到安全区（绝不进入玩家出生点附近，防御性理论不可达）
+	return room_center + Vector2(clampf(x_offset, MONSTER_SCAN_MIN_X, MONSTER_SCAN_MAX_X), y_pos)
+
+
+## TASK-017.8: 怪物出生点是否与所有平台矩形保持安全距离（碰撞区域检测）
+## 判定: 矩形向外扩大 (怪物半宽+安全间距) 后仍包含该点 → 不安全
+## 容差 0.1px: 使"恰好间隔安全间距"的候选点判定为安全（浮点边界）
+static func _monster_pos_clear(local_pos: Vector2, platform_rects: Array[Rect2]) -> bool:
+	var margin: float = MONSTER_HALF_WIDTH + MONSTER_PLATFORM_CLEARANCE - 0.1
+	for rect in platform_rects:
+		if rect.grow(margin).has_point(local_pos):
+			return false
+	return true
 
 
 ## ==================== 奖励生成位置（TASK-002: 平台感知） ====================

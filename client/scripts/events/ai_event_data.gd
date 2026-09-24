@@ -29,7 +29,14 @@ static func from_dict(data: Dictionary) -> AIEventData:
 	var event = AIEventData.new()
 	event.title = data.get("title", "")
 	event.description = data.get("description", "")
-	event.choices = data.get("choices", [])
+	# TASK-022: JSON 解析出的未类型化 Array 不能直接赋给 Array[Dictionary] 成员
+	# （Godot 4 运行时拒绝: Invalid assignment of property or key 'choices'）
+	# 逐项验证类型后追加，保持类型安全
+	var raw_choices = data.get("choices", [])
+	if raw_choices is Array:
+		for item in raw_choices:
+			if item is Dictionary:
+				event.choices.append(item)
 	if event.title != "":
 		event.state = EventState.CHOOSING
 	return event

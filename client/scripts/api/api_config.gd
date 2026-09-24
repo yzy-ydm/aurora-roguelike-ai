@@ -28,7 +28,8 @@ var DEV_PASSWORD: String = DEFAULT_DEV_PASSWORD
 const BASE_URL: String = "http://127.0.0.1:8000"
 
 ## AI内容生成服务器基础URL
-const AI_BASE_URL: String = "http://localhost:8001"
+## TASK-020.3: localhost 统一为 127.0.0.1（与游戏服务一致，避免 localhost 解析为 IPv6 ::1 连接失败）
+const AI_BASE_URL: String = "http://127.0.0.1:8001"
 
 ## 游戏服务器API端点常量
 const AUTH_REGISTER: String = "/api/auth/register"

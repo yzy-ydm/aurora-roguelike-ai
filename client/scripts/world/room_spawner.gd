@@ -141,7 +141,8 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 		var monster_data = _get_monster_by_config(monsters, content.monster_types, content.monster_level)
 		if monster_data:
 			# Phase 26: 转换为房间内local坐标
-			var world_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count)
+			# TASK-017.8: 平台感知出生点（防止怪物生成在平台内部→无法击杀→房间软锁）
+			var world_pos = WorldCoordinate.monster_spawn_pos(room_center, i, content.monster_count, _get_platform_rects())
 			var local_pos = world_pos - room_center
 			var entity = _spawn_single_monster(monster_data, local_pos)
 			if entity:
@@ -239,6 +240,7 @@ func _apply_monster_clamp(monster: MonsterData, level: int) -> void:
 	monster.health = stats["health"]
 	monster.attack = stats["attack"]
 	monster.defense = stats["defense"]
+	monster.speed = stats["speed"]  # TASK-017.7: 速度一并按配置生成（修复 3~15 蜗速）
 
 
 ## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）
@@ -325,8 +327,10 @@ func spawn_boss(boss_data: BossData, room_center: Vector2) -> MonsterEntity:
 	var entity = MonsterEntity.new()
 	entity.set_monster_data(monster_data)
 
-	# Phase 26: Boss在房间中心，local坐标为(0, 0)
-	var boss_local_pos = Vector2.ZERO
+	# TASK-017.8: Boss出生点平台感知（旧逻辑为房间中心(0,0)半空，靠重力下落，
+	# 落点可能被中央平台接住/卡住；改为地面安全点采样，采样兜底时保留旧槽位行为）
+	var world_pos = WorldCoordinate.monster_spawn_pos(room_center, 0, 1, _get_platform_rects())
+	var boss_local_pos = world_pos - room_center
 	entity.set_position(boss_local_pos)
 
 	# 绑定节点

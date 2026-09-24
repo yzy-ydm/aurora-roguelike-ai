@@ -25,7 +25,7 @@ var speed: float = 100.0
 ## AI属性
 var ai_type: String = "melee"
 var detection_range: float = 200.0
-var attack_range: float = 50.0
+var attack_range: float = 60.0  # TASK-017.7: 50→60，玩家移速200下保证近距离攻击可命中
 
 ## 状态
 var is_dead: bool = false

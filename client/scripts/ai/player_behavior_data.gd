@@ -282,9 +282,19 @@ static func from_dict(data: Dictionary) -> PlayerBehaviorData:
 
 	var gameplay = data.get("gameplay", {})
 	behavior.weapon_usage = gameplay.get("weapon_usage", {})
-	behavior.upgrade_history = gameplay.get("upgrade_history", [])
-	behavior.room_route = gameplay.get("room_route", [])
-	behavior.event_choices = gameplay.get("event_choices", [])
+	# TASK-022: 未类型化 Array 不能直接赋给类型化数组成员，逐项验证类型
+	for key in ["upgrade_history", "room_route", "event_choices"]:
+		var raw_arr = gameplay.get(key, [])
+		if raw_arr is Array:
+			for item in raw_arr:
+				if item is Dictionary:
+					match key:
+						"upgrade_history":
+							behavior.upgrade_history.append(item)
+						"room_route":
+							behavior.room_route.append(item)
+						"event_choices":
+							behavior.event_choices.append(item)
 
 	var progression = data.get("progression", {})
 	behavior.current_level = progression.get("current_level", 1)

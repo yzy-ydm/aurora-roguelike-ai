@@ -40,11 +40,20 @@ static func from_dict(data: Dictionary) -> AIRoomContent:
 	content.room_name = data.get("room_name", "")
 	content.room_description = data.get("room_description", "")
 	content.room_event = data.get("room_event", "")
-	content.event_choices = data.get("event_choices", [])
+	# TASK-022: 未类型化 Array 不能直接赋给类型化数组成员，逐项验证类型
+	var raw_choices = data.get("event_choices", [])
+	if raw_choices is Array:
+		for item in raw_choices:
+			if item is Dictionary:
+				content.event_choices.append(item)
 	content.recommended_level = data.get("recommended_level", 1)
 	content.enemy_modifier = data.get("enemy_modifier", {})
 	content.reward_description = data.get("reward_description", "")
-	content.npc_dialogue = data.get("npc_dialogue", [])
+	var raw_dialogue = data.get("npc_dialogue", [])
+	if raw_dialogue is Array:
+		for item in raw_dialogue:
+			if item is String:
+				content.npc_dialogue.append(item)
 	content.is_loaded = true
 	return content
 
