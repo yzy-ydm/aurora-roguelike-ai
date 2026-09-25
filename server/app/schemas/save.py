@@ -52,6 +52,28 @@ class SaveCreate(BaseModel):
         description="玩家状态数据（JSON格式）",
         examples=[{"health": 100, "max_health": 100, "attack": 10, "defense": 5, "level": 1, "experience": 0, "gold": 0}]
     )
+    # TASK-026: 创建存档时持久化游戏进度字段
+    # （客户端 404→POST 兜底路径会携带这些字段；此前被 schema 丢弃，首次保存丢失楼层）
+    current_floor: Optional[int] = Field(
+        None,
+        ge=1,
+        description="当前层数"
+    )
+    play_time: Optional[int] = Field(
+        None,
+        ge=0,
+        description="游戏时长（秒）"
+    )
+    kill_count: Optional[int] = Field(
+        None,
+        ge=0,
+        description="击杀数"
+    )
+    gold_collected: Optional[int] = Field(
+        None,
+        ge=0,
+        description="收集金币"
+    )
 
     @field_validator("save_name")
     @classmethod

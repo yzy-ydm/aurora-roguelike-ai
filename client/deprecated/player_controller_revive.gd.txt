@@ -1,0 +1,28 @@
+## 废弃代码归档（2026-09-24 Phase 18.2）
+## 来源: client/scripts/player/player_controller.gd
+## 原因: revive() 零调用点——TASK-028 起 restart_run 改用 reset_stats_to()
+##       （重建全新 PlayerStats + 清死亡锁），revive 仅回血会残留等级/金币/强化
+
+## 重置玩家状态（用于重生）(Phase 9.4.1: 委托PlayerStats)
+func revive() -> void:
+	var s = get_stats()
+	s.revive()
+	_player_data = s.to_dict()
+
+	_is_invincible = false
+	_is_dying = false
+	_knockback_timer = 0.0
+
+	# 恢复输入
+	set_physics_process(true)
+	set_process_input(true)
+
+	# 恢复碰撞
+	if collision_shape:
+		collision_shape.disabled = false
+
+	# 恢复视觉
+	if sprite:
+		sprite.modulate = Color(1, 1, 1, 1)
+
+	print("[Player] Player revived")

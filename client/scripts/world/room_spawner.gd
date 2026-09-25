@@ -138,7 +138,7 @@ func spawn_monsters(content: RoomContentData, room_center: Vector2) -> int:
 
 	# Phase 17.5: 传递index和total参数，避免怪物重叠
 	for i in range(content.monster_count):
-		var monster_data = _get_monster_by_config(monsters, content.monster_types, content.monster_level)
+		var monster_data = _get_monster_by_config(monsters, content)
 		if monster_data:
 			# Phase 26: 转换为房间内local坐标
 			# TASK-017.8: 平台感知出生点（防止怪物生成在平台内部→无法击杀→房间软锁）
@@ -204,24 +204,62 @@ const MONSTER_BALANCE_ENABLED: bool = true
 
 
 ## 根据配置获取怪物数据
+## TASK-027: 按房间类型过滤 + 楼层范围过滤
+##   根因修复: 旧实现类型未指定时从全部怪物（含 boss 型）随机抽取 →
+##   第一层普通战斗房出现"混沌领主"(boss型, 被钳制为 800-1200HP) 无法击杀
+##   规则: combat→normal / elite→elite / boss→boss；min_floor/max_floor 过滤
 ## Phase 23: 强制钳制怪物HP，防止AI生成异常高HP值
-func _get_monster_by_config(monsters: Array[MonsterData], types: Array[String], level: int) -> MonsterData:
+func _get_monster_by_config(monsters: Array[MonsterData], content: RoomContentData) -> MonsterData:
 	if monsters.size() == 0:
 		return null
 
-	# 如果指定了类型, 优先选择
-	if types.size() > 0:
-		var target_type = types[randi() % types.size()]
+	var floor_level: int = max(1, content.monster_level)
+
+	# 第一层过滤: 房间类型约束（禁止 boss/elite 泄漏进普通战斗房）
+	var candidates: Array[MonsterData] = []
+	for monster in monsters:
+		if not _monster_matches_room_type(monster, content.room_type):
+			continue
+		if monster.min_floor > floor_level or monster.max_floor < floor_level:
+			continue
+		candidates.append(monster)
+
+	# 兜底: 放宽楼层约束但保持类型约束（避免无怪可生成）
+	if candidates.size() == 0:
 		for monster in monsters:
+			if _monster_matches_room_type(monster, content.room_type):
+				candidates.append(monster)
+
+	if candidates.size() == 0:
+		print("[RoomSpawner] Error: no monsters match room type '", content.room_type, "'")
+		return null
+
+	# 如果指定了类型(AI内容), 在过滤后的集合内优先选择
+	if content.monster_types.size() > 0:
+		var target_type = content.monster_types[randi() % content.monster_types.size()]
+		for monster in candidates:
 			if monster.type == target_type or monster.name == target_type:
 				# Phase 23: 钳制HP到合理范围
-				_apply_monster_clamp(monster, level)
+				_apply_monster_clamp(monster, floor_level)
 				return monster
 
 	# 否则随机选择
-	var idx = randi() % monsters.size()
-	_apply_monster_clamp(monsters[idx], level)
-	return monsters[idx]
+	var idx = randi() % candidates.size()
+	_apply_monster_clamp(candidates[idx], floor_level)
+	return candidates[idx]
+
+
+## TASK-027: 房间类型约束——怪物类型必须与房间类型匹配
+func _monster_matches_room_type(monster: MonsterData, room_type: String) -> bool:
+	var m_type: String = monster.type.to_lower()
+	match room_type:
+		"boss":
+			return m_type == "boss"
+		"elite":
+			return m_type == "elite"
+		_:
+			# combat 等普通房间: 只允许 normal（空类型兼容为 normal）
+			return m_type == "normal" or m_type == ""
 
 
 ## Phase 23: 钳制怪物属性到合理范围
@@ -243,16 +281,7 @@ func _apply_monster_clamp(monster: MonsterData, level: int) -> void:
 	monster.speed = stats["speed"]  # TASK-017.7: 速度一并按配置生成（修复 3~15 蜗速）
 
 
-## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）
-## 保留此方法供调试和降级场景使用
-func _apply_level_modifier(entity: MonsterEntity, level: int) -> void:
-	if not MONSTER_BALANCE_ENABLED or level <= 1:
-		return
-	var multiplier = 1.0 + (level - 1) * 0.3
-	entity.health = int(entity.health * multiplier)
-	entity.max_health = int(entity.max_health * multiplier)
-	entity.attack = int(entity.attack * multiplier)
-	entity.defense = int(entity.defense * multiplier)
+## Phase 18.2: _apply_level_modifier 已废弃归档至 deprecated/room_spawner_apply_level_modifier.gd.txt
 
 
 ## ==================== 怪物死亡 ====================

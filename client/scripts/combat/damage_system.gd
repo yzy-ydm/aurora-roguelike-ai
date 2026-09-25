@@ -57,7 +57,6 @@ func on_bullet_hit(bullet: Node2D, target: Node2D) -> void:
 		return
 
 	# 从子弹获取攻击信息（使用getter方法避免.get()返回默认值的问题）
-	var weapon_damage = bullet.get_damage() if bullet.has_method("get_damage") else 10
 	var is_critical = bullet.get_is_critical() if bullet.has_method("get_is_critical") else false
 	var source = bullet.get_source() if bullet.has_method("get_source") else null
 
@@ -69,8 +68,11 @@ func on_bullet_hit(bullet: Node2D, target: Node2D) -> void:
 	# 获取目标防御力(统一接口)
 	var target_defense = _get_target_defense(target)
 
-	# 计算最终伤害(使用暴击状态,因为暴击已在子弹创建时判定)
-	var result = calculate_damage(attacker_attack, weapon_damage, target_defense, 0.0)
+	# TASK-028: 修复武器伤害双重计入
+	# player_controller.get_attack() 已包含武器伤害（攻击力 + weapon_instance.get_damage()）
+	# 旧公式 base = (attack+weapon) + bullet.weapon → 武器伤害被计两次
+	# 新公式 base = attacker_attack（武器只计一次）；bullet.damage 仅供无 DamageSystem 兜底路径
+	var result = calculate_damage(attacker_attack, 0, target_defense, 0.0)
 	var final_damage = result["damage"]
 
 	# 如果子弹标记为暴击,则应用暴击倍率

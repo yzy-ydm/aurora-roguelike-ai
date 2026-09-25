@@ -52,6 +52,12 @@ func _on_continue_pressed() -> void:
 
 ## 保存游戏按钮
 func _on_save_pressed() -> void:
+	# TASK-027: 死亡状态禁止保存死档（暂停菜单在死亡时不可达，双保险）
+	var runtime_stats = GameStateManager.get_runtime_stats()
+	if runtime_stats and runtime_stats.is_dead():
+		status_label.text = "死亡状态无法保存"
+		return
+
 	status_label.text = "保存中..."
 	save_button.disabled = true
 

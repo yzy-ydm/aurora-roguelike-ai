@@ -216,6 +216,9 @@ func enter_room(room_id: int) -> bool:
 	# 后台请求AI增强内容(不阻塞)
 	_request_ai_room_content(room)
 
+	# TASK-030: 预取相邻未访问房间的 AI 内容（进入前写入，消除 finalize 竞态）
+	_prefetch_ai_room_content(room)
+
 	return true
 
 
@@ -234,8 +237,14 @@ func _exit_room(room: NewRoomData) -> void:
 ## ==================== AI增强 ====================
 
 ## 请求AI房间内容(后台，不阻塞)
+## TASK-027: 房间门控——START 房禁止 AI 事件与 NPC 对白（出生房不弹任何 AI 内容）；
+##            AI 上下文事件仅在 EVENT 房间触发（事件只能在事件房）
 func _request_ai_room_content(room: NewRoomData) -> void:
 	if not _ai_content_service:
+		return
+
+	if not _room_allows_ai_content(room):
+		print("[FloorManager] Room ", room.id, " (", room.get_type_string(), "): AI event/dialogue requests skipped")
 		return
 
 	# 获取上下文
@@ -250,14 +259,14 @@ func _request_ai_room_content(room: NewRoomData) -> void:
 	# Phase 15: 发送AI请求开始信号
 	ai_request_started.emit("room_content")
 
-	# 请求上下文事件 (Phase 13)
-	if _ai_content_service.has_method("generate_context_event"):
+	# 请求上下文事件 (Phase 13) - TASK-027: 仅 EVENT 房间
+	if _room_allows_ai_event(room) and _ai_content_service.has_method("generate_context_event"):
 		var event_data = await _ai_content_service.generate_context_event(context)
 		if event_data:
 			print("[FloorManager] AI context event received: ", event_data.title)
 			ai_event_received.emit(event_data)
 
-	# 请求NPC对话
+	# 请求NPC对话（START 已在门控中排除）
 	if _ai_content_service.has_method("generate_npc_dialogue"):
 		var npc_context = {}
 		if _ai_context_manager:
@@ -272,6 +281,16 @@ func _request_ai_room_content(room: NewRoomData) -> void:
 
 	# Phase 15: 发送AI请求完成信号
 	ai_request_finished.emit("room_content")
+
+
+## TASK-027: 房间门控——START 房禁止一切 AI 事件/对白；其余房间仅 EVENT 房触发 AI 事件
+func _room_allows_ai_content(room: NewRoomData) -> bool:
+	return room.room_type != NewRoomData.RoomType.START
+
+
+## TASK-027: AI 上下文事件触发条件——仅 EVENT 房间
+func _room_allows_ai_event(room: NewRoomData) -> bool:
+	return room.room_type == NewRoomData.RoomType.EVENT
 
 
 ## 请求AI难度调整 (Phase 13)
@@ -339,10 +358,60 @@ func _request_room_content_ai(room: NewRoomData) -> void:
 			print("[FloorManager] AI content IGNORED for room ", room.id, " (monsters already spawning)")
 			return
 
+		# Phase 18.2: room_type 以房间为准（AI 响应类型不可信）
+		if content.room_type != room.get_type_string():
+			print("[RoomTypeValidation] room ", room.id, ": AI returned type=", content.room_type,
+				" but room type=", room.get_type_string(), " -> forced to room type")
+			content.room_type = room.get_type_string()
 		# Phase 9.3: AI生成的内容也要经过规则校验
 		content.validate_for_room_type()
 		room.content = content
 		print("[FloorManager] AI content applied for room ", room.id, " monsters=", content.monster_count)
+
+
+## TASK-030: 预取相邻未访问房间的 AI 内容
+## 设计: AI 职责边界 = 房间内容增强（不改地图结构）。
+## 在玩家进入房间 N 时，为 N 的前向未访问邻居预取 AI 内容并写入 room.content
+## （此时 content==null，两个守卫均不拦截）→ 玩家进入该房间时
+## _ensure_room_content 直接使用 AI 内容 → finalize 锁定的是 AI 内容。
+## 消除"进房即 finalize → AI 结果必被 IGNORED"的时序竞态。
+## AI 结果在 generate_room_content_from_new 内已过 Validator + QualityChecker。
+func _prefetch_ai_room_content(room: NewRoomData) -> void:
+	if not _ai_content_service or not _current_floor:
+		return
+	if not _ai_content_service.has_method("generate_room_content_from_new"):
+		return
+
+	var targets: Array[int] = []
+	for conn in room.connections:
+		var target_room: NewRoomData = _current_floor.get_room(conn)
+		if target_room and not target_room.visited and not target_room.is_completed() and target_room.content == null:
+			targets.append(conn)
+
+	for tid in targets:
+		var target_room: NewRoomData = _current_floor.get_room(tid)
+		if target_room.content != null:
+			continue
+		var content = await _ai_content_service.generate_room_content_from_new(
+			target_room,
+			_current_floor.floor_level,
+			1
+		)
+		if content and target_room.content == null:
+			# Phase 18.2: room_type 以房间为准——AI 响应可能携带错误类型
+			# （如 event 房返回 type=combat → 怪物绕过规则校验泄漏进事件房）
+			if content.room_type != target_room.get_type_string():
+				print("[RoomTypeValidation] room ", tid, ": AI returned type=", content.room_type,
+					" but room type=", target_room.get_type_string(), " -> forced to room type")
+				content.room_type = target_room.get_type_string()
+			# Phase 9.3: AI 内容经过规则校验后写入（Validator+QualityChecker 已在服务层通过）
+			content.validate_for_room_type()
+			target_room.content = content
+			print("[FloorManager] AI content PREFETCHED for room ", tid,
+				" (", target_room.get_type_string(), ") monsters=", content.monster_count,
+				" rewards=", content.reward_count)
+		elif content:
+			print("[FloorManager] AI content NOT APPLIED for room ", tid, " (content already set)")
 
 
 ## ==================== 查询接口 ====================

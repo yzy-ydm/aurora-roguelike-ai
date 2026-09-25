@@ -13,8 +13,18 @@ enum AIServiceType {
 	REAL        # 真实AI API
 }
 
+## TASK-030: AI 运行模式（初始化时探测一次，会话内保持稳定）
+enum AIMode {
+	UNKNOWN,        # 初始化中
+	CLOUD_READY,    # 云端可用（token 获取成功）
+	FALLBACK        # 本地降级（token 失败/超时/未启用云端）
+}
+
 ## 当前服务类型
 var _service_type: AIServiceType = AIServiceType.FAKE
+
+## 当前运行模式（TASK-030）
+var _mode: AIMode = AIMode.UNKNOWN
 
 ## AI服务引用
 var _fake_ai_service: Node = null
@@ -118,6 +128,45 @@ func _initialize_async() -> void:
 	_initialized = true
 	print("[AIContentService] Async initialization completed")
 
+	# TASK-030: 云端可用性探测——进入游戏前明确 AI MODE（CLOUD READY / FALLBACK）
+	# 保证第一个房间起模式稳定，不再"第一次房间 fallback、后面 cloud"
+	if _service_type == AIServiceType.REAL:
+		await _ensure_ai_token()
+		if _ai_token != "":
+			_mode = AIMode.CLOUD_READY
+		else:
+			_mode = AIMode.FALLBACK
+	else:
+		_mode = AIMode.FALLBACK
+	print("[AIContentService] AI MODE: ", "CLOUD READY" if _mode == AIMode.CLOUD_READY else "FALLBACK")
+
+
+## TASK-030: 等待初始化完成（含云端探测），返回是否 CLOUD READY
+## game_scene 在生成楼层前调用，保证第一个房间就有明确模式
+func await_ready(timeout: float = 5.0) -> bool:
+	if _mode != AIMode.UNKNOWN:
+		return _mode == AIMode.CLOUD_READY
+	var waited := 0.0
+	while _mode == AIMode.UNKNOWN and waited < timeout:
+		await get_tree().create_timer(0.1).timeout
+		waited += 0.1
+	if _mode == AIMode.UNKNOWN:
+		_mode = AIMode.FALLBACK
+		print("[AIContentService] AI MODE: FALLBACK (initialization timeout)")
+	return _mode == AIMode.CLOUD_READY
+
+
+## 获取当前运行模式
+func get_ai_mode() -> AIMode:
+	return _mode
+
+
+## TASK-030: 云端降级——token 失败后会话内保持 FALLBACK（不再反复尝试云端）
+func _downgrade_to_fallback() -> void:
+	if _mode == AIMode.CLOUD_READY or _mode == AIMode.UNKNOWN:
+		_mode = AIMode.FALLBACK
+		print("[AIContentService] AI MODE: FALLBACK (cloud token unavailable)")
+
 
 ## Phase 21.4.1: 检查AI服务是否已初始化
 ## 不触发初始化，只检查状态
@@ -129,6 +178,9 @@ func is_initialized() -> bool:
 func set_service_type(type: AIServiceType) -> void:
 	_service_type = type
 	print("[AIContentService] Service type set to: ", type)
+	# TASK-030: FAKE 模式即为本地降级模式
+	if type == AIServiceType.FAKE and _mode == AIMode.UNKNOWN:
+		_mode = AIMode.FALLBACK
 
 
 ## 设置是否使用缓存
@@ -143,110 +195,9 @@ func set_quality_threshold(threshold: float) -> void:
 	print("[AIContentService] Quality threshold: ", threshold)
 
 
-## 生成楼层内容
-func generate_floor_content(floor_level: int, player_level: int = 1) -> Array[NewRoomData]:
-	print("[AIContentService] Generating floor content for level ", floor_level)
-
-	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
-	if not is_initialized():
-		print("[AIContentService] Not initialized, using fallback for floor")
-		return _generate_fallback_floor(floor_level)
-
-	# 1. 检查缓存
-	if _use_cache and _cache_manager.has_floor_cache(floor_level):
-		print("[AIContentService] Using cached floor data")
-		var cached_data = _cache_manager.get_floor_cache(floor_level)
-		var rooms = _response_parser.parse_floor_data(cached_data)
-		if rooms.size() > 0:
-			return rooms
-
-	# 2. 调用AI服务
-	var response = await _call_ai_service_floor(floor_level, player_level)
-
-	if response.is_empty():
-		print("[AIContentService] AI service returned empty, using fallback")
-		return _generate_fallback_floor(floor_level)
-
-	# 3. 验证响应
-	response = _validator.validate_floor_data(response)
-	content_validated.emit("floor", true)
-
-	# 4. 质量检查
-	var quality_score = _quality_checker.check_floor_quality(response)
-	content_quality_checked.emit("floor", quality_score)
-
-	if quality_score < _quality_threshold:
-		print("[AIContentService] Quality score below threshold, using fallback")
-		return _generate_fallback_floor(floor_level)
-
-	# 5. 缓存结果
-	if _use_cache:
-		_cache_manager.set_floor_cache(floor_level, response)
-		content_cached.emit("floor")
-
-	# 6. 解析响应
-	var rooms = _response_parser.parse_floor_data(response)
-
-	if rooms.size() == 0:
-		print("[AIContentService] Parsed rooms is empty, using fallback")
-		return _generate_fallback_floor(floor_level)
-
-	print("[AIContentService] Generated ", rooms.size(), " rooms from AI")
-	content_generated.emit("floor", response)
-
-	return rooms
-
-
-## 生成房间内容
-func generate_room_content(room_node: RoomNodeData, floor_level: int, player_level: int = 1) -> RoomContentData:
-	print("[AIContentService] Generating content for room ", room_node.id)
-
-	# Phase 21.4.1: 检查是否已初始化，未初始化直接返回fallback
-	if not is_initialized():
-		print("[AIContentService] Not initialized, using fallback for room ", room_node.id)
-		return _generate_fallback_room_content(room_node, floor_level)
-
-	# 1. 检查缓存
-	if _use_cache and _cache_manager.has_room_cache(room_node.id):
-		print("[AIContentService] Using cached room content")
-		var cached_data = _cache_manager.get_room_cache(room_node.id)
-		var content = _response_parser.parse_room_content(cached_data)
-		return content
-
-	# 2. 调用AI服务
-	var response = await _call_ai_service_room(room_node, floor_level, player_level)
-
-	if response.is_empty():
-		print("[AIContentService] AI service returned empty, using fallback")
-		return _generate_fallback_room_content(room_node, floor_level)
-
-	# 3. 验证响应
-	response = _validator.validate_room_content(response)
-	content_validated.emit("room_content", true)
-
-	# 4. 质量检查
-	var quality_score = _quality_checker.check_room_content_quality(response)
-	content_quality_checked.emit("room_content", quality_score)
-
-	if quality_score < _quality_threshold:
-		print("[AIContentService] Quality score below threshold, using fallback")
-		return _generate_fallback_room_content(room_node, floor_level)
-
-	# 5. 缓存结果
-	if _use_cache:
-		_cache_manager.set_room_cache(room_node.id, response)
-		content_cached.emit("room_content")
-
-	# 6. 解析响应
-	var content = _response_parser.parse_room_content(response)
-
-	print("[AIContentService] Generated content for room ", room_node.id)
-	content_generated.emit("room", response)
-
-	return content
-
-
-## Phase 23: 从 NewRoomData 生成房间内容（避免旧 RoomNodeData 转换）
+## Phase 23: 从 NewRoomData 生成房间内容
+## TASK-030: 删除 AI 楼层拓扑生成（generate_floor_content）与旧 RoomNodeData 房间内容路径
+## AI 职责边界 = 房间内容增强；地图结构由 FloorGenerator + Validation 负责
 func generate_room_content_from_new(room: NewRoomData, floor_level: int, player_level: int = 1) -> RoomContentData:
 	print("[AIContentService] Generating content for room (NewRoomData) ", room.id)
 
@@ -294,33 +245,6 @@ func generate_room_content_from_new(room: NewRoomData, floor_level: int, player_
 	return content
 
 
-## 调用AI服务生成楼层
-func _call_ai_service_floor(floor_level: int, player_level: int) -> Dictionary:
-	match _service_type:
-		AIServiceType.FAKE:
-			return await _fake_ai_service.generate_floor(floor_level, player_level)
-		AIServiceType.REAL:
-			return await _call_cloud_ai_floor(floor_level, player_level)
-		_:
-			return {}
-
-
-## 调用AI服务生成房间内容
-func _call_ai_service_room(room_node: RoomNodeData, floor_level: int, player_level: int) -> Dictionary:
-	match _service_type:
-		AIServiceType.FAKE:
-			return await _fake_ai_service.generate_room_content(
-				room_node.id,
-				room_node.get_type_string(),
-				floor_level,
-				player_level
-			)
-		AIServiceType.REAL:
-			return await _call_cloud_ai_room(room_node, floor_level, player_level)
-		_:
-			return {}
-
-
 ## Phase 23: 从 NewRoomData 调用AI服务生成房间内容
 func _call_ai_service_room_from_new(room: NewRoomData, floor_level: int, player_level: int) -> Dictionary:
 	match _service_type:
@@ -335,66 +259,6 @@ func _call_ai_service_room_from_new(room: NewRoomData, floor_level: int, player_
 			return await _call_cloud_ai_room_from_new(room, floor_level, player_level)
 		_:
 			return {}
-
-
-## 调用云端AI生成楼层
-func _call_cloud_ai_floor(floor_level: int, player_level: int) -> Dictionary:
-	print("[AIContentService] Calling cloud AI for floor generation...")
-
-	# 确保有Token
-	await _ensure_ai_token()
-
-	# 检查Token是否获取失败
-	if _token_failed:
-		print("[AIContentService] Token failed, skipping cloud AI")
-		return {}
-
-	# 构建请求数据
-	var request_data = {
-		"floor_level": floor_level,
-		"player_level": player_level
-	}
-
-	# 发送HTTP请求
-	var response = await _send_ai_request(APIConfig.AI_GENERATE_FLOOR, request_data)
-
-	if response.is_empty():
-		print("[AIContentService] Cloud AI returned empty, will use fallback")
-		return {}
-
-	print("[AIContentService] Cloud response received for floor")
-	return response
-
-
-## 调用云端AI生成房间内容
-func _call_cloud_ai_room(room_node: RoomNodeData, floor_level: int, player_level: int) -> Dictionary:
-	print("[AIContentService] Calling cloud AI for room content...")
-
-	# 确保有Token
-	await _ensure_ai_token()
-
-	# 检查Token是否获取失败
-	if _token_failed:
-		print("[AIContentService] Token failed, skipping cloud AI")
-		return {}
-
-	# 构建请求数据
-	var request_data = {
-		"room_id": room_node.id,
-		"room_type": room_node.get_type_string(),
-		"floor_level": floor_level,
-		"player_level": player_level
-	}
-
-	# 发送HTTP请求
-	var response = await _send_ai_request(APIConfig.AI_GENERATE_ROOM, request_data)
-
-	if response.is_empty():
-		print("[AIContentService] Cloud AI returned empty, will use fallback")
-		return {}
-
-	print("[AIContentService] Cloud response received for room")
-	return response
 
 
 ## Phase 23: 从 NewRoomData 调用云端AI生成房间内容
@@ -442,6 +306,7 @@ func _ensure_ai_token(force: bool = false) -> void:
 
 	# 如果之前获取失败，不再尝试
 	if _token_failed:
+		_downgrade_to_fallback()
 		return
 
 	# 如果正在加载Token，等待
@@ -472,6 +337,7 @@ func _ensure_ai_token(force: bool = false) -> void:
 		http.queue_free()
 		_token_loading = false
 		_token_failed = true
+		_downgrade_to_fallback()
 		return
 
 	# 等待响应（TASK-021: 用 Godot 4 标准 await 信号替代轮询+Signal.get_value()
@@ -484,12 +350,14 @@ func _ensure_ai_token(force: bool = false) -> void:
 		print("[AIContentService] Token request failed: ", result[0])
 		_token_loading = false
 		_token_failed = true
+		_downgrade_to_fallback()
 		return
 
 	if result[1] != 200:
 		print("[AIContentService] Token request returned status: ", result[1])
 		_token_loading = false
 		_token_failed = true
+		_downgrade_to_fallback()
 		return
 
 	# 解析响应
@@ -512,6 +380,10 @@ func _ensure_ai_token(force: bool = false) -> void:
 
 ## 发送AI请求（TASK-020.2: 401 时自动刷新 token 并重试一次，仍失败则归 fallback）
 func _send_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
+	# TASK-030: 非 CLOUD_READY 模式直接走本地降级（不再发起云端请求）
+	if _mode != AIMode.CLOUD_READY:
+		return {}
+
 	var response = await _do_ai_request(endpoint, request_data)
 
 	# 401: AI服务重启/Token过期 → 清空token → 强制重新获取 → 重试一次
@@ -587,36 +459,6 @@ func _do_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 	return {}
 
 
-## 降级：生成本地楼层
-func _generate_fallback_floor(floor_level: int) -> Array[NewRoomData]:
-	print("[AIContentService] Fallback to fake AI for floor generation")
-
-	# 使用本地FloorGenerator
-	var floor_generator = Node.new()
-	floor_generator.set_script(load("res://scripts/world/floor_generator.gd"))
-	add_child(floor_generator)
-
-	var rooms = floor_generator.generate_floor(floor_level)
-
-	floor_generator.queue_free()
-
-	return rooms
-
-
-## 降级：生成本地房间内容
-func _generate_fallback_room_content(room_node: RoomNodeData, floor_level: int) -> RoomContentData:
-	print("[AIContentService] Fallback to fake AI for room content generation")
-
-	# 使用本地RoomContentData
-	var content = RoomContentData.from_room_node(room_node, floor_level)
-
-	# 设置默认怪物类型
-	var monster_types: Array[String] = ["goblin", "skeleton"]
-	content.set_monster_types(monster_types)
-
-	return content
-
-
 ## Phase 23: 从 NewRoomData 生成本地房间内容
 func _generate_fallback_room_content_from_new(room: NewRoomData, floor_level: int) -> RoomContentData:
 	print("[AIContentService] Fallback to fake AI for room content generation (NewRoomData)")
@@ -631,103 +473,8 @@ func _generate_fallback_room_content_from_new(room: NewRoomData, floor_level: in
 
 
 ## ==================== Phase 11: AI增强功能 ====================
-
-## 生成房间事件(异步，不阻塞)
-func generate_room_event(room_type: String, player_level: int, context: Dictionary = {}) -> AIEventData:
-	print("[AIContentService] Generating room event for ", room_type)
-
-	# 调用AI服务
-	var response = await _call_ai_service_event(room_type, player_level, context)
-
-	if response.is_empty():
-		print("[AIContentService] AI event generation failed, returning null")
-		return null
-
-	# 解析响应（TASK-023: 响应经适配层防御转换）
-	var event_data = AIEventData.from_dict(AIResponseAdapter.to_safe_dictionary(response))
-	if event_data.is_valid():
-		content_generated.emit("event", response)
-		return event_data
-
-	return null
-
-
-## 调用AI服务生成事件
-func _call_ai_service_event(room_type: String, player_level: int, context: Dictionary) -> Dictionary:
-	match _service_type:
-		AIServiceType.FAKE:
-			return _generate_mock_event(room_type, player_level)
-		AIServiceType.REAL:
-			return await _call_cloud_ai_event(room_type, player_level, context)
-		_:
-			return {}
-
-
-## 生成模拟事件
-func _generate_mock_event(room_type: String, player_level: int) -> Dictionary:
-	var events = [
-		{
-			"title": "神秘宝箱",
-			"description": "你发现了一个发光的宝箱，但周围似乎有陷阱。",
-			"choices": [
-				{"text": "打开宝箱", "reward": {"gold": 50, "attack": 2}, "risk": {"damage": 20}},
-				{"text": "小心绕过", "reward": {"health": 10}, "risk": {}},
-				{"text": "设置陷阱", "reward": {"attack": 5}, "risk": {"damage": 10}}
-			]
-		},
-		{
-			"title": "流浪商人",
-			"description": "一个神秘的商人出现在你面前，他有一件稀有物品。",
-			"choices": [
-				{"text": "购买物品 (50金币)", "reward": {"attack": 5}, "risk": {"lose_gold": 50}},
-				{"text": "拒绝交易", "reward": {}, "risk": {}},
-				{"text": "抢劫商人", "reward": {"gold": 100, "attack": 3}, "risk": {"damage": 30}}
-			]
-		},
-		{
-			"title": "古老石碑",
-			"description": "你发现了一块刻满符文的石碑，似乎蕴含着力量。",
-			"choices": [
-				{"text": "触摸石碑", "reward": {"max_health": 20}, "risk": {"damage": 15}},
-				{"text": "研究符文", "reward": {"attack": 3}, "risk": {}},
-				{"text": "离开", "reward": {}, "risk": {}}
-			]
-		}
-	]
-
-	# 随机选择一个事件
-	var event = events[randi() % events.size()]
-	return event
-
-
-## 调用云端AI生成事件
-func _call_cloud_ai_event(room_type: String, player_level: int, context: Dictionary) -> Dictionary:
-	print("[AIContentService] Calling cloud AI for event generation...")
-
-	# 确保有Token
-	await _ensure_ai_token()
-
-	if _token_failed:
-		print("[AIContentService] Token failed, skipping cloud AI")
-		return {}
-
-	# 构建请求数据
-	var request_data = {
-		"room_type": room_type,
-		"player_level": player_level,
-		"context": context
-	}
-
-	# 发送HTTP请求
-	var response = await _send_ai_request(APIConfig.AI_GENERATE_EVENT, request_data)
-
-	if response.is_empty():
-		print("[AIContentService] Cloud AI returned empty for event")
-		return {}
-
-	print("[AIContentService] Cloud response received for event")
-	return response
-
+## TASK-030: 删除 generate_room_event（零调用点，事件房用本地事件 + AI context_event）
+## 删除 generate_room_strategy / generate_npc_memory_response（零调用点）
 
 ## 生成NPC对话(异步，不阻塞)
 func generate_npc_dialogue(npc_type: String, room_environment: String, player_state: Dictionary = {}) -> Array[String]:
@@ -827,6 +574,7 @@ func clear_cache() -> void:
 ## 打印状态
 func print_status() -> void:
 	print("[AIContentService] Status:")
+	print("  AI MODE: ", "CLOUD READY" if _mode == AIMode.CLOUD_READY else ("FALLBACK" if _mode == AIMode.FALLBACK else "UNKNOWN"))
 	print("  Service type: ", _service_type)
 	print("  Use cache: ", _use_cache)
 	print("  Quality threshold: ", _quality_threshold)
@@ -1085,170 +833,6 @@ func _call_cloud_ai_difficulty(context: Dictionary) -> Dictionary:
 		return {}
 
 	print("[AIContentService] Cloud response received for difficulty")
-	return response
-
-
-## 生成房间策略建议(异步，不阻塞)
-func generate_room_strategy(context: Dictionary = {}) -> Dictionary:
-	print("[AIContentService] Generating room strategy")
-
-	var response = await _call_ai_service_room_strategy(context)
-
-	if response.is_empty():
-		print("[AIContentService] AI room strategy failed, using default")
-		return _get_default_room_strategy()
-
-	content_generated.emit("room_strategy", response)
-	return AIResponseAdapter.to_safe_dictionary(response)
-
-
-## 调用AI服务生成房间策略
-func _call_ai_service_room_strategy(context: Dictionary) -> Dictionary:
-	match _service_type:
-		AIServiceType.FAKE:
-			return _generate_mock_room_strategy(context)
-		AIServiceType.REAL:
-			return await _call_cloud_ai_room_strategy(context)
-		_:
-			return {}
-
-
-## 生成模拟房间策略
-func _generate_mock_room_strategy(context: Dictionary) -> Dictionary:
-	var combat_style = context.get("combat_style", "balanced")
-	var upgrade_preference = context.get("upgrade_preference", "balanced")
-	var health_percent = context.get("current_health_percent", 1.0)
-
-	var strategy = {
-		"preferred_room_types": ["combat", "reward", "event"],
-		"avoid_room_types": [],
-		"recommended_difficulty": "normal"
-	}
-
-	# 根据玩家风格调整
-	if combat_style == "expert":
-		strategy["preferred_room_types"] = ["combat", "elite", "boss"]
-		strategy["recommended_difficulty"] = "hard"
-	elif combat_style == "struggling":
-		strategy["preferred_room_types"] = ["reward", "treasure", "shop"]
-		strategy["avoid_room_types"] = ["elite"]
-		strategy["recommended_difficulty"] = "easy"
-	elif upgrade_preference == "attack":
-		strategy["preferred_room_types"] = ["combat", "elite"]
-	elif health_percent < 0.3:
-		strategy["preferred_room_types"] = ["reward", "shop"]
-		strategy["avoid_room_types"] = ["combat", "elite"]
-
-	return strategy
-
-
-## 获取默认房间策略
-func _get_default_room_strategy() -> Dictionary:
-	return {
-		"preferred_room_types": ["combat", "reward", "event"],
-		"avoid_room_types": [],
-		"recommended_difficulty": "normal"
-	}
-
-
-## 调用云端AI生成房间策略
-func _call_cloud_ai_room_strategy(context: Dictionary) -> Dictionary:
-	print("[AIContentService] Calling cloud AI for room strategy...")
-
-	await _ensure_ai_token()
-
-	if _token_failed:
-		return {}
-
-	var request_data = {
-		"context": context
-	}
-
-	var response = await _send_ai_request(APIConfig.AI_GENERATE_ROOM_STRATEGY, request_data)
-
-	if response.is_empty():
-		print("[AIContentService] Cloud AI returned empty for room strategy")
-		return {}
-
-	print("[AIContentService] Cloud response received for room strategy")
-	return response
-
-
-## 生成NPC记忆响应(异步，不阻塞)
-func generate_npc_memory_response(npc_id: String, context: Dictionary = {}) -> Dictionary:
-	print("[AIContentService] Generating NPC memory response for: ", npc_id)
-
-	var response = await _call_ai_service_npc_memory(npc_id, context)
-
-	if response.is_empty():
-		print("[AIContentService] AI NPC memory response failed, using default")
-		return {}
-
-	content_generated.emit("npc_memory", response)
-	return AIResponseAdapter.to_safe_dictionary(response)
-
-
-## 调用AI服务生成NPC记忆响应
-func _call_ai_service_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
-	match _service_type:
-		AIServiceType.FAKE:
-			return _generate_mock_npc_memory(npc_id, context)
-		AIServiceType.REAL:
-			return await _call_cloud_ai_npc_memory(npc_id, context)
-		_:
-			return {}
-
-
-## 生成模拟NPC记忆响应
-func _generate_mock_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
-	var interaction_count = context.get("interaction_count", 0)
-	var relationship = context.get("relationship", 0.0)
-
-	var dialogue = []
-
-	if interaction_count == 0:
-		dialogue = ["陌生人，你需要帮助吗？"]
-	elif interaction_count < 3:
-		if relationship > 0:
-			dialogue = ["又见面了，很高兴再见到你。"]
-		else:
-			dialogue = ["又是你...有什么事吗？"]
-	else:
-		if relationship > 0.5:
-			dialogue = ["老朋友！我一直期待你的到来。"]
-		elif relationship < -0.3:
-			dialogue = ["你又来了...我希望你不是来找麻烦的。"]
-		else:
-			dialogue = ["欢迎回来，旅行者。"]
-
-	return {
-		"dialogue": dialogue,
-		"interaction_count": interaction_count,
-		"relationship": relationship
-	}
-
-
-## 调用云端AI生成NPC记忆响应
-func _call_cloud_ai_npc_memory(npc_id: String, context: Dictionary) -> Dictionary:
-	print("[AIContentService] Calling cloud AI for NPC memory response...")
-
-	await _ensure_ai_token()
-
-	if _token_failed:
-		return {}
-
-	var request_data = {
-		"npc_id": npc_id,
-		"context": context
-	}
-
-	var response = await _send_ai_request(APIConfig.AI_GENERATE_NPC_MEMORY, request_data)
-
-	if response.is_empty():
-		print("[AIContentService] Cloud AI returned empty for NPC memory")
-		return {}
-
-	print("[AIContentService] Cloud response received for NPC memory")
 	return response
 
 

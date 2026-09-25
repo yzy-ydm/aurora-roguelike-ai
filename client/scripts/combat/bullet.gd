@@ -73,7 +73,7 @@ func _ready() -> void:
 	# 查找DamageSystem
 	_find_damage_system()
 
-	print("[Bullet] Created pos:", global_position, " dir:", direction, " speed:", speed)
+	# TASK-027: 移除每发子弹的 Created 日志（5发/秒刷屏）
 
 	# 出生保护: 等待2个物理帧后恢复碰撞
 	await get_tree().physics_frame
@@ -150,9 +150,7 @@ func _process(delta: float) -> void:
 	# 移动子弹
 	position += direction * speed * delta
 
-	# 调试: 首帧输出移动日志
-	if _age == 0.0:
-		print("[Bullet] Moving pos:", global_position, " vel:", direction * speed)
+	# TASK-027: 移除首帧移动日志（刷屏）
 
 	# 更新生命周期
 	_age += delta

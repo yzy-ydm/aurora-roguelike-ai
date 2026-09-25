@@ -294,58 +294,6 @@ func get_floor_graph_string(rooms: Array[NewRoomData]) -> String:
 	return result
 
 
-## 从AI数据创建房间列表
-func create_rooms_from_ai_data(ai_rooms: Array) -> Array[NewRoomData]:
-	print("[Floor] Creating rooms from AI data")
-
-	var rooms: Array[NewRoomData] = []
-
-	for room_dict in ai_rooms:
-		if room_dict is Dictionary:
-			var room_id = room_dict.get("id", -1)
-			if room_id < 0:
-				continue
-
-			# 解析房间类型
-			var type_str = room_dict.get("type", "combat")
-			var room_type = _parse_room_type(type_str)
-
-			# 创建房间节点
-			var room_node = NewRoomData.new(room_id, room_type)
-
-			# 解析连接
-			var connections = room_dict.get("connections", [])
-			for conn in connections:
-				if conn is int:
-					room_node.add_connection(conn)
-
-			# 计算位置
-			room_node.position = Vector2(room_id * ROOM_SPACING_X, randf_range(-50, 50))
-
-			rooms.append(room_node)
-
-	print("[Floor] Created ", rooms.size(), " rooms from AI data")
-	return rooms
-
-
-## 解析房间类型字符串
-func _parse_room_type(type_str: String) -> NewRoomData.RoomType:
-	match type_str:
-		"start":
-			return NewRoomData.RoomType.START
-		"combat":
-			return NewRoomData.RoomType.COMBAT
-		"reward":
-			return NewRoomData.RoomType.REWARD
-		"shop":
-			return NewRoomData.RoomType.SHOP
-		"elite":
-			return NewRoomData.RoomType.ELITE
-		"boss":
-			return NewRoomData.RoomType.BOSS
-		"event":
-			return NewRoomData.RoomType.EVENT
-		"treasure":
-			return NewRoomData.RoomType.TREASURE
-		_:
-			return NewRoomData.RoomType.COMBAT
+## TASK-030: create_rooms_from_ai_data / _parse_room_type 已删除
+## AI 不再生成楼层拓扑（唯一调用方 room_graph.gd 已随旧世界系统删除）；
+## 楼层结构由 _generate_layered_floor + validate_floor 负责

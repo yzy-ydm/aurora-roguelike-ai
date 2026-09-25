@@ -50,11 +50,7 @@ var _ai_content_service: Node = null
 ## 升级管理器
 var _upgrade_manager: Node = null
 
-## Boss控制器
-var _boss_controller: Node = null
-
-## 存档系统
-var _save_system: Node = null
+## Phase 18.2: _boss_controller 变量已废弃归档（声明后零使用）
 
 ## ==================== Phase 13 新增系统 ====================
 
@@ -101,10 +97,11 @@ func _ready() -> void:
 
 	# 初始化系统
 	_init_ui_systems()
-	_init_gameplay_systems()
+	# TASK-030: 游戏系统初始化含 AI 模式探测（await），保证第一个房间就有明确 AI MODE
+	await _init_gameplay_systems()
 	_init_progression_systems()
 	_init_boss_system()
-	_init_save_system()
+	# TASK-030: 本地 JSON 存档系统（save_system.gd）已删除——存档统一走 SaveService→服务端
 	_init_ai_adaptive_systems()
 
 	# 更新显示
@@ -251,6 +248,8 @@ func _create_game_over_panel() -> void:
 
 
 ## 重新开始运行（不回主菜单）
+## TASK-028: 全新 run —— 清空 run 临时状态、重建全新 PlayerStats、
+## 重置武器为初始武器（旧实现 revive() 只回血，等级/金币/武器强化全部残留）
 func restart_run() -> void:
 	print("[GameScene] Restarting run...")
 
@@ -262,9 +261,22 @@ func restart_run() -> void:
 	_is_paused = false
 	get_tree().paused = false
 
-	# 复活玩家
+	# 1. 清空 run 临时状态（运行时统计/扩展数据/楼层/存档），保留 profile 基线
+	GameStateManager.reset_run_state()
+
+	# 2. Phase 18.2: 全新 run 基线 = 默认属性 + 账号昵称
+	#    （禁止读取死亡时 PlayerStats，也禁止继承 profile 属性快照——
+	#      重新开始必须是 level=1/exp=0/gold=0/hp=max_hp）
 	if player:
-		player.revive()
+		var baseline: Dictionary = {
+			"nickname": GameStateManager.get_profile_data().get("nickname", "冒险者")
+		}
+		player.reset_stats_to(baseline)
+		player.set_control_enabled(true)
+
+	# 3. 武器重置为初始武器
+	if player:
+		player.reset_weapon_to_default()
 
 	# 重新初始化战斗管理器
 	if _combat_manager:
@@ -286,7 +298,7 @@ func restart_run() -> void:
 	# 设置游戏状态
 	GameStateManager.set_state(GameStateManager.GameState.EXPLORATION)
 
-	print("[GameScene] Run restarted successfully")
+	print("[GameScene] Run restarted successfully (fresh PlayerStats + default weapon)")
 
 
 ## 重新开始按钮回调
@@ -383,8 +395,15 @@ func _init_gameplay_systems() -> void:
 
 	print("[GameScene] Core gameplay systems initialized")
 
+	# TASK-030: 等待 AI 初始化完成（含云端探测，最长 5 秒）再生成楼层
+	# 保证第一个房间起 AI 模式明确稳定（不再"第一次房间 fallback、后面 cloud"）
+	var cloud_ready: bool = await _ai_content_service.await_ready(5.0)
+	_ai_content_service.print_status()
+	print("[GameScene] AI initialization done, cloud_ready=", cloud_ready)
+
 	# 生成楼层并进入第一个房间
-	_floor_manager.generate_floor(1)
+	# TASK-025: 起始楼层取运行时楼层（加载存档时恢复进度；新游戏默认第1层）
+	_floor_manager.generate_floor(GameStateManager.get_current_floor())
 
 
 ## 初始化升级系统
@@ -433,18 +452,7 @@ func _init_boss_system() -> void:
 	print("[GameScene] Boss system initialized")
 
 
-## 初始化存档系统
-func _init_save_system() -> void:
-	_save_system = Node.new()
-	_save_system.name = "SaveSystem"
-	_save_system.set_script(load("res://scripts/managers/save_system.gd"))
-	add_child(_save_system)
-
-	# 连接信号
-	_save_system.save_completed.connect(_on_save_completed)
-	_save_system.load_completed.connect(_on_load_completed)
-
-	print("[GameScene] Save system initialized")
+## TASK-030: _init_save_system 已删除（本地 JSON 存档为重复存档逻辑，统一走 SaveService）
 
 
 ## 初始化AI自适应系统 (Phase 13)
@@ -540,6 +548,8 @@ func _input(event: InputEvent) -> void:
 
 func _on_floor_generated(floor_data: FloorData) -> void:
 	print("[GameScene] Floor generated: ", floor_data.get_room_count(), " rooms")
+	# TASK-025: 同步运行时楼层（保存/自动保存记录真实进度）
+	GameStateManager.set_current_floor(floor_data.floor_level)
 	hud.set_status("第" + str(floor_data.floor_level) + "层已生成！")
 	# 更新HUD楼层信息
 	hud.update_floor_info(floor_data.floor_level, 1)
@@ -663,11 +673,11 @@ func _create_boss_data_for_room(room: NewRoomData) -> BossData:
 	boss_data.id = "boss_floor_" + str(floor_level)
 	boss_data.name = _get_boss_name(floor_level)
 	boss_data.description = "守护本层的强大Boss"
-	# 修正Boss HP范围：400-600 (floor 1) 到 ~1000 (floor 10)
-	boss_data.max_health = clampi(400 + floor_level * 80, 400, 1000)
-	# 修正Boss攻击范围：15-35
-	boss_data.attack = clampi(15 + floor_level * 3, 15, 40)
-	# 修正Boss防御范围：5-15
+	# TASK-027: Boss HP 500-800（第一层 500，逐层 +60，封顶 800）
+	boss_data.max_health = clampi(500 + (floor_level - 1) * 60, 500, 800)
+	# TASK-028: Boss攻击 30-50（第一层 30，逐层 +4，封顶 50）
+	boss_data.attack = clampi(30 + (floor_level - 1) * 4, 30, 50)
+	# Boss防御范围：5-15
 	boss_data.defense = clampi(3 + floor_level * 2, 3, 15)
 	# Phase 9.3: Boss移动速度降低至60%，避免贴脸持续伤害
 	boss_data.speed = (80.0 + floor_level * 10) * 0.6
@@ -987,6 +997,11 @@ func _on_treasure_room_cleared() -> void:
 
 ## 自动保存: 当前进度到当前存档槽位
 func _auto_save() -> void:
+	# TASK-027: 死亡状态禁止写入存档——hp=0 不得持久化为正式存档
+	if player and player.is_dead():
+		print("[GameScene] Auto-save SKIPPED: player is dead (no dead-state save)")
+		return
+
 	var save_data = GameStateManager.get_save_data()
 	if save_data.is_empty():
 		print("[GameScene] Auto-save skipped: no save data")
@@ -1352,6 +1367,11 @@ func _on_open_settings() -> void:
 
 func _on_exit_to_menu() -> void:
 	pause_menu.hide_pause()
+	# TASK-027: 死亡后不允许保存死档——跳过存档面板直接回主菜单
+	if player and player.is_dead():
+		print("[GameScene] Player dead, skipping save panel (death ends the run)")
+		_exit_to_menu()
+		return
 	save_selection.show_save_selection()
 
 
@@ -1360,8 +1380,63 @@ func _on_settings_closed() -> void:
 
 
 func _on_save_selected(slot: int) -> void:
+	# TASK-027: 死亡状态禁止保存死档（面板理论上不可达，双保险）
+	if player and player.is_dead():
+		save_selection.set_status("死亡状态无法保存")
+		print("[GameScene] Save REJECTED: player is dead")
+		await get_tree().create_timer(1.5).timeout
+		_exit_to_menu()
+		return
+
+	# TASK-029: 已分配当前槽位（默认槽位1）时一律沿用——保存面板点选其它槽位
+	# 不产生游离存档（规则: 已有 slot1 → 默认继续 slot1，不自动创建 slot2）
+	var actual_slot: int = GameStateManager.resolve_save_slot(slot)
+	if actual_slot != slot:
+		print("[Save Debug] Slot choice ", slot, " overridden -> current slot ", actual_slot)
+		save_selection.set_status("默认使用槽位 " + str(actual_slot) + " 保存...")
+
+	# TASK-026: 等待真实保存结果并给出反馈
+	# （旧实现固定等 1 秒后无条件退出：保存失败/超时玩家无感知 → "无法正常保存"）
 	var save_data = GameStateManager.get_save_data()
-	SaveService.save_game(slot, save_data)
+	save_selection.set_status("保存中...")
+
+	# 用 Dictionary 容器捕获结果（GDScript lambda 按值捕获局部变量，必须借引用容器）
+	var box := {"done": false, "ok": false, "msg": ""}
+	var on_saved := func(success: bool, message: String) -> void:
+		box["done"] = true
+		box["ok"] = success
+		box["msg"] = message
+	var on_error := func(error: String) -> void:
+		box["done"] = true
+		box["ok"] = false
+		box["msg"] = error
+
+	SaveService.save_saved.connect(on_saved)
+	SaveService.save_error.connect(on_error)
+	SaveService.save_game(actual_slot, save_data)
+
+	var waited := 0
+	while not box["done"] and waited < 100:  # 最长约 10 秒
+		await get_tree().create_timer(0.1).timeout
+		waited += 1
+	SaveService.save_saved.disconnect(on_saved)
+	SaveService.save_error.disconnect(on_error)
+
+	if box["ok"]:
+		print("[Save Debug] Save via panel SUCCESS: slot=", actual_slot)
+		save_selection.set_status("保存成功！")
+		hud.set_status("保存成功！槽位 " + str(actual_slot))
+	else:
+		var msg: String = str(box["msg"]) if box["msg"] != "" else "保存超时，请检查服务端"
+		print("[Save Debug] Save via panel FAILED: ", msg)
+		save_selection.set_status("保存失败: " + msg)
+		hud.set_status("保存失败: " + msg)
+		# 失败时延长停留时间，让玩家看清错误信息
+		await get_tree().create_timer(3.0).timeout
+		save_selection.set_status("选择存档槽位")
+		save_selection.show_save_selection()
+		return
+
 	await get_tree().create_timer(1.0).timeout
 	_exit_to_menu()
 
@@ -1373,6 +1448,11 @@ func _on_save_selection_closed() -> void:
 func _exit_to_menu() -> void:
 	_is_paused = false
 	get_tree().paused = false
+	# TASK-027: 退出时清理 run 临时状态与存档服务状态锁（主菜单状态干净）
+	GameStateManager.reset_run_state()
+	SaveService.reset_state()
+	# TASK-029: 退出游戏统一重置游戏流程状态（重新登录/再进入不被旧状态阻塞）
+	GameFlowController.reset_flow()
 	GameStateManager.set_state(GameStateManager.GameState.NOT_STARTED)
 	SceneManager.go_to_main()
 
@@ -1511,26 +1591,8 @@ func _on_boss_defeated() -> void:
 	_auto_save()
 
 
-## ==================== Phase 12: 存档系统回调 ====================
-
-## 存档完成回调
-func _on_save_completed(slot: int, success: bool) -> void:
-	if success:
-		print("[GameScene] Game saved to slot ", slot)
-		hud.set_status("游戏已保存")
-	else:
-		print("[GameScene] Failed to save game")
-		hud.set_status("保存失败")
-
-
-## 加载完成回调
-func _on_load_completed(slot: int, success: bool) -> void:
-	if success:
-		print("[GameScene] Game loaded from slot ", slot)
-		hud.set_status("游戏已加载")
-	else:
-		print("[GameScene] Failed to load game")
-		hud.set_status("加载失败")
+## TASK-030: _on_save_completed/_on_load_completed 已删除（本地 JSON 存档系统回调，
+## 存档结果反馈由 pause_menu/存档面板直接监听 SaveService.save_saved/save_error）
 
 
 ## ==================== Phase 13: AI自适应系统回调 ====================
@@ -1598,8 +1660,8 @@ func _on_player_dead() -> void:
 	print("[GameScene] Player is dead!")
 	hud.set_status("你已阵亡...")
 
-	# 自动存档
-	_auto_save()
+	# TASK-027: 死亡即结束本次 run——不再自动保存
+	# （旧实现 _auto_save() 会把 hp=0 写入正式存档槽位，污染"继续游戏"）
 
 	# 停止所有怪物AI
 	_stop_all_monsters()

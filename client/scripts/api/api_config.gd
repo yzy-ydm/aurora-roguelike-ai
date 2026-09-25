@@ -43,17 +43,13 @@ const EVENTS_LIST: String = "/api/events"
 const GAME_SAVE: String = "/api/game/save"
 
 ## AI服务端API端点常量
+## TASK-030: 移除客户端零引用的端点常量（floor/monster/weapon/event/room_strategy/npc_memory
+## 的客户端调用路径已随 AI 职责边界收紧删除；服务端端点保留不动）
 const AI_AUTH_TOKEN: String = "/api/auth/token"
-const AI_GENERATE_FLOOR: String = "/api/generate/floor"
 const AI_GENERATE_ROOM: String = "/api/generate/room"
-const AI_GENERATE_MONSTER: String = "/api/generate/monster"
-const AI_GENERATE_WEAPON: String = "/api/generate/weapon"
-const AI_GENERATE_EVENT: String = "/api/generate/event"
 const AI_GENERATE_DIALOGUE: String = "/api/generate/dialogue"
 const AI_GENERATE_UPGRADE: String = "/api/generate/upgrade"
 const AI_GENERATE_DIFFICULTY: String = "/api/generate/difficulty"
-const AI_GENERATE_ROOM_STRATEGY: String = "/api/generate/room_strategy"
-const AI_GENERATE_NPC_MEMORY: String = "/api/generate/npc_memory"
 const AI_GENERATE_CONTEXT_EVENT: String = "/api/generate/context_event"
 const AI_HEALTH: String = "/health"
 

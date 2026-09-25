@@ -83,15 +83,17 @@ class SaveService:
             return False, f"槽位{save_data.slot_number}已有存档", None
 
         # 2. 创建新的游戏存档
+        # TASK-026: 进度字段取自请求（客户端 404→POST 兜底路径已携带）；
+        # 未提供时回退默认值保持兼容
         new_save = GameSave(
             user_id=user_id,
             save_name=save_data.save_name,
             slot_number=save_data.slot_number,
             player_state=save_data.player_state,
-            current_floor=1,
-            play_time=0,
-            kill_count=0,
-            gold_collected=0,
+            current_floor=save_data.current_floor if save_data.current_floor is not None else 1,
+            play_time=save_data.play_time if save_data.play_time is not None else 0,
+            kill_count=save_data.kill_count if save_data.kill_count is not None else 0,
+            gold_collected=save_data.gold_collected if save_data.gold_collected is not None else 0,
             is_active=1
         )
 

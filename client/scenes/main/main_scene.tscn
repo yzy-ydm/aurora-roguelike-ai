@@ -84,6 +84,10 @@ horizontal_alignment = 1
 layout_mode = 2
 alignment = 1
 
+[node name="ContinueButton" type="Button" parent="VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "继续游戏"
+
 [node name="RefreshButton" type="Button" parent="VBoxContainer/ButtonContainer"]
 layout_mode = 2
 text = "刷新数据"

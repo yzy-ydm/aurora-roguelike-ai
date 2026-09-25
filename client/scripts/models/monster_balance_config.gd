@@ -9,13 +9,19 @@ extends RefCounted
 
 ## ==================== 基础属性范围 ====================
 
-## 普通怪物 (floor 1)
-const NORMAL_HP_MIN: int = 50
+## 普通怪物 (floor 1) - TASK-028: HP 80-150 / ATK 10-20（玩家不能无脑站撸）
+const NORMAL_HP_MIN: int = 80
 const NORMAL_HP_MAX: int = 150
-const NORMAL_ATK_MIN: int = 5
-const NORMAL_ATK_MAX: int = 15
+const NORMAL_ATK_MIN: int = 10
+const NORMAL_ATK_MAX: int = 20
 const NORMAL_DEF_MIN: int = 0
 const NORMAL_DEF_MAX: int = 5
+
+## 普通怪物 (floor 2) - TASK-028: HP 120-220 / ATK 15-30
+const NORMAL_F2_HP_MIN: int = 120
+const NORMAL_F2_HP_MAX: int = 220
+const NORMAL_F2_ATK_MIN: int = 15
+const NORMAL_F2_ATK_MAX: int = 30
 
 ## 移动速度 (px/s) - TASK-017.7: 玩家基础速度200，怪物约为其1/3
 ## 修复前 DB 数据为 3~15（蜗速），统一由本配置生成
@@ -32,11 +38,11 @@ const ELITE_DEF_MAX: int = 10
 const ELITE_SPEED_MIN: float = 70.0
 const ELITE_SPEED_MAX: float = 120.0
 
-## Boss (floor 1)
-const BOSS_HP_MIN: int = 800
-const BOSS_HP_MAX: int = 1200
-const BOSS_ATK_MIN: int = 20
-const BOSS_ATK_MAX: int = 35
+## Boss (floor 1) - TASK-027: HP 500-800；TASK-028: ATK 30-50
+const BOSS_HP_MIN: int = 500
+const BOSS_HP_MAX: int = 800
+const BOSS_ATK_MIN: int = 30
+const BOSS_ATK_MAX: int = 50
 const BOSS_DEF_MIN: int = 5
 const BOSS_DEF_MAX: int = 15
 const BOSS_SPEED_MIN: float = 90.0
@@ -60,10 +66,31 @@ const MAX_SPEED_MULTIPLIER: float = 1.5  # TASK-017.7: 速度上限+50%（怪物
 ## ==================== 核心方法 ====================
 
 ## 根据怪物类型和楼层获取属性范围
+## TASK-028: 普通怪按层基准（第一层/第二层明确目标区间），
+## 第三层起在第二层基准上按 +15%/层 缓增（封顶 3.0）
 static func get_range(monster_type: String, floor_level: int) -> Dictionary:
+	var speed_factor: float = _get_speed_factor(floor_level)
+
+	if monster_type != "elite" and monster_type != "boss":
+		# normal: 分层基准
+		if floor_level <= 1:
+			return {
+				"hp_min": NORMAL_HP_MIN, "hp_max": NORMAL_HP_MAX,
+				"atk_min": NORMAL_ATK_MIN, "atk_max": NORMAL_ATK_MAX,
+				"def_min": NORMAL_DEF_MIN, "def_max": NORMAL_DEF_MAX,
+				"spd_min": NORMAL_SPEED_MIN, "spd_max": NORMAL_SPEED_MAX
+			}
+		var f: int = max(2, floor_level)
+		var factor: float = min(1.0 + (f - 2) * HP_SCALE_PER_LEVEL, MAX_HP_MULTIPLIER)
+		return {
+			"hp_min": int(NORMAL_F2_HP_MIN * factor), "hp_max": int(NORMAL_F2_HP_MAX * factor),
+			"atk_min": int(NORMAL_F2_ATK_MIN * factor), "atk_max": int(NORMAL_F2_ATK_MAX * factor),
+			"def_min": NORMAL_DEF_MIN, "def_max": NORMAL_DEF_MAX,
+			"spd_min": NORMAL_SPEED_MIN * speed_factor, "spd_max": NORMAL_SPEED_MAX * speed_factor
+		}
+
 	var base: Dictionary
 	var level_factor: float = _get_level_factor(floor_level)
-	var speed_factor: float = _get_speed_factor(floor_level)
 
 	match monster_type:
 		"elite":
@@ -73,19 +100,12 @@ static func get_range(monster_type: String, floor_level: int) -> Dictionary:
 				"def_min": ELITE_DEF_MIN, "def_max": ELITE_DEF_MAX,
 				"spd_min": ELITE_SPEED_MIN, "spd_max": ELITE_SPEED_MAX
 			}
-		"boss":
+		_:
 			base = {
 				"hp_min": BOSS_HP_MIN, "hp_max": BOSS_HP_MAX,
 				"atk_min": BOSS_ATK_MIN, "atk_max": BOSS_ATK_MAX,
 				"def_min": BOSS_DEF_MIN, "def_max": BOSS_DEF_MAX,
 				"spd_min": BOSS_SPEED_MIN, "spd_max": BOSS_SPEED_MAX
-			}
-		_:  # normal 或未知
-			base = {
-				"hp_min": NORMAL_HP_MIN, "hp_max": NORMAL_HP_MAX,
-				"atk_min": NORMAL_ATK_MIN, "atk_max": NORMAL_ATK_MAX,
-				"def_min": NORMAL_DEF_MIN, "def_max": NORMAL_DEF_MAX,
-				"spd_min": NORMAL_SPEED_MIN, "spd_max": NORMAL_SPEED_MAX
 			}
 
 	return {

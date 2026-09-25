@@ -177,16 +177,9 @@ static func from_dict(data: Dictionary) -> RoomContentData:
 	return content
 
 
-## 从RoomNodeData创建
-static func from_room_node(room_node: RoomNodeData, floor_level: int = 1) -> RoomContentData:
-	var content = RoomContentData.new()
-	content.room_id = room_node.id
-	content.setup_defaults_for_type(room_node.get_type_string())
-	content.apply_difficulty_modifier(floor_level)
-	return content
+## TASK-030: from_room_node（旧 RoomNodeData 转换）已删除——旧路径唯一调用方已移除
 
-
-## Phase 23: 从 NewRoomData 创建（避免与旧 RoomNodeData 的转换）
+## Phase 23: 从 NewRoomData 创建
 static func from_room_node_data(room_node: NewRoomData, floor_level: int = 1) -> RoomContentData:
 	var content = RoomContentData.new()
 	content.room_id = room_node.id
@@ -242,6 +235,9 @@ func validate_for_room_type() -> void:
 			monster_count = 0
 		"event":
 			# TASK-004: 事件房禁止怪物——AI/随机生成的内容也强制归零
+			# Phase 18.2: 增加输入/输出审计日志（event 房 monsters 必须过滤）
+			if monster_count != 0:
+				print("[RoomTypeValidation] EVENT ROOM: input monsters=", monster_count, " output monsters=0")
 			monster_count = 0
 		"elite":
 			if monster_count < 1:

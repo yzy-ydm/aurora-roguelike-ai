@@ -53,6 +53,11 @@ func hide_save_selection() -> void:
 	visible = false
 
 
+## TASK-026: 外部设置面板状态文本（保存中/保存成功/保存失败反馈）
+func set_status(text: String) -> void:
+	status_label.text = text
+
+
 ## 存档列表加载完成
 func _on_saves_loaded(saves: Array) -> void:
 	_enable_slots()

@@ -135,8 +135,15 @@ func _ready() -> void:
 
 
 ## Phase 9.5: 将PlayerStats链接到GameStateManager
+## TASK-025: 链接前先用 GameStateManager 缓存的玩家数据初始化
+## （存档加载/登录 profile 数据在 enter_game 阶段写入缓存，
+## 否则会被此处默认 PlayerStats 覆盖，导致存档数据丢失）
 func _link_stats_to_game_state() -> void:
 	var s = get_stats()
+	var cached_data = GameStateManager.get_player_data()
+	if cached_data.size() > 0:
+		s.sync_from_dict(cached_data)
+		print("[Player] PlayerStats restored from GameStateManager cache")
 	GameStateManager.set_runtime_stats(s)
 	print("[Player] PlayerStats linked to GameStateManager")
 
@@ -194,16 +201,14 @@ func _physics_process(delta: float) -> void:
 			velocity.y = JUMP_FORCE
 			_jump_buffer_timer = 0
 			_coyote_timer = 0
-			print("[Jump Start] y=", global_position.y)
 
 	# ========== 9. 跳跃峰值检测 ==========
+	# TASK-027: 移除每跳刷屏调试日志（[Jump Start]/[Jump Peak]/[Landing]）
 	if not on_floor and velocity.y >= 0 and _was_jumping:
-		print("[Jump Peak] y=", global_position.y)
 		_was_jumping = false
 
 	# ========== 10. 落地检测 ==========
 	if on_floor and _was_jumping:
-		print("[Landing] y=", global_position.y)
 		_was_jumping = false
 
 	if velocity.y < 0:
@@ -418,9 +423,12 @@ func _load_weapon_data() -> void:
 	if saved_weapon_id > 0:
 		var saved_weapon_data = RewardData.create_weapon_data_from_def(saved_weapon_id)
 		if saved_weapon_data:
-			var weapon_instance = WeaponInstance.create(saved_weapon_data)
+			# TASK-030: 恢复保存的武器等级（旧实现恒 Lv1，武器等级丢失）
+			var saved_level: int = int(GameStateManager.get_extended_save_data().get("weapon_level", 1))
+			var weapon_instance = WeaponInstance.create(saved_weapon_data, saved_level)
 			_weapon.set_weapon_instance(weapon_instance)
-			print("[Player] Restored weapon: ", saved_weapon_data.name, " Lv", weapon_instance.get_level())
+			print("[Player] Restored weapon: ", saved_weapon_data.name, " Lv", weapon_instance.get_level(),
+				" damage=", weapon_instance.get_damage())
 			return
 
 	# 从ResourceService获取武器数据
@@ -450,7 +458,8 @@ func _create_default_weapon_data() -> WeaponData:
 	weapon_data.rarity = "common"
 	weapon_data.damage = 20
 	weapon_data.base_damage = 20
-	weapon_data.damage_growth = 5
+	# TASK-028: 成长 5→8（Lv10 = 20+8*9 = 92），配合单计公式使后期普通怪 2-4 击可杀
+	weapon_data.damage_growth = 8
 	weapon_data.max_level = 10
 	weapon_data.fire_rate = 0.2  # 5发/秒
 	weapon_data.bullet_speed = 500.0
@@ -861,26 +870,43 @@ func is_dead() -> bool:
 	return s.is_dead()
 
 
-## 重置玩家状态（用于重生）(Phase 9.4.1: 委托PlayerStats)
-func revive() -> void:
-	var s = get_stats()
-	s.revive()
-	_player_data = s.to_dict()
+## Phase 18.2: revive() 已废弃归档至 deprecated/player_controller_revive.gd.txt
+## （零调用点；重启 run 使用 reset_stats_to 重建全新 PlayerStats）
 
-	_is_invincible = false
+
+## TASK-028: 用基线数据重建全新的 PlayerStats（开始新 run 时调用）
+## 禁止复用旧对象——死亡 run 的属性/升级/百分比加成不残留
+## （旧实现 revive() 只回血，max_health/等级/金币等全部残留）
+## Phase 18.2: 增加 [RestartAudit] 审计日志（old stats / new stats / source）
+func reset_stats_to(data: Dictionary) -> void:
+	var old_stats: PlayerStats = _stats
+	_stats = PlayerStats.from_dict(data)
+	_player_data = _stats.to_dict()
+	GameStateManager.set_runtime_stats(_stats)
+	_sync_stats_to_game_state()
+	# 清除死亡锁/无敌/击退——新 run 的生命状态必须全新
+	# （否则 _is_dying=true 残留 → 新 run 死亡时 _die 提前返回，GameOver 不再触发）
 	_is_dying = false
+	_is_invincible = false
 	_knockback_timer = 0.0
+	# Phase 18.2: 重启审计日志——新 run 不得继承死亡状态
+	print("[RestartAudit] old stats: hp=", (old_stats.current_health if old_stats else -1),
+		" level=", (old_stats.level if old_stats else -1),
+		" gold=", (old_stats.gold if old_stats else -1))
+	print("[RestartAudit] new stats: hp=", _stats.current_health,
+		" level=", _stats.level, " gold=", _stats.gold)
+	print("[RestartAudit] source: fresh defaults + profile nickname (dead-state NOT inherited)")
+	print("[Player] PlayerStats rebuilt for new run (hp=", _stats.current_health,
+		" level=", _stats.level, " gold=", _stats.gold, ")")
 
-	# 恢复输入
-	set_physics_process(true)
-	set_process_input(true)
 
-	# 恢复碰撞
-	if collision_shape:
-		collision_shape.disabled = false
-
-	# 恢复视觉
-	if sprite:
-		sprite.modulate = Color(1, 1, 1, 1)
-
-	print("[Player] Player revived")
+## TASK-028: 武器重置为初始默认武器（新 run 不残留武器等级/强化）
+func reset_weapon_to_default() -> void:
+	if not _weapon:
+		return
+	var default_weapon = _create_default_weapon_data()
+	var weapon_instance = WeaponInstance.create(default_weapon)
+	_weapon.set_weapon_instance(weapon_instance)
+	GameStateManager.set_extended_save_data("weapon_id", 0)
+	GameStateManager.set_extended_save_data("weapon_level", 1)
+	print("[Player] Weapon reset to default Lv1")

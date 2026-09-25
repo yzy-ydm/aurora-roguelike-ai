@@ -1,0 +1,15 @@
+## 废弃代码归档（2026-09-24 Phase 18.2）
+## 来源: client/scripts/world/room_spawner.gd
+## 原因: 自标注"已废弃"且零调用点——怪物数值统一由 MonsterBalanceConfig
+##       generate_monster_stats 生成后经 _apply_monster_clamp 钳制
+
+## 应用等级修正（已废弃：由 MONSTER_BALANCE_CONFIG 统一在服务器端管理）
+## 保留此方法供调试和降级场景使用
+func _apply_level_modifier(entity: MonsterEntity, level: int) -> void:
+	if not MONSTER_BALANCE_ENABLED or level <= 1:
+		return
+	var multiplier = 1.0 + (level - 1) * 0.3
+	entity.health = int(entity.health * multiplier)
+	entity.max_health = int(entity.max_health * multiplier)
+	entity.attack = int(entity.attack * multiplier)
+	entity.defense = int(entity.defense * multiplier)

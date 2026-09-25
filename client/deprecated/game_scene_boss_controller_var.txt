@@ -1,0 +1,6 @@
+## 废弃代码归档（2026-09-24 Phase 18.2）
+## 来源: client/scenes/game/game_scene.gd
+## 原因: `var _boss_controller: Node = null` 声明后全文件零使用
+##       （Boss 控制器由 room_spawner._create_boss_controller 内部创建并持有）
+
+var _boss_controller: Node = null

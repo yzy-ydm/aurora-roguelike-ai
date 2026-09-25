@@ -2,77 +2,10 @@
 ##
 ## 负责解析AI返回的JSON数据
 ## 转换为游戏可用的数据结构
+## TASK-030: 删除楼层拓扑解析（parse_floor_data/_parse_room_node/_parse_room_type）
+## AI 不再生成地图结构（FloorGenerator + Validation 负责）
 
 extends Node
-
-
-## 解析楼层数据
-func parse_floor_data(data: Dictionary) -> Array[NewRoomData]:
-	print("[AIParser] Parsing floor data")
-
-	var rooms: Array[NewRoomData] = []
-
-	# 获取房间数组
-	var rooms_array = data.get("rooms", [])
-
-	for room_dict in rooms_array:
-		if room_dict is Dictionary:
-			var room_node = _parse_room_node(room_dict)
-			if room_node:
-				rooms.append(room_node)
-
-	print("[AIParser] Parsed ", rooms.size(), " rooms")
-	return rooms
-
-
-## 解析房间节点
-func _parse_room_node(data: Dictionary) -> NewRoomData:
-	var room_id = data.get("id", -1)
-	if room_id < 0:
-		print("[AIParser] Warning: Invalid room id")
-		return null
-
-	# 解析房间类型
-	var type_str = data.get("type", "combat")
-	var room_type = _parse_room_type(type_str)
-
-	# 创建房间节点
-	var room_node = NewRoomData.new(room_id, room_type)
-
-	# 解析连接
-	var connections = data.get("connections", [])
-	for conn in connections:
-		if conn is int:
-			room_node.add_connection(conn)
-
-	# 计算位置（根据ID）
-	room_node.position = Vector2(room_id * 200, randf_range(-50, 50))
-
-	return room_node
-
-
-## 解析房间类型
-func _parse_room_type(type_str: String) -> NewRoomData.RoomType:
-	match type_str:
-		"start":
-			return NewRoomData.RoomType.START
-		"combat":
-			return NewRoomData.RoomType.COMBAT
-		"reward":
-			return NewRoomData.RoomType.REWARD
-		"shop":
-			return NewRoomData.RoomType.SHOP
-		"elite":
-			return NewRoomData.RoomType.ELITE
-		"boss":
-			return NewRoomData.RoomType.BOSS
-		"event":
-			return NewRoomData.RoomType.EVENT
-		"treasure":
-			return NewRoomData.RoomType.TREASURE
-		_:
-			print("[AIParser] Warning: Unknown room type: ", type_str)
-			return NewRoomData.RoomType.COMBAT
 
 
 ## 解析房间内容数据
@@ -165,50 +98,5 @@ func _parse_reward_config(content: RoomContentData, rewards: Dictionary) -> void
 		content.reward_items = []
 
 
-## 验证AI响应数据
-func validate_floor_response(data: Dictionary) -> bool:
-	# 检查必要字段
-	if not data.has("floor"):
-		print("[AIParser] Validation failed: missing 'floor'")
-		return false
-
-	if not data.has("rooms"):
-		print("[AIParser] Validation failed: missing 'rooms'")
-		return false
-
-	var rooms = data.get("rooms", [])
-	if not rooms is Array:
-		print("[AIParser] Validation failed: 'rooms' is not array")
-		return false
-
-	# 检查每个房间
-	for room in rooms:
-		if not room is Dictionary:
-			print("[AIParser] Validation failed: room is not dictionary")
-			return false
-
-		if not room.has("id"):
-			print("[AIParser] Validation failed: room missing 'id'")
-			return false
-
-		if not room.has("type"):
-			print("[AIParser] Validation failed: room missing 'type'")
-			return false
-
-	print("[AIParser] Validation passed")
-	return true
-
-
-## 验证房间内容响应
-func validate_room_content_response(data: Dictionary) -> bool:
-	# 检查必要字段
-	if not data.has("room_id"):
-		print("[AIParser] Validation failed: missing 'room_id'")
-		return false
-
-	if not data.has("room_type"):
-		print("[AIParser] Validation failed: missing 'room_type'")
-		return false
-
-	print("[AIParser] Validation passed")
-	return true
+## TASK-030: validate_floor_response / validate_room_content_response 零调用点，已删除
+## 响应验证统一由 AIValidator（ai_validator.gd）负责

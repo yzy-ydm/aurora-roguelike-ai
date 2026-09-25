@@ -43,6 +43,10 @@ var _dev_login_button: Button = null
 func _ready() -> void:
 	print("[BOOT] Login Scene Ready: ", Time.get_ticks_msec())
 
+	# TASK-029: 登录界面是生命周期的起点——强制重置流程状态
+	# （退出游戏/登出后回登录界面时保证 GameFlow 处于 IDLE）
+	GameFlowController.reset_flow()
+
 	# 连接信号
 	login_button.pressed.connect(_on_login_pressed)
 	register_button.pressed.connect(_on_register_pressed)
@@ -99,6 +103,9 @@ func _on_login_pressed() -> void:
 	_set_buttons_enabled(false)
 	status_label.text = "正在登录..."
 
+	# TASK-029: 生命周期进入 AUTHENTICATING 阶段
+	GameFlowController.begin_authentication()
+
 	var data = {
 		"username": username,
 		"password": password
@@ -151,6 +158,9 @@ func _on_dev_login_pressed() -> void:
 	_is_processing = true
 	_set_buttons_enabled(false)
 	status_label.text = "开发者登录中..."
+
+	# TASK-029: 生命周期进入 AUTHENTICATING 阶段
+	GameFlowController.begin_authentication()
 
 	var data = {
 		"username": APIConfig.DEV_USERNAME,
@@ -219,6 +229,9 @@ func _on_api_error(error: String, status_code: int) -> void:
 	_is_processing = false
 	_set_buttons_enabled(true)
 
+	# TASK-029: 登录失败回到 IDLE，允许重试（禁止残留 AUTHENTICATING）
+	GameFlowController.reset_flow()
+
 	# Token过期
 	if status_code == 401 and TokenManager.has_token():
 		TokenManager.clear_token()
@@ -262,6 +275,8 @@ func _on_flow_completed() -> void:
 ## 流程错误回调
 func _on_flow_error(error: String) -> void:
 	print("[LoginScene] FLOW ERROR: ", error)
+	# TASK-029: 流程错误后回到 IDLE（允许重新登录重试）
+	GameFlowController.reset_flow()
 	_is_processing = false
 	_set_buttons_enabled(true)
 	status_label.text = "加载失败: " + error

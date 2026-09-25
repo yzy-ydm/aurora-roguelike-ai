@@ -178,8 +178,12 @@ static func _calculate_exp_to_next(lvl: int) -> int:
 
 
 ## 受到伤害
+## TASK-028: 移除二次减伤（旧: 此处再减 defense）
+## 防御减伤由 DamageSystem.calculate_damage 的 def/(def+100) 统一处理，
+## 旧实现导致防御被计两次（百分比减伤 + 此处 flat 减伤）。
+## 事件/直接调用路径（不经 DamageSystem）现按原值生效，语义一致。
 func take_damage(amount: int) -> int:
-	var actual_damage = max(1, amount - defense)
+	var actual_damage = max(1, amount)
 	current_health = max(0, current_health - actual_damage)
 	print("[PlayerStats] Took ", actual_damage, " damage (", current_health, "/", max_health, ")")
 	return actual_damage
