@@ -19,6 +19,8 @@ var _is_hit_stunned: bool = false
 
 ## Phase 21.1.1: 死亡状态标志（防重复触发）
 var _is_dying: bool = false
+var _flash_timer: float = 0.0
+var _stun_timer: float = 0.0
 
 ## 受击硬直时间
 const HIT_STUN_DURATION: float = 0.1
@@ -39,10 +41,10 @@ var _original_color: Color = Color(0.9, 0.2, 0.2, 1.0)
 func _ready() -> void:
 	# 碰撞层设计:
 	# Layer 0: Area/Portal/Reward   Layer 1: Wall   Layer 2: Player
-	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
-	# Enemy在Layer 4, 检测Wall(1) + Player(2) + PlayerBullet(8)
-	collision_layer = 4  # Enemy在第4层
-	collision_mask = 263  # Layer 0(Reward) + 1(Wall) + 2(Player) + 8(PlayerBullet) = 1+2+4+256
+	# Layer 4: nothing   Layer 8: Enemy/PlayerBullet   Layer 16: EnemyBullet
+	# Enemy在Layer 8, 检测Wall(1) + Player(2)
+	collision_layer = 8  # Enemy在第8层
+	collision_mask = 3   # 1(Wall) + 2(Player)
 
 	# Phase 17.4: 渲染层级设置
 	z_index = 10  # Monster在第10层
@@ -113,10 +115,21 @@ func _physics_process(delta: float) -> void:
 	if not _monster_entity or not _monster_entity.is_alive():
 		return
 
-	# 受击硬直时不移动
+	# Phase 18.2: 闪白计时器（替代 async/await）
+	if _flash_timer > 0:
+		_flash_timer -= delta
+		if _flash_timer <= 0 and sprite and is_instance_valid(sprite):
+			sprite.modulate = _original_color
+
+	# Phase 18.2: 硬直计时器（替代 async/await）
 	if _is_hit_stunned:
-		velocity = Vector2.ZERO
-		return
+		_stun_timer -= delta
+		if _stun_timer <= 0:
+			_is_hit_stunned = false
+			velocity = Vector2.ZERO  # BUG-20 FIX: 硬直恢复后清零速度
+		else:
+			velocity = Vector2.ZERO
+			return
 
 	# 应用重力
 	if not is_on_floor():
@@ -197,6 +210,9 @@ func take_damage(damage: int) -> void:
 
 	# 检查是否死亡
 	if not _monster_entity.is_alive():
+		# BUG-12 FIX: 在调用 on_death 前检查 _is_dying，防止重复触发
+		if _is_dying:
+			return
 		# Boss死亡由BossController处理
 		if _is_boss() and _find_boss_controller():
 			_notify_boss_controller_death()
@@ -217,7 +233,7 @@ func _find_boss_controller() -> Node:
 	if not parent:
 		return null
 	for child in parent.get_children():
-		if child.has_method("get") and child.get("_boss_entity"):
+		if child is BossController:
 			return child
 	return null
 
@@ -233,6 +249,9 @@ func _notify_boss_controller_damaged(damage: int) -> void:
 
 ## 通知BossController死亡
 func _notify_boss_controller_death() -> void:
+	# BUG-12 FIX: 防止重复触发死亡（与 on_death 的 _is_dying 保护构成双保险）
+	if _is_dying:
+		return
 	var boss_ctrl = _find_boss_controller()
 	if boss_ctrl:
 		# 调用BossController的内部死亡处理
@@ -271,33 +290,14 @@ func _find_damage_system() -> Node:
 ## 播放受击反馈
 func _play_hit_feedback() -> void:
 	# 闪白效果
-	_flash_white()
-
+	if sprite:
+		_original_color = sprite.modulate
+		sprite.modulate = Color(1, 1, 1, 1)
+		_flash_timer = FLASH_DURATION
 	# 短暂硬直
-	_apply_hit_stun()
-
-
-## 闪白效果
-func _flash_white() -> void:
-	if not sprite:
-		return
-	# 记住原始颜色
-	_original_color = sprite.modulate
-	# 设置为白色
-	sprite.modulate = Color(1, 1, 1, 1)
-	# 延迟恢复
-	await get_tree().create_timer(FLASH_DURATION).timeout
-	if sprite and is_instance_valid(sprite):
-		sprite.modulate = _original_color
-
-
-## 受击硬直
-func _apply_hit_stun() -> void:
 	_is_hit_stunned = true
-	# 停止移动(通过设置速度为0)
 	velocity = Vector2.ZERO
-	await get_tree().create_timer(HIT_STUN_DURATION).timeout
-	_is_hit_stunned = false
+	_stun_timer = HIT_STUN_DURATION
 
 
 ## 死亡处理

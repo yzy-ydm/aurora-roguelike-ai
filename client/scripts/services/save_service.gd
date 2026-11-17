@@ -18,6 +18,8 @@
 ##      加载: LOAD_START/LOAD_SUCCESS/LOAD_FAILED/LOAD_RESET
 ##
 ## 历史: TASK-020.1 操作分派 / TASK-026 内存列表刷新 / TASK-027 独立 HTTP 层
+## FIX-1: _on_api_success 分支顺序——slot_number 优先匹配，id 作为 fallback
+## S-02:  save_game 入口重置重试标志，防止锁卡死
 
 extends Node
 
@@ -49,6 +51,8 @@ func _ready() -> void:
 	# TASK-028: 存档服务必须在游戏暂停期间继续工作（ESC→保存 的必经路径）
 	# 子节点 HTTPRequest 继承 ALWAYS → 暂停时照常轮询完成请求
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# FIX-1: 连接 API 成功回调，使保存/创建响应能更新内存列表
+	ApiClient.request_completed.connect(_on_api_success)
 	print("[SaveService] Ready (PROCESS_MODE_ALWAYS)")
 
 
@@ -122,7 +126,14 @@ func load_save_by_slot(slot: int) -> void:
 
 ## 保存存档 (智能模式: PUT更新 or 404→POST创建)
 ## TASK-028: 单一释放出口——任何失败（超时/HTTP错误/解析错误/网络故障）都走同一释放点
+## S-02 FIX: 若锁处于残留错误状态，先强制释放再允许重试
 func save_game(slot: int, save_data: Dictionary) -> void:
+	# S-02: 上一次操作失败导致 _is_loading 未释放时，强制解锁以允许重试
+	if _is_loading and _pending_operation != OP_SAVE:
+		print("[SAVE] S-02: releasing stuck lock (op=", _pending_operation, ") for retry")
+		_is_loading = false
+		_pending_operation = ""
+
 	if _is_loading:
 		# 忙时拒绝并明确通知（pause_menu 显示错误而非永久"保存中..."）
 		print("[SAVE] BUSY_REJECT other_op=", _pending_operation)
@@ -305,12 +316,24 @@ func _normalize_entry(entry: Dictionary) -> Dictionary:
 
 
 ## TASK-026: 保存/创建成功后更新内存存档列表（同槽位替换，新槽位追加）
+## FIX-1 fallback: 当服务器响应缺少 slot_number 时，按 id 匹配已有条目
 func _refresh_saves_entry(record: Dictionary) -> void:
 	if record.is_empty():
 		return
 	var entry: Dictionary = _normalize_entry(record)
 	var slot := int(entry.get("slot_number", -1))
 	if slot < 1:
+		# slot_number 缺失：尝试用 id 匹配已有条目（首次保存场景）
+		var new_id = entry.get("id")
+		if new_id != null and new_id != "":
+			for i in range(_saves.size()):
+				if _saves[i] is Dictionary and _saves[i].get("id") == new_id:
+					_saves[i] = entry
+					print("[SaveService] Memory save list refreshed (id ", new_id, " updated)")
+					return
+			_saves.append(entry)
+			print("[SaveService] Memory save list refreshed (id ", new_id, " appended)")
+			return
 		return
 	for i in range(_saves.size()):
 		if _saves[i] is Dictionary and int(_saves[i].get("slot_number", -1)) == slot:
@@ -319,3 +342,18 @@ func _refresh_saves_entry(record: Dictionary) -> void:
 			return
 	_saves.append(entry)
 	print("[SaveService] Memory save list refreshed (slot ", slot, " appended)")
+
+
+## ==================== API 响应回调 ====================
+
+## FIX-1: 分支判断顺序修正——先匹配 slot_number，再 fallback 到 id
+## 服务端创建存档时可能不返回 slot_number（只返回 id），
+## 导致内存列表无法正确关联到对应槽位。
+## 修复: 优先按 slot_number 匹配；若无 slot_number 则按 id 匹配
+func _on_api_success(result: Dictionary) -> void:
+	if not result is Dictionary or not result.has("__ok"):
+		return
+	var data: Variant = result.get("__data")
+	if data is not Dictionary:
+		return
+	_refresh_saves_entry(data)

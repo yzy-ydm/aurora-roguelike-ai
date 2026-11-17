@@ -185,7 +185,9 @@ func _setup_flow_env() -> void:
 		+ "func get_current_floor() -> Variant: return _current_floor\n"
 		+ "func get_available_exit_ids() -> Array[int]: return _current_floor.get_available_exit_ids()\n"
 		+ "func get_floor_level() -> int: return 1\n"
-		+ "func is_floor_complete() -> bool: return false\n").new()
+		+ "func is_floor_complete() -> bool: return false\n"
+		+ "func set_current_room_state(s: Variant) -> bool: return _current_floor.set_current_room_state(s) if _current_floor else false\n"
+		+ "func complete_current_room() -> bool: return _current_floor.complete_current_room() if _current_floor else false\n").new()
 	root.add_child(_fm)
 
 	# ---- 真实 game_scene.gd 子类 ----

@@ -433,6 +433,20 @@ func get_current_content() -> RoomContentData:
 	return null
 
 
+func set_current_room_state(new_state: NewRoomData.RoomState) -> bool:
+	"""TASK-005: 统一状态转换入口——避免外部代码直接操作 _current_floor"""
+	if _current_floor:
+		return _current_floor.set_current_room_state(new_state)
+	return false
+
+
+func complete_current_room() -> bool:
+	"""TASK-005: 统一完成入口——避免外部代码直接操作 _current_floor"""
+	if _current_floor:
+		return _current_floor.complete_current_room()
+	return false
+
+
 func get_available_exit_ids() -> Array[int]:
 	if _current_floor:
 		return _current_floor.get_available_exit_ids()

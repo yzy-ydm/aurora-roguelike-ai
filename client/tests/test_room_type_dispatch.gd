@@ -191,7 +191,9 @@ func _test_flow_layer_dispatch() -> void:
 		+ "func get_current_room() -> Variant: return current_room\n"
 		+ "func get_current_floor() -> Variant: return _current_floor\n"
 		+ "func get_available_exit_ids() -> Array[int]: return [7]\n"
-		+ "func get_floor_level() -> int: return 1\n").new()
+		+ "func get_floor_level() -> int: return 1\n"
+		+ "func set_current_room_state(s: Variant) -> bool: return _current_floor.set_current_room_state(s) if _current_floor else false\n"
+		+ "func complete_current_room() -> bool: return _current_floor.complete_current_room() if _current_floor else false\n").new()
 	fm._current_floor = floor_stub
 	root.add_child(fm)
 

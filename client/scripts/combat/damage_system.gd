@@ -135,9 +135,6 @@ func on_monster_attack_player(attacker: Node2D, target: Node2D) -> void:
 	# TASK-017.7: 击退方向基准统一用世界坐标（attacker.position 是房间local，方向会错乱）
 	apply_damage_to_player(target, final_damage, attacker.global_position)
 
-
-## ==================== Boss→玩家 伤害 ====================
-
 ## 处理Boss攻击玩家
 ## boss_node: Boss节点(宿主节点,不是BossController)
 ## target: 玩家节点(Player)
@@ -163,18 +160,21 @@ func on_boss_attack_player(boss_node: Node2D, target: Node2D, skill_damage_multi
 	var final_damage = result["damage"]
 
 	# 应用伤害到玩家
-	apply_damage_to_player(target, final_damage, boss_node.position)
+	# BUG-5 FIX: 使用 global_position 而非 position（Boss 节点在 MonsterContainer 内有偏移）
+	apply_damage_to_player(target, final_damage, boss_node.global_position)
 
 
 ## 获取Boss攻击力(统一接口)
-func _get_boss_attack(boss_node: Node2D) -> int:
+func _get_boss_attack(boss_node: Node) -> int:
 	# 优先直接调用get_attack()(BossController宿主节点)
 	if boss_node.has_method("get_attack"):
 		return boss_node.get_attack()
 
-	# 回退: 通过BossController的_boss_entity获取
-	if boss_node.has_method("get") and boss_node.get("_boss_entity"):
-		return boss_node._boss_entity.get_attack()
+	# 回退: 通过BossController的get_monster_entity()获取（动态检查，避免Node2D类型限制）
+	if boss_node.has_method("get_monster_entity"):
+		var entity = boss_node.get_monster_entity()
+		if entity:
+			return entity.get_attack()
 
 	return 25
 
@@ -232,6 +232,7 @@ func apply_damage_to_player(target: Node2D, damage: int, attacker_position: Vect
 
 ## 生成伤害数字
 func _spawn_damage_number(target: Node2D, damage: int, is_critical: bool, is_heal: bool = false, is_player_damage: bool = false) -> void:
+	# BUG-11 FIX: 移除每帧伤害数字的刷屏调试 print 语句
 	print("[DamageNumber] Spawn Start damage=", damage, " target=", target.name)
 
 	# Phase 17.7.2: 使用EffectContainer而不是MonsterContainer
@@ -242,26 +243,22 @@ func _spawn_damage_number(target: Node2D, damage: int, is_critical: bool, is_hea
 
 	# 使用global_position确保位置正确
 	var spawn_pos = target.global_position + Vector2(randf_range(-10, 10), -20)
-	print("[DamageNumber] Position: global=", spawn_pos, " target_global=", target.global_position)
 
 	# 直接加载场景实例化
 	var scene = load("res://scenes/combat/damage_number.tscn")
 	if not scene:
 		print("[DamageNumber] ERROR: Failed to load scene")
 		return
-	print("[DamageNumber] Scene Loaded: ", scene.resource_path)
 
 	var number = scene.instantiate()
 	if not number:
 		print("[DamageNumber] ERROR: Failed to instantiate")
 		return
-	print("[DamageNumber] Instance Created: ", number.name)
 
 	# Phase 17.7.2: 设置global_position
 	number.global_position = spawn_pos
 	number.setup(damage)
 	parent.add_child(number)
-	print("[DamageNumber] Added To Tree: parent=", parent.name, " global_pos=", number.global_position, " visible=", number.visible, " z_index=", number.z_index, " modulate=", number.modulate)
 
 
 ## 获取EffectContainer

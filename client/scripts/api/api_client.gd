@@ -103,6 +103,7 @@ func _process_next_request() -> void:
 
 	if error != OK:
 		_is_processing = false
+		# 不要在此处 queue_free——信号处理函数统一负责清理
 		http_request.queue_free()
 		print("[HTTP DEBUG] Request Failed: ", error)
 		request_failed.emit("HTTP请求创建失败", 0)

@@ -26,6 +26,9 @@ const GROUND_Y: int = HALF_HEIGHT - GROUND_HEIGHT / 2
 ## 平台配置
 const PLATFORM_THICKNESS: int = 16
 
+## 平台最大Y坐标（避免嵌入地面）：地面顶面 = GROUND_Y - GROUND_HEIGHT/2 = 296，留8px安全余量
+const MAX_PLATFORM_Y: int = GROUND_Y - GROUND_HEIGHT / 2 - PLATFORM_THICKNESS  # 288
+
 ## TASK-002: 当前房间的平台碰撞矩形列表（local 坐标，position=左上角）
 ## 由 _create_platform 记录，供奖励生成位置避让查询（WorldCoordinate.reward_spawn_pos）
 var _platform_rects: Array[Rect2] = []
@@ -261,15 +264,21 @@ func _create_boundary(x_pos: int, height: int) -> StaticBody2D:
 	return wall
 
 
-## 创建平台
+## 创建平台 (C-01: 添加单向碰撞支持，允许玩家从下方跳上)
 func _create_platform(pos: Vector2, width: int) -> StaticBody2D:
+	# 防止平台嵌入地面：地面顶面 y = GROUND_Y - GROUND_HEIGHT/2 = 296，平台底部至少为 296，故 pos.y <= 288
+	pos.y = clampf(pos.y, float(MAX_PLATFORM_Y), 99999.0)
+
 	var platform = StaticBody2D.new()
 	platform.name = "Platform"
 	platform.position = pos
 	platform.collision_layer = 1
 	platform.z_index = 5  # Phase 17.4: 平台z_index
 
-	# 碰撞
+	# C-01 修复: 使用标记属性标识单向碰撞平台
+	# Godot 4.7 不支持 OneWayCollisionShape2D，改用自定义逻辑
+	platform.set_meta("is_one_way", true)
+
 	var collision = CollisionShape2D.new()
 	var shape = RectangleShape2D.new()
 	shape.size = Vector2(width, PLATFORM_THICKNESS)
@@ -412,27 +421,27 @@ func _create_reward_room_platforms(parent: Node2D) -> void:
 		parent.add_child(_create_platform(Vector2(px, py), 150))
 
 
-## 商店房间: 平整布局
+## 商店房间: 平整布局 (C-03修复: 使用地面附近的合理Y坐标)
 func _create_shop_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(-200, 20), 200)
+	var p1 = _create_platform(Vector2(-200, GROUND_Y - 50), 200)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(200, 20), 200)
+	var p2 = _create_platform(Vector2(200, GROUND_Y - 50), 200)
 	parent.add_child(p2)
 
 
-## 事件房间: 中央平台
+## 事件房间: 中央平台 (C-03修复)
 func _create_event_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 15), 250)
+	var p1 = _create_platform(Vector2(0, GROUND_Y - 40), 250)
 	parent.add_child(p1)
 
 
-## 宝箱房间: 平台
+## 宝箱房间: 平台 (C-03修复)
 func _create_treasure_room_platforms(parent: Node2D) -> void:
-	var p1 = _create_platform(Vector2(0, 20), 200)
+	var p1 = _create_platform(Vector2(0, GROUND_Y - 50), 200)
 	parent.add_child(p1)
 
-	var p2 = _create_platform(Vector2(0, -20), 150)
+	var p2 = _create_platform(Vector2(0, GROUND_Y - 110), 150)
 	parent.add_child(p2)
 
 

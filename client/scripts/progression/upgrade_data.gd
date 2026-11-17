@@ -114,8 +114,8 @@ static func _parse_rarity(rarity_str: String) -> UpgradeRarity:
 
 
 ## 类型转字符串
-static func _type_to_string(type: UpgradeType) -> String:
-	match type:
+static func _type_to_string(upgrade_type: UpgradeType) -> String:
+	match upgrade_type:
 		UpgradeType.STAT_BOOST:
 			return "stat_boost"
 		UpgradeType.ABILITY:
@@ -129,8 +129,8 @@ static func _type_to_string(type: UpgradeType) -> String:
 
 
 ## 稀有度转字符串
-static func _rarity_to_string(rarity: UpgradeRarity) -> String:
-	match rarity:
+static func _rarity_to_string(upgrade_rarity: UpgradeRarity) -> String:
+	match upgrade_rarity:
 		UpgradeRarity.COMMON:
 			return "common"
 		UpgradeRarity.UNCOMMON:

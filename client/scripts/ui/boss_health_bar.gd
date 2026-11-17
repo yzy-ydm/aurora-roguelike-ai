@@ -21,6 +21,9 @@ var phase_label: Label = null
 ## 是否正在显示
 var _is_showing: bool = false
 
+## 当前Boss最大生命值（缓存，避免直接访问BossController私有字段）
+var _boss_max_health: int = 0
+
 
 ## ==================== 初始化 ====================
 
@@ -107,6 +110,9 @@ func show_boss(boss_name: String, max_health: int) -> void:
 	if health_label:
 		health_label.text = str(max_health) + "/" + str(max_health)
 
+	# Phase 26 FIX: 缓存max_health，避免后端访问BossController私有字段
+	_boss_max_health = max_health
+
 	if phase_label:
 		phase_label.text = "Phase 1"
 
@@ -135,13 +141,11 @@ func _update_health_display(current_health: int, max_health: int) -> void:
 
 ## Boss受伤回调
 func _on_boss_damaged(damage: int, current_health: int) -> void:
-	if _boss_controller and "_boss_data" in _boss_controller and _boss_controller._boss_data:
-		var max_health = _boss_controller._boss_data.max_health
-		_update_health_display(current_health, max_health)
-	else:
-		# 回退：使用health_bar的max_value
-		if health_bar:
-			_update_health_display(current_health, int(health_bar.max_value))
+	# Phase 26 FIX: 使用缓存的max_health，避免直接访问私有字段
+	if _boss_max_health > 0:
+		_update_health_display(current_health, _boss_max_health)
+	elif health_bar:
+		_update_health_display(current_health, int(health_bar.max_value))
 
 
 ## 阶段转换回调

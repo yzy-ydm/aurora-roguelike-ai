@@ -427,6 +427,7 @@ func get_extended_save_data() -> Dictionary:
 func reset() -> void:
 	_current_state = GameState.NOT_STARTED
 	_player_data = {}
+	_profile_data = {}
 	_current_save = {}
 	_current_slot = -1
 	_play_time = 0.0

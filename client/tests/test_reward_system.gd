@@ -184,7 +184,7 @@ func _test_pickup() -> void:
 	var player := CharacterBody2D.new()
 	player.name = "Player"
 	player.collision_layer = 2   # 与真实玩家一致
-	player.collision_mask = 23   # 与真实玩家一致
+	player.collision_mask = 25   # 与真实玩家一致
 	var shape_node := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
 	shape.size = Vector2(40, 80)
@@ -227,7 +227,7 @@ func _test_signal_chain() -> void:
 	var player := CharacterBody2D.new()
 	player.name = "Player"
 	player.collision_layer = 2
-	player.collision_mask = 23
+	player.collision_mask = 25
 	var shape_node := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
 	shape.size = Vector2(40, 80)

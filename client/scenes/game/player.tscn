@@ -17,3 +17,7 @@ offset_left = 0.0
 offset_top = 0.0
 offset_right = 0.0
 offset_bottom = 0.0
+
+[node name="GroundRay" type="RayCast2D" parent="."]
+target_position = Vector2(0, 20)
+enabled = true

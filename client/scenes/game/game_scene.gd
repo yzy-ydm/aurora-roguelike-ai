@@ -52,6 +52,9 @@ var _upgrade_manager: Node = null
 
 ## Phase 18.2: _boss_controller 变量已废弃归档（声明后零使用）
 
+## BUG-4 FIX: BossController 引用（用于连接 BossHealthBar 信号）
+var _boss_controller: Node = null
+
 ## ==================== Phase 13 新增系统 ====================
 
 ## 行为分析器
@@ -277,6 +280,11 @@ func restart_run() -> void:
 	# 3. 武器重置为初始武器
 	if player:
 		player.reset_weapon_to_default()
+
+	# BUG-21 FIX: 重置 Boss 相关状态，防止旧 BossController 残留影响新 run
+	_boss_controller = null
+	if _boss_health_bar:
+		_boss_health_bar.hide_boss()
 
 	# 重新初始化战斗管理器
 	if _combat_manager:
@@ -601,7 +609,8 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 	if room.room_type == NewRoomData.RoomType.BOSS:
 		print("[GameScene] Boss room detected!")
 		# TASK-005: Boss战属于战斗流程 → COMBAT 状态
-		_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.COMBAT)
+		if _floor_manager:
+			_floor_manager.set_current_room_state(NewRoomData.RoomState.COMBAT)
 		_start_boss_fight(room)
 		return
 
@@ -617,7 +626,8 @@ func _on_fm_room_entered(room: NewRoomData) -> void:
 		spawned_monsters = _room_spawner.spawn_monsters(content, room.position)
 		if spawned_monsters > 0:
 			_combat_manager.start_combat(content)
-			_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.COMBAT)
+			if _floor_manager:
+				_floor_manager.set_current_room_state(NewRoomData.RoomState.COMBAT)
 	# 非战斗房间根据类型分发
 	match room.room_type:
 		NewRoomData.RoomType.REWARD:
@@ -655,6 +665,12 @@ func _start_boss_fight(room: NewRoomData) -> void:
 		print("[GameScene] failed to spawn boss")
 		_complete_current_room("boss_spawn_failed")
 		return
+
+	# BUG-4 FIX: 获取 BossController 引用并连接 BossHealthBar
+	_boss_controller = _room_spawner.get_current_boss_controller()
+	if _boss_controller and _boss_health_bar:
+		_boss_health_bar.set_boss_controller(_boss_controller)
+		print("[GameScene] BossHealthBar connected to BossController")
 
 	# 开始Boss战
 	_combat_manager.start_boss_fight(boss_data)
@@ -767,7 +783,8 @@ func _on_combat_cleared() -> void:
 
 	# TASK-005: 清怪 → REWARD 状态（不创建出口）
 	# 出口在奖励全部领取后由 room_completed 信号路径统一创建
-	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
+	if _floor_manager:
+		_floor_manager.set_current_room_state(NewRoomData.RoomState.REWARD)
 
 
 func _on_combat_room_completed() -> void:
@@ -815,7 +832,8 @@ func _handle_reward_room(content: RoomContentData, room_pos: Vector2) -> void:
 	hud.set_status("奖励房间! 拾取掉落物品")
 
 	# TASK-005: 奖励房进入 REWARD 状态
-	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
+	if _floor_manager:
+		_floor_manager.set_current_room_state(NewRoomData.RoomState.REWARD)
 
 	# 生成奖励物品
 	if _room_spawner:
@@ -840,7 +858,8 @@ func _handle_event_room(room: NewRoomData, room_pos: Vector2) -> void:
 	hud.set_status("发现事件! 选择一个...")
 
 	# TASK-005: 事件房进入 EVENT 状态（禁止生成怪物/进入战斗）
-	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.EVENT)
+	if _floor_manager:
+		_floor_manager.set_current_room_state(NewRoomData.RoomState.EVENT)
 
 	# 生成随机事件
 	var event = _generate_random_event()
@@ -962,7 +981,8 @@ func _handle_treasure_room(content: RoomContentData, room_pos: Vector2) -> void:
 	hud.set_status("发现宝箱! 寻找并打开它")
 
 	# TASK-005: 宝箱房属于奖励流程 → REWARD 状态
-	_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
+	if _floor_manager:
+		_floor_manager.set_current_room_state(NewRoomData.RoomState.REWARD)
 
 	# 生成奖励物品（chest作为reward_item的特殊形式）
 	var reward_count = content.reward_count if content else 2
@@ -1036,7 +1056,8 @@ func _complete_current_room(reason: String) -> void:
 	print("[RoomComplete] room_id=" + str(room.id) + " type=" + room.get_type_string() + " reason=" + reason)
 
 	# 唯一完成入口（FloorData → NewRoomData.transition_to(COMPLETED)）
-	_floor_manager._current_floor.complete_current_room()
+	if _floor_manager:
+		_floor_manager.complete_current_room()
 
 	# 出口仅在状态成功转换为 COMPLETED 后创建
 	_create_room_exits()
@@ -1415,10 +1436,8 @@ func _on_save_selected(slot: int) -> void:
 	SaveService.save_error.connect(on_error)
 	SaveService.save_game(actual_slot, save_data)
 
-	var waited := 0
-	while not box["done"] and waited < 100:  # 最长约 10 秒
-		await get_tree().create_timer(0.1).timeout
-		waited += 1
+	# BUG-8 FIX: 用单次 await 替代 while 轮询，10秒超时兜底
+	await get_tree().create_timer(10.0).timeout
 	SaveService.save_saved.disconnect(on_saved)
 	SaveService.save_error.disconnect(on_error)
 
@@ -1443,8 +1462,6 @@ func _on_save_selected(slot: int) -> void:
 
 func _on_save_selection_closed() -> void:
 	pause_menu.show_pause()
-
-
 func _exit_to_menu() -> void:
 	_is_paused = false
 	get_tree().paused = false
@@ -1559,9 +1576,6 @@ func _on_boss_defeated() -> void:
 				room_pos = current_room.position
 				# Phase 26: 设置房间中心
 				_room_spawner.set_room_center(room_pos)
-				var reward_container = _room_spawner._get_reward_container()
-				if reward_container:
-					_room_spawner._reward_container = reward_container
 
 		# 创建Boss专属奖励内容
 		var boss_content = RoomContentData.new()
@@ -1571,24 +1585,23 @@ func _on_boss_defeated() -> void:
 		_room_spawner.spawn_rewards(boss_content, room_pos)
 
 	# 标记房间完成
-	if _floor_manager and _floor_manager._current_floor:
+	if _floor_manager:
 		# TASK-005: Boss 状态链 COMBAT → REWARD → COMPLETED（统一状态机）
-		_floor_manager._current_floor.set_current_room_state(NewRoomData.RoomState.REWARD)
-		_floor_manager._current_floor.complete_current_room()
+		_floor_manager.set_current_room_state(NewRoomData.RoomState.REWARD)
+		_floor_manager.complete_current_room()
 
 	# Phase 10.1.6: 等待2秒后检查楼层完成状态
 	await get_tree().create_timer(2.0).timeout
 
 	# 检查楼层是否完成
 	if _floor_manager and _floor_manager.is_floor_complete():
-		_on_floor_completed()
+		_on_floor_completed()  # 内部已调用 _auto_save()，无需重复
 	else:
 		# Boss击败后也创建出口（进入下一层）
 		_create_room_exits()
-
-	# Boss击败后自动存档
-	await get_tree().create_timer(0.5).timeout
-	_auto_save()
+		# 非通关 Boss 房：延迟后存档
+		await get_tree().create_timer(0.5).timeout
+		_auto_save()
 
 
 ## TASK-030: _on_save_completed/_on_load_completed 已删除（本地 JSON 存档系统回调，

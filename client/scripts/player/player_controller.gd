@@ -98,6 +98,12 @@ var _knockback_velocity: Vector2 = Vector2.ZERO
 ## 击退剩余时间
 var _knockback_timer: float = 0.0
 
+## Phase 18.2: 冲刺计时器（替代 async/await，避免生成器被丢弃）
+var _dash_timer: float = 0.0
+
+## Phase 18.2: 无敌计时器（替代 async/await，避免生成器被丢弃）
+var _invincible_timer: float = 0.0
+
 ## 闪烁计时器
 var _flash_timer: float = 0.0
 const FLASH_INTERVAL: float = 0.08
@@ -112,14 +118,21 @@ signal player_dead()  # Phase 15: 玩家死亡信号
 @onready var sprite: Sprite2D = $Sprite
 @onready var collision_shape: CollisionShape2D = $CollisionShape
 @onready var camera: Camera2D = $Camera2D
+@onready var ground_ray: RayCast2D = $GroundRay
+
+## ==================== C-01: 单向碰撞系统 ====================
+## 实现平台单向碰撞：允许玩家从下方跳上，但从上方会落地
+## 使用 RayCast2D 检测玩家下方的平台，动态禁用/启用碰撞
+var _one_way_platforms: Array[StaticBody2D] = []  # 当前接触的单向平台列表
+var _is_passing_through: bool = false  # 是否正在穿过平台
 
 
 func _ready() -> void:
 	# 碰撞层设计:
 	# Layer 0: Area/Portal/Reward   Layer 1: Wall   Layer 2: Player
-	# Layer 4: Enemy   Layer 8: PlayerBullet   Layer 16: EnemyBullet
+	# Layer 4: nothing   Layer 8: Enemy/PlayerBullet   Layer 16: EnemyBullet
 	collision_layer = 2   # Player在第2层
-	collision_mask = 23   # 检测Layer 0(Reward/Portal) + 1(Wall) + 4(Enemy) + 16(EnemyBullet)
+	collision_mask = 25   # 检测Layer 1(Wall) + 8(Enemy) + 16(EnemyBullet)
 
 	# 渲染层级: 始终在背景之上
 	z_index = 10
@@ -155,9 +168,31 @@ func _sync_stats_to_game_state() -> void:
 ## 物理帧处理（每帧调用）
 ## Phase 17.6: 使用标准Godot 4 CharacterBody2D流程
 func _physics_process(delta: float) -> void:
+	# ========== 0. 单向碰撞处理 ==========
+	_handle_one_way_collision(delta)
+
 	# ========== 1. 更新击退 ==========
 	if _knockback_timer > 0:
 		_knockback_timer -= delta
+	if _dash_timer > 0:
+		_dash_timer -= delta
+		if _dash_timer <= 0:
+			_is_dashing = false
+			print("[Player] Dash complete")
+	if _invincible_timer > 0:
+		_invincible_timer -= delta
+		if _flash_timer > 0:
+			_flash_timer -= delta
+			if _flash_timer <= 0:
+				if sprite:
+					sprite.modulate.a = 1.0 if sprite.modulate.a < 0.5 else 0.3
+				_flash_timer = FLASH_INTERVAL
+		if _invincible_timer <= 0:
+			_is_invincible = false
+			if sprite:
+				sprite.modulate = Color(1, 1, 1, 1)
+			player_invincible_finished.emit()
+			print("[Player] Invincibility ended")
 		velocity = _knockback_velocity
 		move_and_slide()
 		return
@@ -170,7 +205,9 @@ func _physics_process(delta: float) -> void:
 	if _is_dashing:
 		velocity = _dash_direction * DASH_SPEED
 		move_and_slide()
-		return
+		# BUG-10 FIX: 不再提前 return，让后续重力/跳跃/Coyote Time 逻辑正常执行。
+		# 冲刺结束后的 move_and_slide() 会覆盖水平速度为 MOVE_SPEED，
+		# 但跳跃（velocity.y = JUMP_FORCE）在冲刺期间仍有效。
 
 	# ========== 4. 获取地面状态 ==========
 	var on_floor = is_on_floor()
@@ -512,11 +549,7 @@ func _try_dash() -> void:
 	_dash_direction = Vector2(_facing_direction, 0)
 	_is_dashing = true
 	_dash_cooldown_timer = DASH_COOLDOWN
-
-	# 冲刺结束后恢复
-	await get_tree().create_timer(DASH_DURATION).timeout
-	_is_dashing = false
-	print("[Player] Dash complete")
+	_dash_timer = DASH_DURATION  # 启动计时器，_physics_process 中自动结束
 
 
 ## 是否在地面
@@ -711,29 +744,13 @@ func _apply_knockback(attacker_position: Vector2) -> void:
 ## 开始无敌状态
 func _start_invincibility() -> void:
 	_is_invincible = true
-	_flash_timer = 0.0
+	_flash_timer = FLASH_INTERVAL
+	_invincible_timer = INVINCIBLE_TIME
 	player_invincible_started.emit()
-
-	# 启动闪烁效果
-	_start_flash_effect()
-
-	# 无敌时间结束后恢复
-	await get_tree().create_timer(INVINCIBLE_TIME).timeout
-
-	_is_invincible = false
-	sprite.modulate = Color(1, 1, 1, 1)  # 恢复正常显示
-	player_invincible_finished.emit()
+	print("[Player] Invincibility started")
 
 
-## 闪烁效果
-func _start_flash_effect() -> void:
-	while _is_invincible:
-		# 切换透明度
-		if sprite.modulate.a > 0.5:
-			sprite.modulate.a = 0.3
-		else:
-			sprite.modulate.a = 1.0
-		await get_tree().create_timer(FLASH_INTERVAL).timeout
+## 闪烁效果 — 已集成到 _physics_process 的计时器逻辑中，此函数保留但不再需要
 
 
 ## 添加金币 (Phase 9.4.1: 委托PlayerStats)
@@ -910,3 +927,43 @@ func reset_weapon_to_default() -> void:
 	GameStateManager.set_extended_save_data("weapon_id", 0)
 	GameStateManager.set_extended_save_data("weapon_level", 1)
 	print("[Player] Weapon reset to default Lv1")
+
+## 禁用平台碰撞（允许从下方穿过）
+func _disable_platform_collisions(platforms: Array[StaticBody2D]) -> void:
+	for platform in platforms:
+		if platform and platform.is_inside_tree():
+			for child in platform.get_children():
+				if child is CollisionShape2D:
+					child.set_deferred("disabled", true)
+
+## 恢复平台碰撞
+func _restore_platform_collisions() -> void:
+	for platform in _one_way_platforms:
+		if platform and platform.is_inside_tree():
+			for child in platform.get_children():
+				if child is CollisionShape2D:
+					child.set_deferred("disabled", false)
+	_one_way_platforms.clear()
+
+## C-01: 处理单向碰撞逻辑
+func _handle_one_way_collision(delta: float) -> void:
+	# 收集所有接触的单向平台
+	var new_platforms: Array[StaticBody2D] = []
+	for i in get_slide_collision_count():
+		var coll = get_slide_collision(i)
+		var collider = coll.get_collider()
+		if collider is StaticBody2D and collider.has_meta("is_one_way"):
+			new_platforms.append(collider)
+
+	# 如果正在穿过平台且不再接触 → 恢复碰撞
+	if _is_passing_through and new_platforms.is_empty():
+		_restore_platform_collisions()
+		_is_passing_through = false
+
+	# 如果检测到下方有平台且正在上升 → 禁用碰撞
+	elif velocity.y < 0 and not new_platforms.is_empty():
+		_disable_platform_collisions(new_platforms)
+		_is_passing_through = true
+
+	# 更新平台列表
+	_one_way_platforms = new_platforms

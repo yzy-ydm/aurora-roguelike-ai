@@ -2,7 +2,11 @@
 ##
 ## 管理Boss的战斗行为、技能释放、阶段转换
 ## 继承MonsterNode的逻辑，增加Boss专属机制
+##
+## BUG-3 FIX: 原为 _physics_process (Node无物理帧)，改为每帧 _process 驱动 AI 逻辑，
+## 物理移动委托给 MonsterNode（BossNode = CharacterBody2D）。
 
+class_name BossController
 extends Node
 
 ## ==================== 配置 ====================
@@ -67,6 +71,9 @@ func initialize(boss_node: CharacterBody2D, boss_entity: MonsterEntity, boss_dat
 	_boss_entity = boss_entity
 	_boss_data = boss_data
 
+	# BUG-29 FIX: 重置阶段状态，防止旧 BossController 残留导致阶段显示错误
+	_current_phase = BossData.BossPhase.PHASE_1
+
 	# 查找玩家
 	_find_player()
 
@@ -91,14 +98,28 @@ func _init_skills() -> void:
 	if not _boss_data:
 		return
 
+	# BUG-22 FIX: 校验每个技能的必填字段，跳过损坏的配置避免运行时错误
+	var valid_skill_types := ["charge", "aoe", "projectile", "melee"]
 	for skill in _boss_data.skills:
-		var skill_name = skill.get("name", "unknown")
+		var skill_name = skill.get("name", "")
+		if skill_name.is_empty():
+			print("[BossController] WARNING: skill missing 'name', skipping: ", skill)
+			continue
+		var skill_type = skill.get("type", "melee")
+		if not skill_type in valid_skill_types:
+			print("[BossController] WARNING: unknown skill type '", skill_type, "' for '",
+				  skill_name, "', defaulting to 'melee'")
+			skill_type = "melee"
 		var cooldown = skill.get("cooldown", 5.0)
 		_skill_cooldowns[skill_name] = cooldown
 		_skill_timers[skill_name] = 0.0
 
 
 ## ==================== 每帧更新 ====================
+
+func _process(delta: float) -> void:
+	update(delta)
+
 
 func update(delta: float) -> void:
 	if not _is_active or not _boss_entity or not _boss_entity.is_alive():
@@ -181,7 +202,8 @@ func _deal_damage_to_player(damage_multiplier: float = 1.0) -> void:
 		# Fallback
 		var damage = int(_boss_data.attack * damage_multiplier)
 		if _player_node.has_method("take_damage"):
-			_player_node.take_damage(damage, _boss_node.position)
+			# BUG-1 FIX: 使用 global_position 而非 position（Boss 节点在 MonsterContainer 内有偏移）
+			_player_node.take_damage(damage, _boss_node.global_position)
 
 
 ## 查找DamageSystem
@@ -205,12 +227,13 @@ func _try_use_skill() -> bool:
 		var cooldown = _skill_timers.get(skill_name, 0.0)
 
 		if cooldown <= 0:
-			var distance = _boss_node.position.distance_to(_player_node.position)
+			# BUG-1 FIX: 使用 global_position 而非 position（Boss 节点在 MonsterContainer 内有偏移）
+			var distance = _boss_node.global_position.distance_to(_player_node.global_position)
 			var min_range = skill.get("min_range", 0)
 			var max_range = skill.get("max_range", 300)
 
 			if distance >= min_range and distance <= max_range:
-				_use_skill(skill)
+				call_deferred("_use_skill", skill)
 				return true
 
 	return false
@@ -268,20 +291,29 @@ func _execute_charge_attack(skill: Dictionary) -> void:
 	var damage_multiplier = skill.get("damage_multiplier", 2.0)
 	var duration = skill.get("duration", 0.5)
 
-	# 朝玩家方向冲撞
-	var direction = (_player_node.position - _boss_node.position).normalized()
+	# BUG-1 FIX: 使用 global_position 计算方向
+	var direction = (_player_node.global_position - _boss_node.global_position).normalized()
 	var target_velocity = direction * charge_speed
 
-	# 应用冲撞
-	var tween = _boss_node.create_tween()
-	tween.tween_property(_boss_node, "velocity", target_velocity, 0.1)
-	tween.tween_interval(duration)
-	tween.tween_property(_boss_node, "velocity", Vector2.ZERO, 0.1)
+	# BUG-2 FIX: BossController 是 Node，不能直接设置 CharacterBody2D.velocity 并期待 move_and_slide 生效。
+	# 改为在 await 循环中每帧手动推进 Boss 位移（Controller 不在物理帧中运行）。
+	_boss_node.velocity = target_velocity
+	_boss_node.move_and_slide()
 
-	await tween.finished
+	# 等待期间每帧手动推进 Boss 位移
+	var elapsed: float = 0.0
+	const MOVE_STEP: float = 0.016
+	while elapsed < duration and _is_active and _boss_entity and _boss_entity.is_alive():
+		_boss_node.velocity = target_velocity
+		_boss_node.move_and_slide()
+		elapsed += MOVE_STEP
+		await get_tree().create_timer(MOVE_STEP).timeout
+
+	_boss_node.velocity = Vector2.ZERO
 
 	# 检测碰撞伤害(通过DamageSystem)
-	var distance = _boss_node.position.distance_to(_player_node.position)
+	# BUG-1 FIX: 使用 global_position
+	var distance = _boss_node.global_position.distance_to(_player_node.global_position)
 	if distance < 60:
 		_deal_damage_to_player(damage_multiplier)
 
@@ -295,15 +327,16 @@ func _execute_aoe_attack(skill: Dictionary) -> void:
 	var warning_duration = skill.get("warning_duration", 1.0)
 	var duration = skill.get("duration", 0.5)
 
-	# 显示警告区域 (通过创建临时视觉)
-	_spawn_aoe_warning(_boss_node.position, radius, warning_duration)
+	# BUG-1 FIX: 使用 global_position 作为 AOE 中心
+	_spawn_aoe_warning(_boss_node.global_position, radius, warning_duration)
 
 	# 等待警告时间
 	await get_tree().create_timer(warning_duration).timeout
 
 	# 检测范围内玩家(通过DamageSystem)
 	if _player_node:
-		var distance = _boss_node.position.distance_to(_player_node.position)
+		# BUG-1 FIX: 使用 global_position
+		var distance = _boss_node.global_position.distance_to(_player_node.global_position)
 		if distance <= radius:
 			_deal_damage_to_player(damage_multiplier)
 
@@ -316,9 +349,9 @@ func _execute_projectile_attack(skill: Dictionary) -> void:
 	var spread_angle = skill.get("spread", 30.0)
 	var damage_multiplier = skill.get("damage_multiplier", 0.8)
 
-	# 朝玩家方向发射多个投射物
+	# BUG-1 FIX: 使用 global_position 计算方向
 	if _player_node:
-		var base_direction = (_player_node.position - _boss_node.position).normalized()
+		var base_direction = (_player_node.global_position - _boss_node.global_position).normalized()
 
 		for i in range(projectile_count):
 			var angle_offset = deg_to_rad(spread_angle * (i - projectile_count / 2))
@@ -335,7 +368,8 @@ func _execute_melee_attack(skill: Dictionary) -> void:
 	var range = skill.get("range", 60.0)
 
 	if _player_node:
-		var distance = _boss_node.position.distance_to(_player_node.position)
+		# BUG-1 FIX: 使用 global_position
+		var distance = _boss_node.global_position.distance_to(_player_node.global_position)
 		if distance <= range:
 			_deal_damage_to_player(damage_multiplier)
 
@@ -345,9 +379,8 @@ func _execute_melee_attack(skill: Dictionary) -> void:
 
 ## 生成范围攻击警告
 func _spawn_aoe_warning(pos: Vector2, radius: float, duration: float) -> void:
-	# 创建简单的警告圈
+	# BUG-13 FIX: 先添加到父节点再设置 local 坐标（避免 get_parent() 在 add_child 前为 null）
 	var warning = Node2D.new()
-	warning.position = pos
 
 	var circle = ColorRect.new()
 	circle.size = Vector2(radius * 2, radius * 2)
@@ -357,6 +390,8 @@ func _spawn_aoe_warning(pos: Vector2, radius: float, duration: float) -> void:
 
 	if _boss_node.get_parent():
 		_boss_node.get_parent().add_child(warning)
+		# 将世界坐标转为父节点的 local 坐标
+		warning.position = pos - _boss_node.get_parent().global_position
 
 	# 延迟移除
 	await get_tree().create_timer(duration).timeout
@@ -370,8 +405,9 @@ func _spawn_projectile(direction: Vector2, damage: int) -> void:
 	var bullet_scene = load("res://scenes/combat/bullet.tscn")
 	if bullet_scene:
 		var bullet = bullet_scene.instantiate()
-		bullet.position = _boss_node.position
-		# is_enemy_bullet=true → collision_layer=0, mask=Wall+Player
+		# BUG-1/BUG-14 FIX: 使用 global_position 确保子弹在世界坐标正确位置生成
+		bullet.global_position = _boss_node.global_position
+		# is_enemy_bullet=true → collision_layer=16, mask=Wall+Player (handled in bullet.gd)
 		bullet.setup(damage, 300.0, direction, false, _boss_node, true)
 
 		if _boss_node.get_parent():
@@ -383,7 +419,8 @@ func _chase_player(delta: float) -> void:
 	if not _player_node or not _boss_node or not _boss_data:
 		return
 
-	var direction = (_player_node.position - _boss_node.position).normalized()
+	# BUG-1 FIX: 使用 global_position
+	var direction = (_player_node.global_position - _boss_node.global_position).normalized()
 	_boss_node.velocity = direction * _boss_data.speed
 	_boss_node.move_and_slide()
 

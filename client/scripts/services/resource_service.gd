@@ -62,8 +62,6 @@ func _load_all_default_resources() -> void:
 	_load_default_events()
 	_resources_ready = true
 	print("[ResourceService] Default resources loaded")
-	_resources_ready = true
-	print("[ResourceService] All default resources loaded")
 
 
 ## 检查资源是否就绪
@@ -79,6 +77,7 @@ func _send_resource_request(resource_type: String, endpoint: String) -> void:
 	var http_request = HTTPRequest.new()
 	http_request.name = "ResourceRequest_" + resource_type
 	http_request.timeout = 10.0
+	http_request.process_mode = Node.PROCESS_MODE_ALWAYS  # Phase 18.2: 暂停时仍需完成请求
 	add_child(http_request)
 
 	http_request.request_completed.connect(
@@ -88,6 +87,7 @@ func _send_resource_request(resource_type: String, endpoint: String) -> void:
 	var error = http_request.request(url, headers, HTTPClient.METHOD_GET)
 	if error != OK:
 		print("[ResourceService] Failed to send request for: ", resource_type)
+		# 不要在此处 queue_free——信号处理函数统一负责清理
 		http_request.queue_free()
 		_on_resource_failed(resource_type, "HTTP request failed")
 

@@ -297,13 +297,21 @@ func on_monster_died(entity: MonsterEntity) -> void:
 			print("[RoomSpawner] All monsters dead!")
 
 
-## 清除所有怪物
+## 清除所有怪物（含 BossController）
 func clear_monsters() -> void:
+	# 清理怪物节点
 	for entity in _current_monsters:
 		var node = entity.get_monster_node()
 		if node and node.is_inside_tree():
 			node.queue_free()
 	_current_monsters.clear()
+
+	# 清理 BossController（BUG-29 FIX: 防止旧 BossController 残留导致阶段显示错误）
+	var container = _get_monster_container()
+	if container:
+		for child in container.get_children():
+			if child is BossController:
+				child.queue_free()
 
 
 ## 生成Boss
@@ -418,6 +426,14 @@ func _create_boss_controller(boss_node: CharacterBody2D, boss_entity: MonsterEnt
 	_connect_boss_signals(boss_controller)
 
 	return boss_controller
+
+
+## BUG-4 FIX: 公开接口供 GameScene 获取当前 BossController，以连接 BossHealthBar
+func get_current_boss_controller() -> Node:
+	for child in _monster_container.get_children() if _monster_container else []:
+		if child is BossController:
+			return child
+	return null
 
 
 ## 连接Boss信号到CombatManager
@@ -620,3 +636,8 @@ func get_reward_count() -> int:
 
 func is_all_dead() -> bool:
 	return _current_monsters.size() == 0
+
+
+## BUG-17 FIX: 公开接口供 GameScene 获取 RewardContainer，避免直接访问私有成员
+func get_reward_container() -> Node2D:
+	return _reward_container

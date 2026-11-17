@@ -316,6 +316,11 @@ func _ensure_ai_token(force: bool = false) -> void:
 		while _token_loading and wait_count < 50:  # 最多等待5秒
 			await get_tree().process_frame
 			wait_count += 1
+		# Phase 18.2 FIX: 轮询结束后检查最终状态，避免双重降级
+		if _token_loading:
+			_token_loading = false
+			_token_failed = true
+			_downgrade_to_fallback()
 		return
 
 	# 获取Token
@@ -334,6 +339,7 @@ func _ensure_ai_token(force: bool = false) -> void:
 	var error = http.request(token_url + "?client_id=godot_client", headers, HTTPClient.METHOD_GET)
 	if error != OK:
 		print("[AIContentService] Failed to request token: ", error)
+		# 不要在此处 queue_free——信号处理函数统一负责清理
 		http.queue_free()
 		_token_loading = false
 		_token_failed = true
@@ -419,6 +425,7 @@ func _do_ai_request(endpoint: String, request_data: Dictionary) -> Dictionary:
 	var error = http.request(url, headers, HTTPClient.METHOD_POST, json_string)
 	if error != OK:
 		print("[AIContentService] HTTP request failed: ", error)
+		# 不要在此处 queue_free——信号处理函数统一负责清理
 		http.queue_free()
 		return {}
 

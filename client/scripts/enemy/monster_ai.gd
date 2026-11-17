@@ -33,6 +33,16 @@ const ATTACK_COOLDOWN_TIME: float = 1.5
 const IDLE_DISTANCE: float = 300.0
 const CHASE_DISTANCE: float = 100.0
 
+## BUG-6/BUG-7 FIX: 攻击距离阈值与 CHASE_DISTANCE 保持一致，
+## 避免在 60-100px 区间内怪物状态频繁切换（ATTACK 但 distance > attack_range 导致重新 chase）。
+## 使用 CHASE_DISTANCE 作为攻击触发距离，attack_range 保留用于前摇后的精确伤害判断。
+
+## 接触伤害兜底配置
+## 仅在实际物理接触（≤30px）时触发，不覆盖 normal attack_range 攻击流程
+const CONTACT_DAMAGE_RANGE: float = 30.0
+const CONTACT_DAMAGE_COOLDOWN: float = 0.5
+var _contact_damage_cooldown: float = 0.0
+
 ## ==================== TASK-018.0/TASK-017.9: 出生保护与攻击前摇 ====================
 
 ## 出生保护时间: 生成后这段时间内不决策/不追击/不攻击（重力与碰撞正常，可落地）
@@ -104,6 +114,10 @@ func update(delta: float) -> void:
 	if _attack_cooldown > 0:
 		_attack_cooldown -= delta
 
+	# 更新接触伤害冷却
+	if _contact_damage_cooldown > 0:
+		_contact_damage_cooldown -= delta
+
 	# 计算与玩家的距离
 	# TASK-017.7: 统一使用 global_position（怪物在房间local坐标系、玩家在世界坐标系，
 	# 混用 position 导致距离恒大于追击阈值，AI 永远停在 IDLE）
@@ -118,6 +132,10 @@ func update(delta: float) -> void:
 
 	# 执行状态行为
 	_execute_state(delta, distance_to_player)
+
+	# 接触伤害兜底：怪物与玩家物理接触时造成伤害（绕过攻击前摇与CD）
+	if distance_to_player <= CONTACT_DAMAGE_RANGE:
+		_try_contact_damage(delta)
 
 
 ## 决策状态
@@ -160,7 +178,7 @@ func _do_chase(_delta: float) -> void:
 		return
 
 	# Phase 17.2: 横版移动 - 只在水平方向追踪
-	var speed = _monster_entity.get_speed()
+	var speed = clampf(_monster_entity.get_speed(), 60.0, 150.0)
 	var dx = _player_node.global_position.x - _monster_node.global_position.x
 
 	# 设置水平速度
@@ -191,11 +209,13 @@ func _do_attack(_delta: float, distance: float) -> void:
 		return
 
 	# 如果在攻击范围内且冷却结束 → 进入前摇
-	if distance <= _monster_entity.attack_range and _attack_cooldown <= 0:
+	# BUG-7 FIX: 使用 CHASE_DISTANCE 而非 attack_range 判断是否进入攻击状态
+	# （attack_range 仅用于前摇结束后的精确伤害检测）
+	if distance <= CHASE_DISTANCE and _attack_cooldown <= 0:
 		_start_attack_windup()
 	else:
 		# 如果不在攻击范围，继续接近
-		var speed = _monster_entity.get_speed()
+		var speed = clampf(_monster_entity.get_speed(), 60.0, 150.0)
 		var dx = _player_node.global_position.x - _monster_node.global_position.x
 
 		if abs(dx) > 10:
@@ -238,6 +258,25 @@ func _perform_attack() -> void:
 		_monster_node.attack_player(_player_node)
 	else:
 		# Fallback: 直接调用
+		var damage = _monster_entity.get_attack()
+		if _player_node.has_method("take_damage"):
+			_player_node.take_damage(damage, _monster_node.global_position)
+
+
+## 接触伤害兜底 (TASK-fix): 怪物与玩家物理接触时造成伤害
+## 绕过攻击前摇与冷却，在近距离持续触发（有0.5s冷却防止秒杀）
+func _try_contact_damage(_delta: float) -> void:
+	if _contact_damage_cooldown > 0:
+		return
+	if not _monster_entity or not _player_node:
+		return
+	if _player_node.has_method("is_dead") and _player_node.is_dead():
+		return
+
+	_contact_damage_cooldown = CONTACT_DAMAGE_COOLDOWN
+	if _monster_node.has_method("attack_player"):
+		_monster_node.attack_player(_player_node)
+	else:
 		var damage = _monster_entity.get_attack()
 		if _player_node.has_method("take_damage"):
 			_player_node.take_damage(damage, _monster_node.global_position)

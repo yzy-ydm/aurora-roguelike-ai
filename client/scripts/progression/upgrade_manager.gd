@@ -141,7 +141,7 @@ func add_experience(amount: int) -> void:
 	var level_after = s.level
 
 	# 同步回_player_data
-	_player._player_data = s.to_dict()
+	_player.set_player_data(s.to_dict())
 
 	print("[UpgradeManager] Gained EXP (", s.experience, "/", s.experience_to_next, ")")
 	exp_gained.emit(amount, s.experience, s.experience_to_next)
@@ -326,7 +326,7 @@ func set_level_and_exp(level: int, exp: int) -> void:
 		s.experience = exp
 		s.experience_to_next = _calculate_exp_requirement(level)
 		# 同步回_player_data
-		_player._player_data = s.to_dict()
+		_player.set_player_data(s.to_dict())
 		print("[UpgradeManager] Restored level ", level, " EXP ", exp)
 
 

@@ -38,17 +38,17 @@ var is_enemy_bullet: bool = false
 
 ## 初始化
 func _ready() -> void:
-	# 碰撞层设计（数值约定: Wall=1, Player=2, Enemy=4, PlayerBullet=8, EnemyBullet=16）:
-	# TASK-001 核对: 掩码值按二进制位解释。5 = 1+4 = Wall + Enemy ✓
+	# 碰撞层设计（数值约定: Wall=1, Player=2, Enemy/PlayerBullet=8, EnemyBullet=16）:
+	# TASK-001 核对: 掩码值按二进制位解释。9 = 1+8 = Wall + Enemy ✓
 	# （项目注释中的"第N层"写法与实际位值不一致，请以数值为准）
 	if is_enemy_bullet:
 		# 敌人子弹: 检测Wall(1) + Player(2)
 		collision_layer = 16  # EnemyBullet
 		collision_mask = 3    # 1(Wall) + 2(Player)
 	else:
-		# 玩家子弹: 检测Wall(1) + Enemy(4)
+		# 玩家子弹: 检测Wall(1) + Enemy(8)
 		collision_layer = 8   # PlayerBullet
-		collision_mask = 5    # 1(Wall) + 4(Enemy)
+		collision_mask = 9    # 1(Wall) + 8(Enemy)
 
 	# 渲染层级: 子弹在玩家和敌人之上
 	z_index = 20
@@ -202,7 +202,11 @@ func _on_area_entered(area: Area2D) -> void:
 	if parent == source:
 		return
 
-	# 检查父节点是否是可伤害目标（怪物的子Area2D等）
+	# BUG-18 FIX: 同时检查 area 自身和 parent 的 take_damage，覆盖嵌套 Area2D 场景
+	if area.has_method("take_damage"):
+		_hit_target(area)
+		return
+
 	if parent and parent.has_method("take_damage"):
 		_hit_target(parent)
 

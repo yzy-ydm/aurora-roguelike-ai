@@ -133,7 +133,8 @@ func _test_event_room_flow_real_game_scene() -> void:
 	var fm: Node = _compile_script(
 		"extends Node\nvar _current_floor: Node = null\n"
 		+ "var current_room: Variant = null\n"
-		+ "func get_current_room() -> Variant: return current_room\n").new()
+		+ "func get_current_room() -> Variant: return current_room\n"
+		+ "func complete_current_room() -> bool: return _current_floor.complete_current_room() if _current_floor else false\n").new()
 	fm._current_floor = floor_stub
 	fm.current_room = room
 	root.add_child(fm)
